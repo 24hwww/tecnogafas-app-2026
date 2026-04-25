@@ -18,8 +18,35 @@ export interface ApiOrder {
   post_title: string;
   post_status: string;
   post_date: string;
-  order_total: string | null;
-  customer_id: number | null;
+  order_total: string | number;
+  items_count: number;
+  customer_id: number;
+  ocode: string;
+  seller_id: number;
+  post_author: number;
+  discount: string;
+  recargo: string;
+  transport: string;
+  methodpay: string;
+  iva: number;
+  items?: ApiOrderItem[];
+  customer?: ApiCustomer;
+}
+
+export interface ApiOrderItem {
+  product_id: number;
+  name: string;
+  quantity: number;
+  price: number;
+  vid?: string;
+}
+
+export interface ApiCustomer {
+  ID: number;
+  user_email: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
 }
 
 export interface Product {
@@ -30,6 +57,14 @@ export interface Product {
   stock: number;
   image?: string;
   description: string;
+  variations?: ProductVariation[];
+}
+
+export interface ProductVariation {
+  vid: string;
+  title: string;
+  stock: number;
+  price: number;
 }
 
 export interface Client {
@@ -56,10 +91,13 @@ export interface Order {
   total: number;
   status: 'Pendiente' | 'En Proceso' | 'Completado' | 'Cancelado';
   createdAt: string;
+  sellerId: string;
+  rawData: ApiOrder;
 }
 
 export interface CartItem extends Product {
   quantity: number;
+  vid?: string;
 }
 
 export interface Seller {

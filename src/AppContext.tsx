@@ -20,6 +20,10 @@ interface AppContextType {
   saveDraft: (details: any) => void;
   loadDraft: (draftId: string) => void;
   markDraftAsSent: (draftId: string) => void;
+  primaryColor: string;
+  fontSize: string;
+  setPrimaryColor: (color: string) => void;
+  setFontSize: (size: string) => void;
   refreshData: () => Promise<void>;
 }
 
@@ -35,6 +39,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
+  const [primaryColor, setPrimaryColor] = useState('#1662E1');
+  const [fontSize, setFontSize] = useState('16px');
 
   const refreshData = async () => {
     setIsLoading(true);
@@ -66,6 +72,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.error('Error parsing drafts', e);
       }
     }
+    const savedPrimaryColor = localStorage.getItem('tecnogafas_primaryColor');
+    if (savedPrimaryColor) setPrimaryColor(savedPrimaryColor);
+    const savedFontSize = localStorage.getItem('tecnogafas_fontSize');
+    if (savedFontSize) setFontSize(savedFontSize);
   }, []);
 
   const addToCart = (product: Product, quantity: number) => {
@@ -132,10 +142,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('tecnogafas_drafts', JSON.stringify(updatedDrafts));
   };
 
+  const updatePrimaryColor = (color: string) => {
+    setPrimaryColor(color);
+    localStorage.setItem('tecnogafas_primaryColor', color);
+  };
+
+  const updateFontSize = (size: string) => {
+    setFontSize(size);
+    localStorage.setItem('tecnogafas_fontSize', size);
+  };
+
   return (
     <AppContext.Provider value={{
-      products, clients, orders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, setSelectedClient,
-      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, refreshData
+      products, clients, orders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, setSelectedClient,
+      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, refreshData
     }}>
       {children}
     </AppContext.Provider>

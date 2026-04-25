@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, ClipboardList, ShoppingCart, Menu, X, Bell } from 'lucide-react';
+import { LayoutDashboard, Package, Users, ClipboardList, ShoppingCart, Menu, X, Bell, Settings } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useApp } from '../AppContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -12,6 +12,7 @@ const navItems = [
   { path: '/pedidos', label: 'Pedidos', icon: ClipboardList },
   { path: '/carrito', label: 'Carrito', icon: ShoppingCart },
   { path: '/notificaciones', label: 'Notificaciones', icon: Bell },
+  { path: '/configuracion', label: 'Configuración', icon: Settings },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {

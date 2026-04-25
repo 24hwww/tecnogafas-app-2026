@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { useApp } from '../AppContext';
-import { Package, Clock, CheckCircle2, ChevronRight, Save, Send } from 'lucide-react';
+import { Package, Clock, CheckCircle2, ChevronRight, Save, Send, X, FileText, Mail } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { OrderSkeleton } from '../components/Skeleton';
 import { useNavigate } from 'react-router-dom';
+import { Order } from '../types';
 
 export default function Orders() {
   const { orders, drafts, isLoading, loadDraft } = useApp();
   const navigate = useNavigate();
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   
   // Load only the 10 most recent orders
   const recentOrders = orders.slice(0, 10);
@@ -113,13 +116,55 @@ export default function Orders() {
               </div>
             </div>
             
-            <button className="w-full p-2 bg-surface-variant/50 text-[10px] font-bold text-center flex items-center justify-center gap-1">
+            <button 
+              onClick={() => setSelectedOrder(order)}
+              className="w-full p-2 bg-surface-variant/50 text-[10px] font-bold text-center flex items-center justify-center gap-1"
+            >
               Ver Detalles <ChevronRight size={12} />
             </button>
           </div>
         )))}
       </div>
     </div>
+
+    {selectedOrder && (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="m3-card !bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4">
+          <div className="flex justify-between items-center border-b border-outline/10 pb-4">
+            <h2 className="text-lg font-bold">Detalles Pedido {selectedOrder.id}</h2>
+            <button onClick={() => setSelectedOrder(null)}><X size={20}/></button>
+          </div>
+
+          <div className="space-y-2 text-sm">
+             <p><strong>Estado:</strong> {selectedOrder.status}</p>
+             <p><strong>Fecha:</strong> {selectedOrder.createdAt}</p>
+             <p><strong>Cliente:</strong> {selectedOrder.clientName}</p>
+             <p><strong>Total:</strong> {formatCurrency(selectedOrder.total)}</p>
+             <p><strong>Transporte:</strong> {selectedOrder.rawData.transport}</p>
+             <p><strong>Método de pago:</strong> {selectedOrder.rawData.methodpay}</p>
+          </div>
+          
+          <div className="space-y-2">
+            <p className="font-bold text-sm">Productos:</p>
+            {selectedOrder.items.map((item, i) => (
+              <div key={i} className="flex justify-between text-xs border-b border-outline/5 pb-1">
+                <span>{item.quantity} x {item.productName}</span>
+                <span>{formatCurrency(item.price * item.quantity)}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <button className="flex-1 m3-button-outlined flex items-center justify-center gap-2 py-2">
+              <Mail size={16} /> Enviar Email
+            </button>
+            <button className="flex-1 m3-button-filled flex items-center justify-center gap-2 py-2">
+              <FileText size={16} /> Descargar PDF
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
   );
 }

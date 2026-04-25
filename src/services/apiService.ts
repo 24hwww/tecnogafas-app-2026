@@ -7,13 +7,16 @@ export const apiService = {
     const res = await fetch(`${BASE_URL}/productos`);
     const json = await res.json();
     return (json.data || []).map((p: ApiProduct) => {
-      // Parse variations to get a price and stock
-      // e.g. "vid:23726|Título:5508 - C1 - BLACK|Stock:6|Precio:58000;..."
-      const variations = (p.variaciones || '').split(';');
-      const firstVar = variations[0] || '';
-      const priceMatch = firstVar.match(/Precio:(\d+)/);
-      const stockMatch = firstVar.match(/Stock:(\d+)/);
-      
+      // Parse variations e.g. "vid:23726|Título:5508 - C1 - BLACK|Stock:6|Precio:58000;..."
+      const variations = (p.variaciones || '').split(';').filter(v => v.trim() !== '').map(v => {
+        const parts = v.split('|');
+        const vid = parts[0]?.split(':')[1] || '';
+        const title = parts[1]?.split(':')[1] || '';
+        const stock = parseInt(parts[2]?.split(':')[1] || '0');
+        const price = parseInt(parts[3]?.split(':')[1] || '0');
+        return { vid, title, stock, price };
+      });
+
       const filtros = p.filtros || '';
       const category = filtros.includes('Post:') ? 'Otros' : (filtros.split('|')[0] || 'General').replace('Termino:', '');
 
@@ -21,9 +24,10 @@ export const apiService = {
         id: p.pid.toString(),
         name: p.nombre_producto,
         category,
-        price: priceMatch ? parseInt(priceMatch[1]) : 0,
-        stock: stockMatch ? parseInt(stockMatch[1]) : 0,
+        price: variations[0]?.price || 0,
+        stock: variations.reduce((acc, v) => acc + v.stock, 0),
         description: filtros,
+        variations
       };
     });
   },
@@ -46,11 +50,18 @@ export const apiService = {
     return (json.data || []).map((o: ApiOrder) => ({
       id: o.ID.toString(),
       clientId: o.customer_id?.toString() || '',
-      clientName: o.post_title.split('-')[0].replace('Pedido: ', ''),
-      items: [],
-      total: o.order_total ? parseFloat(o.order_total) : 0,
+      clientName: o.customer ? `${o.customer.first_name || ''} ${o.customer.last_name || ''}`.trim() : 'Sin cliente',
+      items: (o.items || []).map(i => ({
+        productId: i.product_id.toString(),
+        productName: i.name,
+        quantity: i.quantity,
+        price: i.price,
+      })),
+      total: o.order_total ? parseFloat(o.order_total.toString()) : 0,
       status: o.post_status === 'unattended' ? 'Pendiente' : 'Completado',
       createdAt: o.post_date,
+      sellerId: o.post_author.toString(),
+      rawData: o,
     }));
   },
 
@@ -70,7 +81,11 @@ export const apiService = {
       body: JSON.stringify({
         customer_id: clientId,
         seller_id: sellerId,
-        items: items.map(i => ({ id: i.id, quantity: i.quantity, price: i.price })),
+        items: items.map(i => {
+          const itemBody: any = { id: i.id, quantity: i.quantity, price: i.price };
+          if (i.vid) itemBody.vid = i.vid;
+          return itemBody;
+        }),
         iva: details.iva,
         discount: details.discount,
         recargo: details.recargo,

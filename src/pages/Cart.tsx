@@ -83,6 +83,13 @@ export default function Cart() {
         ))}
       </div>
 
+      <button
+        onClick={() => navigate('/productos')}
+        className="w-full text-center text-sm font-bold text-primary py-2 hover:bg-primary/5 transition-colors"
+      >
+        + Agregar más productos
+      </button>
+
       {/* Summary and Action */}
       <div className="m3-card !bg-surface sticky bottom-0 border-t-2 border-primary/10 shadow-lg -mx-4 px-4 py-6 space-y-4">
         <div className="flex justify-between items-center">
