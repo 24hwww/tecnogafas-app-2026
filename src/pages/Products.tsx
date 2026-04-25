@@ -3,9 +3,10 @@ import { useApp } from '../AppContext';
 import { ShoppingCart, Plus, Minus, Search, X, ChevronRight } from 'lucide-react';
 import { Product } from '../types';
 import { formatCurrency } from '../lib/utils';
+import { ProductSkeleton } from '../components/Skeleton';
 
 export default function Products() {
-  const { products, addToCart, cart, updateCartQuantity } = useApp();
+  const { products, addToCart, cart, updateCartQuantity, isLoading } = useApp();
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [search, setSearch] = useState('');
 
@@ -125,7 +126,9 @@ export default function Products() {
 
       {/* Product List */}
       <div className="space-y-3">
-        {filteredProducts.length === 0 ? (
+        {isLoading ? (
+          Array(6).fill(0).map((_, i) => <ProductSkeleton key={i} />)
+        ) : filteredProducts.length === 0 ? (
           <div className="text-center py-10 opacity-50 space-y-2">
              <div className="flex justify-center"><Search size={48} /></div>
              <p className="text-sm font-medium">No se encontraron productos</p>

@@ -1,6 +1,7 @@
 import { useApp } from '../AppContext';
 import { TrendingUp, Users, Package, ShoppingBag, RefreshCw } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
+import { Skeleton } from '../components/Skeleton';
 
 export default function Dashboard() {
   const { products, clients, orders, refreshData, isLoading } = useApp();
@@ -9,7 +10,7 @@ export default function Dashboard() {
     { label: 'Ventas Totales', value: formatCurrency(orders.reduce((acc, o) => acc + (o.total || 0), 0)), icon: TrendingUp, color: 'text-green-600' },
     { label: 'Clientes', value: clients.length, icon: Users, color: 'text-blue-600' },
     { label: 'Productos', value: products.length, icon: Package, color: 'text-purple-600' },
-    { label: 'Pedidos Hoy', value: orders.length, icon: ShoppingBag, color: 'text-orange-600' },
+    { label: 'Pedidos', value: orders.length, icon: ShoppingBag, color: 'text-orange-600' },
   ];
 
   return (
@@ -32,12 +33,12 @@ export default function Dashboard() {
               <span className="text-[10px] font-bold uppercase tracking-widest text-outline">{stat.label}</span>
               <stat.icon size={16} className="text-primary/40" />
             </div>
-            <div className="space-y-1">
-              <span className="text-2xl font-black tracking-tight text-on-surface">{stat.value}</span>
-              <div className="flex items-center gap-1">
-                <span className="text-[10px] font-bold text-green-400">+12.3%</span>
-                <span className="text-[10px] text-outline italic">objetivo</span>
-              </div>
+            <div className="space-y-1 w-full">
+              {isLoading ? (
+                <Skeleton className="h-8 w-24 mb-1" />
+              ) : (
+                <span className="text-2xl font-black tracking-tight text-on-surface">{stat.value}</span>
+              )}
             </div>
           </div>
         ))}
@@ -45,11 +46,29 @@ export default function Dashboard() {
 
       <div className="m3-card !bg-surface-variant/40 space-y-6">
         <div className="flex justify-between items-center">
-          <h3 className="font-bold text-sm uppercase tracking-widest text-primary">Pedidos Recientes</h3>
+          <h3 className="font-bold text-sm uppercase tracking-widest text-primary">Pedidos</h3>
           <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 font-bold">Ver todo</span>
         </div>
         
-        {orders.length === 0 ? (
+        {isLoading ? (
+          <div className="space-y-4">
+            {Array(4).fill(0).map((_, i) => (
+              <div key={i} className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-10 h-10" />
+                  <div className="space-y-2">
+                    <Skeleton className="w-24 h-4" />
+                    <Skeleton className="w-16 h-3" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="w-16 h-4" />
+                  <Skeleton className="w-10 h-2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : orders.length === 0 ? (
           <div className="text-center py-6">
             <ShoppingBag className="mx-auto text-outline mb-2 opacity-20" size={40} />
             <p className="text-xs text-outline font-medium">No hay pedidos registrados.</p>

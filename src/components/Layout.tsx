@@ -120,10 +120,15 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => navigate('/notificaciones')}
+              onClick={() => navigate('/carrito')}
               className="relative p-2 hover:bg-surface-variant text-on-surface-variant transition-colors"
             >
-              <Bell size={24} />
+              <ShoppingCart size={24} />
+              {cart.reduce((a, b) => a + b.quantity, 0) > 0 && (
+                <span className="absolute top-1 right-1 bg-primary text-on-primary text-[10px] w-4 h-4 flex items-center justify-center font-bold">
+                  {cart.reduce((a, b) => a + b.quantity, 0)}
+                </span>
+              )}
             </button>
             <button onClick={toggleSidebar} className="p-2 hover:bg-surface-variant text-on-surface-variant transition-colors">
               <Menu size={24} />

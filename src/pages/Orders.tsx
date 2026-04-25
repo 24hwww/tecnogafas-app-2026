@@ -1,11 +1,15 @@
 import { useApp } from '../AppContext';
 import { Package, Clock, CheckCircle2, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
+import { OrderSkeleton } from '../components/Skeleton';
 
 export default function Orders() {
-  const { orders } = useApp();
+  const { orders, isLoading } = useApp();
+  
+  // Load only the 10 most recent orders
+  const recentOrders = orders.slice(0, 10);
 
-  if (orders.length === 0) {
+  if (!isLoading && orders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center space-y-4 pt-20">
         <h3 className="text-xl font-bold">Sin Pedidos</h3>
@@ -16,10 +20,18 @@ export default function Orders() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Mis Pedidos</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Mis Pedidos</h2>
+        <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 font-bold uppercase tracking-wider">
+          Top 10 Recientes
+        </span>
+      </div>
       
       <div className="space-y-3">
-        {orders.map((order) => (
+        {isLoading ? (
+          Array(4).fill(0).map((_, i) => <OrderSkeleton key={i} />)
+        ) : (
+          recentOrders.map((order) => (
           <div key={order.id} className="m3-card !p-0 overflow-hidden">
             <div className="p-4 border-b border-outline/10 flex justify-between items-center bg-primary/5">
               <div>
@@ -51,7 +63,7 @@ export default function Orders() {
               Ver Detalles <ChevronRight size={12} />
             </button>
           </div>
-        ))}
+        )))}
       </div>
     </div>
   );

@@ -5,9 +5,10 @@ import { Client } from '../types';
 import { apiService } from '../services/apiService';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import { ClientSkeleton } from '../components/Skeleton';
 
 export default function Clients() {
-  const { clients, selectedClient, setSelectedClient, refreshData } = useApp();
+  const { clients, selectedClient, setSelectedClient, refreshData, isLoading } = useApp();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -74,7 +75,10 @@ export default function Clients() {
       </div>
 
       <div className="space-y-3">
-        {filteredClients.map((client) => {
+        {isLoading ? (
+          Array(6).fill(0).map((_, i) => <ClientSkeleton key={i} />)
+        ) : (
+          filteredClients.map((client) => {
           const isSelected = selectedClient?.id === client.id;
           return (
             <div 
@@ -117,7 +121,7 @@ export default function Clients() {
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
       
       {selectedClient && (
