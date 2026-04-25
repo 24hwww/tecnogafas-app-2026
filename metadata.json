@@ -1,0 +1,6 @@
+{
+  "name": "TecnoGafas PWA",
+  "description": "Aplicativo de gestión para TecnoGafas con módulos de dashboard, productos, clientes, pedidos y carrito.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

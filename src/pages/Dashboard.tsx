@@ -1,0 +1,81 @@
+import { useApp } from '../AppContext';
+import { TrendingUp, Users, Package, ShoppingBag, RefreshCw } from 'lucide-react';
+import { formatCurrency } from '../lib/utils';
+
+export default function Dashboard() {
+  const { products, clients, orders, refreshData, isLoading } = useApp();
+  
+  const stats = [
+    { label: 'Ventas Totales', value: formatCurrency(orders.reduce((acc, o) => acc + (o.total || 0), 0)), icon: TrendingUp, color: 'text-green-600' },
+    { label: 'Clientes', value: clients.length, icon: Users, color: 'text-blue-600' },
+    { label: 'Productos', value: products.length, icon: Package, color: 'text-purple-600' },
+    { label: 'Pedidos Hoy', value: orders.length, icon: ShoppingBag, color: 'text-orange-600' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-on-surface">Panel de Control</h2>
+        <button 
+          onClick={() => refreshData()} 
+          disabled={isLoading}
+          className={`p-2 hover:bg-surface-variant transition-all ${isLoading ? 'animate-spin' : ''}`}
+        >
+          <RefreshCw size={20} className="text-primary" />
+        </button>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4">
+        {stats.map((stat, i) => (
+          <div key={stat.label} className="m3-card !items-start space-y-4 animate-in fade-in slide-in-from-bottom-2" style={{ animationDelay: `${i * 100}ms` }}>
+            <div className="flex justify-between w-full">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-outline">{stat.label}</span>
+              <stat.icon size={16} className="text-primary/40" />
+            </div>
+            <div className="space-y-1">
+              <span className="text-2xl font-black tracking-tight text-on-surface">{stat.value}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-bold text-green-400">+12.3%</span>
+                <span className="text-[10px] text-outline italic">objetivo</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="m3-card !bg-surface-variant/40 space-y-6">
+        <div className="flex justify-between items-center">
+          <h3 className="font-bold text-sm uppercase tracking-widest text-primary">Pedidos Recientes</h3>
+          <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 font-bold">Ver todo</span>
+        </div>
+        
+        {orders.length === 0 ? (
+          <div className="text-center py-6">
+            <ShoppingBag className="mx-auto text-outline mb-2 opacity-20" size={40} />
+            <p className="text-xs text-outline font-medium">No hay pedidos registrados.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {orders.slice(0, 4).map((order) => (
+              <div key={order.id} className="flex justify-between items-center group">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-surface flex items-center justify-center font-bold text-primary border border-white/5">
+                    {order.clientName.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-on-surface">{order.clientName}</p>
+                    <p className="text-[10px] text-outline font-medium capitalize">{new Date(order.createdAt).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-black text-sm text-primary">{formatCurrency(order.total || 0)}</p>
+                  <p className="text-[8px] uppercase tracking-tighter text-outline">Confirmado</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

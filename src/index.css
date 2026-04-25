@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #D0BCFF;
+  --color-on-primary: #381E72;
+  --color-primary-container: #4F378B;
+  --color-on-primary-container: #EADDFF;
+  --color-secondary: #CCC2DC;
+  --color-on-secondary: #332D41;
+  --color-secondary-container: #4A4458;
+  --color-on-secondary-container: #E8DEF8;
+  --color-surface: #1C1B1F;
+  --color-on-surface: #E6E1E5;
+  --color-surface-variant: #2D2D2D;
+  --color-on-surface-variant: #CAC4D0;
+  --color-outline: #938F99;
+  
+  --radius-xl: 0px;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-sans;
+    -webkit-tap-highlight-color: transparent;
+  }
+  * {
+    @apply rounded-none!;
+  }
+}
+
+.m3-card {
+  @apply bg-surface-variant p-5 shadow-lg border border-white/5 transition-all;
+}
+
+.m3-button-filled {
+  @apply bg-primary text-on-primary px-6 py-3 font-black text-sm tracking-wide transition-all shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 disabled:grayscale disabled:opacity-50;
+}
+
+.m3-button-tonal {
+  @apply bg-secondary-container text-on-secondary-container px-6 py-3 font-black text-sm tracking-wide transition-all hover:bg-secondary-container/80 active:scale-95;
+}
+
+.m3-nav-item {
+  @apply flex flex-col items-center justify-center p-2 text-on-surface-variant transition-colors;
+}
+
+.m3-nav-item-active {
+  @apply text-primary;
+}
+
+.m3-nav-item-active .icon-container {
+  @apply bg-primary-container text-on-primary-container px-5 py-1 rounded-full;
+}

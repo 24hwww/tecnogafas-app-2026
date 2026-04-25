@@ -1,0 +1,17 @@
+{
+  "name": "TecnoGafas App",
+  "short_name": "TecnoGafas",
+  "description": "Gestión de óptica TecnoGafas",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FEF7FF",
+  "theme_color": "#6750A4",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1000/1000000.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
