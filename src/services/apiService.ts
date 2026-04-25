@@ -117,9 +117,12 @@ export const apiService = {
     const res = await fetch(`${BASE_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pin })
+      body: JSON.stringify({ PIN: pin })
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error('Login failed', res.status, await res.text());
+      return null;
+    }
     const json = await res.json();
     return {
       id: json.data?.id || 'default_seller',

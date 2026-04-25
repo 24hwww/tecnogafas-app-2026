@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, ClipboardList, ShoppingCart, Menu, X, Bell, Settings } from 'lucide-react';
+import { LayoutDashboard, Package, Users, ClipboardList, ShoppingCart, Menu, X, Bell, Settings, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useApp } from '../AppContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -35,7 +35,7 @@ export function Layout({ children }: { children: ReactNode }) {
             exit={{ opacity: 0 }}
             className="absolute inset-0 bg-surface/80 z-[100] flex flex-col items-center justify-center backdrop-blur-sm"
           >
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent animate-spin mb-4" />
+            <RefreshCw className="w-12 h-12 text-primary animate-spin mb-4" />
             <p className="text-sm font-bold text-primary animate-pulse tracking-widest uppercase">Sincronizando...</p>
           </motion.div>
         )}

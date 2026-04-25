@@ -37,7 +37,7 @@ export default function Orders() {
       {hasDrafts && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">Borradores (Local)</h2>
+            <h2 className="text-2xl font-bold">Borradores</h2>
             <span className="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 font-bold uppercase tracking-wider">
               No Enviados
             </span>

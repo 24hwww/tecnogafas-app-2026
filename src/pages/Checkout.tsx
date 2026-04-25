@@ -269,7 +269,7 @@ export default function Checkout() {
           className="w-full py-4 text-sm font-bold border-2 border-outline/20 flex items-center justify-center gap-2 hover:bg-surface-variant transition-colors"
         >
           <FileText size={18} />
-          Guardar Pedido (Local)
+          Guardar Pedido
         </button>
       </div>
 
