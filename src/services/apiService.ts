@@ -54,6 +54,15 @@ export const apiService = {
     }));
   },
 
+  async getSellers(): Promise<Seller[]> {
+    const res = await fetch(`${BASE_URL}/usuarios`);
+    const json = await res.json();
+    return (json.data || []).map((s: any) => ({
+      id: s.id?.toString() || Math.random().toString(),
+      name: s.name || 'Sin nombre',
+    }));
+  },
+
   async createOrder(clientId: string, items: any[], details: any, sellerId: string): Promise<boolean> {
     const res = await fetch(`${BASE_URL}/pedido`, {
       method: 'POST',

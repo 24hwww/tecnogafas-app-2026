@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 
 export default function Checkout() {
-  const { cart, selectedClient, clearCart, refreshData } = useApp();
+  const { cart, selectedClient, clearCart, refreshData, saveDraft, drafts, currentDraftId, markDraftAsSent } = useApp();
   const navigate = useNavigate();
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
@@ -28,6 +28,18 @@ export default function Checkout() {
     commit: '',
     otheremail: '',
   });
+
+  React.useEffect(() => {
+    if (currentDraftId) {
+      const draft = drafts.find(d => d.id === currentDraftId);
+      if (draft && draft.details) {
+        setForm(prev => ({
+          ...prev,
+          ...draft.details
+        }));
+      }
+    }
+  }, [currentDraftId, drafts]);
 
   if (!selectedClient || cart.length === 0) {
     return (
@@ -86,6 +98,9 @@ export default function Checkout() {
         });
         setIsPinModalOpen(false);
         setIsSuccessModalOpen(true);
+        if (currentDraftId) {
+          markDraftAsSent(currentDraftId);
+        }
         clearCart();
         await refreshData();
       } else {
@@ -238,12 +253,25 @@ export default function Checkout() {
         </div>
       </div>
 
-      <button 
-        onClick={() => setIsConfirmModalOpen(true)}
-        className="w-full m3-button-filled py-4 text-base font-bold shadow-lg"
-      >
-        Finalizar Pedido
-      </button>
+      <div className="space-y-3">
+        <button 
+          onClick={() => setIsConfirmModalOpen(true)}
+          className="w-full m3-button-filled py-4 text-base font-bold shadow-lg"
+        >
+          Finalizar Pedido
+        </button>
+
+        <button 
+          onClick={() => {
+            saveDraft(form);
+            navigate('/pedidos');
+          }}
+          className="w-full py-4 text-sm font-bold border-2 border-outline/20 flex items-center justify-center gap-2 hover:bg-surface-variant transition-colors"
+        >
+          <FileText size={18} />
+          Guardar Pedido (Local)
+        </button>
+      </div>
 
       {/* Confirmation Modal */}
       <AnimatePresence>
@@ -312,9 +340,9 @@ export default function Checkout() {
                 <input 
                   type="password"
                   inputMode="numeric"
-                  placeholder="••••"
-                  maxLength={6}
-                  className="w-full bg-surface-variant p-4 text-center text-3xl tracking-[1rem] font-black focus:ring-2 focus:ring-primary outline-none"
+                  placeholder="••••••••"
+                  maxLength={8}
+                  className="w-full bg-surface-variant p-4 text-center text-3xl tracking-[0.6rem] font-black focus:ring-2 focus:ring-primary outline-none"
                   value={sellerPin}
                   onChange={e => setSellerPin(e.target.value)}
                   autoFocus

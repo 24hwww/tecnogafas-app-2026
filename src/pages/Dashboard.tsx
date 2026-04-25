@@ -1,13 +1,15 @@
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { TrendingUp, Users, Package, ShoppingBag, RefreshCw } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { Skeleton } from '../components/Skeleton';
 
 export default function Dashboard() {
-  const { products, clients, orders, refreshData, isLoading } = useApp();
+  const { products, clients, orders, sellers, refreshData, isLoading } = useApp();
+  const navigate = useNavigate();
   
   const stats = [
-    { label: 'Ventas Totales', value: formatCurrency(orders.reduce((acc, o) => acc + (o.total || 0), 0)), icon: TrendingUp, color: 'text-green-600' },
+    { label: 'Vendedores', value: sellers.length, icon: TrendingUp, color: 'text-green-600' },
     { label: 'Clientes', value: clients.length, icon: Users, color: 'text-blue-600' },
     { label: 'Productos', value: products.length, icon: Package, color: 'text-purple-600' },
     { label: 'Pedidos', value: orders.length, icon: ShoppingBag, color: 'text-orange-600' },
@@ -47,7 +49,12 @@ export default function Dashboard() {
       <div className="m3-card !bg-surface-variant/40 space-y-6">
         <div className="flex justify-between items-center">
           <h3 className="font-bold text-sm uppercase tracking-widest text-primary">Pedidos</h3>
-          <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 font-bold">Ver todo</span>
+          <button 
+            onClick={() => navigate('/pedidos')}
+            className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 font-bold hover:bg-primary/20 transition-colors"
+          >
+            Ver todo
+          </button>
         </div>
         
         {isLoading ? (

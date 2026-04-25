@@ -66,3 +66,12 @@ export interface Seller {
   id: string;
   name: string;
 }
+
+export interface DraftOrder {
+  id: string;
+  client: Client;
+  items: CartItem[];
+  details: any;
+  status: 'no enviado' | 'enviado';
+  date: string;
+}
