@@ -13,6 +13,7 @@ export default function Checkout() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [orderFeedback, setOrderFeedback] = useState<{title: string, message: string, type: 'error' | 'success'} | null>(null);
   const [lastOrder, setLastOrder] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [sellerPin, setSellerPin] = useState('');
@@ -57,9 +58,68 @@ export default function Checkout() {
   const ivaAmount = (baseForIva * (Number(form.iva) || 0)) / 100;
   const finalTotal = baseForIva + ivaAmount;
 
-  const handleConfirmOrder = () => {
-    setIsConfirmModalOpen(false);
-    setIsPinModalOpen(true);
+  const handleConfirmOrder = async () => {
+    setIsLoading(true);
+    try {
+      const itemsToVerify = cart.map(item => {
+        const baseProductId = parseInt(item.id.split('-')[0]);
+        const verificationItem: any = {
+          product_id: baseProductId,
+          price: item.price,
+          stock: item.quantity
+        };
+        if (item.vid) {
+          verificationItem.variation_id = parseInt(item.vid);
+        }
+        return verificationItem;
+      });
+
+      const verifyRes = await apiService.verifyProducts(itemsToVerify);
+      if (!verifyRes.success || (verifyRes.failed && verifyRes.failed > 0)) {
+        const validationErrors: string[] = [];
+        if (verifyRes.results) {
+           verifyRes.results.forEach((r: any) => {
+             if (r.status !== 'ok') {
+               // Find original item in cart
+               let originalItem = cart.find(c => {
+                 const baseId = r.product_id != null ? r.product_id.toString() : '';
+                 const varId = r.variation_id != null ? r.variation_id.toString() : '';
+                 return baseId ? c.id.startsWith(baseId) && (!varId || c.vid === varId) : false;
+               });
+               const itemName = (r.variation_name ? `${r.product_name} - ${r.variation_name}` : r.product_name) || (originalItem ? originalItem.name : `Producto`);
+               if (r.status === 'not_found') {
+                  validationErrors.push(`El producto "${itemName}" ya no existe en el catálogo.`);
+               } else if (r.status === 'stock_changed' || r.status === 'both_changed') {
+                  validationErrors.push(`Stock insuficiente para "${itemName}". Disponible: ${r.current_stock || 0}`);
+               } else if (r.status === 'price_changed') {
+                  validationErrors.push(`El precio de "${itemName}" ha cambiado de ${formatCurrency(r.verified_price)} a ${formatCurrency(r.current_price)}.`);
+               }
+             }
+           });
+        }
+        setIsConfirmModalOpen(false);
+        setOrderFeedback({
+          title: 'Cambios en el catálogo',
+          message: "No se puede finalizar el pedido debido a los siguientes cambios:\n\n" + (validationErrors.length > 0 ? validationErrors.join("\n") : verifyRes.message),
+          type: 'error'
+        });
+        setIsLoading(false);
+        return; 
+      }
+      
+      setIsConfirmModalOpen(false);
+      setIsPinModalOpen(true);
+    } catch(e) {
+       console.error("Verification error", e);
+       setIsConfirmModalOpen(false);
+       setOrderFeedback({
+         title: 'Error de conexión',
+         message: 'Hubo un error al verificar los productos. Inténtelo de nuevo.',
+         type: 'error'
+       });
+    } finally {
+       setIsLoading(false);
+    }
   };
 
   const handleValidatePin = async () => {
@@ -69,6 +129,7 @@ export default function Checkout() {
     try {
       const sellerInfo = await apiService.loginSeller(sellerPin);
       if (sellerInfo) {
+        setIsPinModalOpen(false);
         setSeller(sellerInfo);
         await executeCreateOrder(sellerInfo.id);
       } else {
@@ -84,45 +145,6 @@ export default function Checkout() {
   const executeCreateOrder = async (sellerId: string) => {
     setIsLoading(true);
     try {
-      const latestProducts = await apiService.getProducts();
-      const validationErrors: string[] = [];
-
-      for (const item of cart) {
-        const baseProduct = latestProducts.find(p => p.id === item.id);
-        
-        if (!baseProduct) {
-          validationErrors.push(`El producto "${item.name}" ya no existe en el catálogo.`);
-          continue;
-        }
-
-        if (item.vid) {
-          const variation = baseProduct.variations?.find(v => v.vid === item.vid);
-          if (!variation) {
-            validationErrors.push(`La variación "${item.name}" ya no existe.`);
-          } else {
-            if (variation.stock < item.quantity) {
-              validationErrors.push(`Stock insuficiente para "${item.name}". Disponible: ${variation.stock}`);
-            }
-            if (variation.price !== item.price) {
-              validationErrors.push(`El precio de "${item.name}" ha cambiado de ${formatCurrency(item.price)} a ${formatCurrency(variation.price)}.`);
-            }
-          }
-        } else {
-          if (baseProduct.stock < item.quantity) {
-             validationErrors.push(`Stock insuficiente para "${item.name}". Disponible: ${baseProduct.stock}`);
-          }
-          if (baseProduct.price !== item.price) {
-             validationErrors.push(`El precio de "${item.name}" ha cambiado de ${formatCurrency(item.price)} a ${formatCurrency(baseProduct.price)}.`);
-          }
-        }
-      }
-
-      if (validationErrors.length > 0) {
-        alert("No se puede finalizar el pedido debido a cambios en el catálogo:\n\n" + validationErrors.join("\n"));
-        setIsLoading(false);
-        return; 
-      }
-
       const orderData = {
         ...form,
         total_calc: finalTotal
@@ -136,20 +158,30 @@ export default function Checkout() {
           total: finalTotal,
           date: new Date().toISOString() 
         });
-        setIsPinModalOpen(false);
         if (currentDraftId) {
           markDraftAsSent(currentDraftId);
         }
         clearCart();
         await refreshData();
-        alert(result.message || 'Envío de pedido exitoso');
-        navigate('/pedidos');
+        setOrderFeedback({
+          title: 'Pedido Exitoso',
+          message: result.message || 'Envío de pedido exitoso',
+          type: 'success'
+        });
       } else {
-        alert(result.message || 'Error al crear el pedido');
+        setOrderFeedback({
+          title: 'Error de Pedido',
+          message: result.message || 'Error al crear el pedido',
+          type: 'error'
+        });
       }
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || 'Error de conexión');
+      setOrderFeedback({
+        title: 'Error',
+        message: e?.message || 'Error de conexión',
+        type: 'error'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -409,6 +441,49 @@ export default function Checkout() {
                   </button>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Order Feedback Modal */}
+      <AnimatePresence>
+        {orderFeedback && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className={`relative bg-surface w-full max-w-sm p-8 shadow-2xl text-center space-y-6 border ${orderFeedback.type === 'success' ? 'border-primary/50' : 'border-red-500/50'}`}
+            >
+              <div className={`w-16 h-16 flex items-center justify-center mx-auto rounded-full ${orderFeedback.type === 'success' ? 'bg-primary/10 text-primary' : 'bg-red-500/10 text-red-500'}`}>
+                {orderFeedback.type === 'success' ? <Check size={32} /> : <X size={32} />}
+              </div>
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold uppercase tracking-tight">{orderFeedback.title}</h3>
+                <div className="text-sm text-on-surface-variant text-left bg-surface-variant/50 p-4 rounded whitespace-pre-wrap max-h-64 overflow-y-auto">
+                  {orderFeedback.message}
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => {
+                  const wasSuccess = orderFeedback.type === 'success';
+                  setOrderFeedback(null);
+                  if (wasSuccess) {
+                    navigate('/pedidos');
+                  }
+                }}
+                className={`w-full py-3 font-bold text-sm tracking-widest ${orderFeedback.type === 'success' ? 'bg-primary text-on-primary' : 'bg-red-500 text-white'}`}
+              >
+                ENTENDIDO
+              </button>
             </motion.div>
           </div>
         )}

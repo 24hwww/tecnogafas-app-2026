@@ -7,6 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { Order, DraftOrder } from '../types';
 import { toBlob } from 'html-to-image';
 
+import { apiService } from '../services/apiService';
+
 export default function Orders() {
   const { orders, drafts, isLoading, loadDraft } = useApp();
   const navigate = useNavigate();
@@ -14,8 +16,58 @@ export default function Orders() {
   const [sharingDraftId, setSharingDraftId] = useState<string | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
   
+  // New states for actions
+  const [actionType, setActionType] = useState<'pdf'|'email'|null>(null);
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pin, setPin] = useState('');
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState<{message: string, type: 'error'|'success'} | null>(null);
+
   // Load only the 10 most recent orders
   const recentOrders = orders.slice(0, 10);
+
+  const handleActionClick = (type: 'pdf'|'email') => {
+    setActionType(type);
+    setPinModalOpen(true);
+    setPin('');
+    setActionFeedback(null);
+  };
+
+  const executeAction = async () => {
+    if (!pin || !selectedOrder || !actionType) return;
+    setIsActionLoading(true);
+    setActionFeedback(null);
+    try {
+      const sellerInfo = await apiService.loginSeller(pin);
+      if (!sellerInfo) {
+        setActionFeedback({ message: 'PIN incorrecto o error de red', type: 'error' });
+        setIsActionLoading(false);
+        return;
+      }
+      
+      if (actionType === 'pdf') {
+        const success = await apiService.downloadOrderPdf(selectedOrder.id, sellerInfo.id);
+        if (success) {
+           setPinModalOpen(false);
+           alert('PDF descargado exitosamente');
+        } else {
+           setActionFeedback({ message: 'Error al descargar el PDF', type: 'error' });
+        }
+      } else if (actionType === 'email') {
+        const res = await apiService.sendOrderEmail(selectedOrder.id, sellerInfo.id);
+        if (res.success) {
+           setPinModalOpen(false);
+           alert('Email enviado exitosamente');
+        } else {
+           setActionFeedback({ message: res.message, type: 'error' });
+        }
+      }
+    } catch(e) {
+      setActionFeedback({ message: 'Error de conexión', type: 'error' });
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
   const handleLoadDraft = (id: string) => {
     loadDraft(id);
@@ -203,11 +255,56 @@ export default function Orders() {
           </div>
 
           <div className="flex gap-2 pt-4">
-            <button className="flex-1 m3-button-outlined flex items-center justify-center gap-2 py-2">
+            <button 
+               onClick={() => handleActionClick('email')}
+               className="flex-1 m3-button-outlined flex items-center justify-center gap-2 py-2"
+            >
               <Mail size={16} /> Enviar Email
             </button>
-            <button className="flex-1 m3-button-filled flex items-center justify-center gap-2 py-2">
+            <button 
+               onClick={() => handleActionClick('pdf')}
+               className="flex-1 m3-button-filled flex items-center justify-center gap-2 py-2"
+            >
               <FileText size={16} /> Descargar PDF
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {pinModalOpen && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !isActionLoading && setPinModalOpen(false)} />
+        <div className="relative bg-surface w-full max-w-xs p-6 shadow-2xl text-center space-y-4 rounded-xl">
+          <h3 className="text-xl font-bold uppercase tracking-tight">Autorización</h3>
+          <p className="text-sm text-on-surface-variant">Ingrese su PIN de vendedor para {actionType === 'pdf' ? 'descargar' : 'enviar'} el pedido</p>
+          <input
+            type="password"
+            autoFocus
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            className="w-full text-center text-2xl tracking-[0.5em] font-mono py-3 m3-input"
+            maxLength={6}
+            placeholder="••••••"
+          />
+          {actionFeedback && (
+            <p className={`text-xs font-bold ${actionFeedback.type === 'error' ? 'text-red-500' : 'text-primary'}`}>{actionFeedback.message}</p>
+          )}
+          <div className="flex gap-2 pt-2">
+            <button 
+              onClick={() => setPinModalOpen(false)}
+              disabled={isActionLoading}
+              className="flex-1 py-3 bg-surface-variant font-bold rounded"
+            >
+              Cancelar
+            </button>
+            <button 
+              onClick={executeAction}
+              disabled={!pin || pin.length < 4 || isActionLoading}
+              className="flex-1 py-3 m3-button-filled font-bold flex items-center justify-center gap-2"
+            >
+              {isActionLoading && <Loader2 size={16} className="animate-spin" />}
+              Confirmar
             </button>
           </div>
         </div>

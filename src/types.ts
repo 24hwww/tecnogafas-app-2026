@@ -1,5 +1,6 @@
 export interface ApiProduct {
-  pid: number;
+  product_id?: number;
+  pid?: number;
   nombre_producto: string;
   variaciones: string;
   filtros: string;
