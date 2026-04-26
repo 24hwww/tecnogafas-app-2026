@@ -59,8 +59,7 @@ export default function Checkout() {
 
   const handleConfirmOrder = () => {
     setIsConfirmModalOpen(false);
-    // setIsPinModalOpen(true);
-    executeCreateOrder('1');
+    setIsPinModalOpen(true);
   };
 
   const handleValidatePin = async () => {
@@ -89,8 +88,8 @@ export default function Checkout() {
         ...form,
         total_calc: finalTotal
       };
-      const success = await apiService.createOrder(selectedClient!.id, cart, orderData, sellerId);
-      if (success) {
+      const result = await apiService.createOrder(selectedClient!.id, cart, orderData, sellerId);
+      if (result.success) {
         setLastOrder({ 
           client: selectedClient, 
           items: cart, 
@@ -99,18 +98,19 @@ export default function Checkout() {
           date: new Date().toISOString() 
         });
         setIsPinModalOpen(false);
-        setIsSuccessModalOpen(true);
         if (currentDraftId) {
           markDraftAsSent(currentDraftId);
         }
         clearCart();
         await refreshData();
+        alert(result.message || 'Envío de pedido exitoso');
+        navigate('/pedidos');
       } else {
-        alert('Error al crear el pedido');
+        alert(result.message || 'Error al crear el pedido');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Error de conexión');
+      alert(e?.message || 'Error de conexión');
     } finally {
       setIsLoading(false);
     }
@@ -316,7 +316,7 @@ export default function Checkout() {
         )}
       </AnimatePresence>
 
-      {/* PIN Modal
+      {/* PIN Modal */}
       <AnimatePresence>
         {isPinModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -374,65 +374,7 @@ export default function Checkout() {
           </div>
         )}
       </AnimatePresence>
-      */}
 
-      {/* Success Modal */}
-      <AnimatePresence>
-        {isSuccessModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-primary/90"
-            />
-            <motion.div 
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="relative bg-surface w-full max-w-sm p-8 shadow-2x text-center space-y-6"
-            >
-              <div className="w-20 h-20 bg-green-900/30 text-green-400 flex items-center justify-center mx-auto">
-                <Check size={40} strokeWidth={3} />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-bold text-on-surface">¡Pedido Enviado!</h3>
-                <p className="text-sm text-on-surface-variant">El pedido se ha registrado correctamente.</p>
-              </div>
-
-              <div className="m3-card !bg-surface-variant text-left border-0 space-y-3">
-                <div className="flex justify-between text-xs">
-                  <span className="font-bold uppercase text-outline">Vendedor</span>
-                  <span className="font-bold text-on-surface">{seller?.name || 'Vendedor'}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="font-bold uppercase text-outline">ID Pedido</span>
-                  <span className="font-bold text-on-surface">#{Math.floor(Math.random() * 10000)}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="font-bold uppercase text-outline">Total</span>
-                  <span className="font-bold text-primary">{formatCurrency(lastOrder?.total || 0)}</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <button 
-                  onClick={generatePDF}
-                  className="w-full flex items-center justify-center gap-2 bg-secondary text-on-secondary py-3 font-bold"
-                >
-                  <Download size={18} />
-                  Descargar PDF
-                </button>
-                <button 
-                  onClick={() => navigate('/pedidos')}
-                  className="w-full py-3 bg-surface-variant text-on-surface-variant font-bold"
-                >
-                  Ver mis pedidos
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

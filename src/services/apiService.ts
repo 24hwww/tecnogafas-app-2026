@@ -74,40 +74,69 @@ export const apiService = {
     }));
   },
 
-  async createOrder(clientId: string, items: any[], details: any, sellerId: string): Promise<boolean> {
-    const res = await fetch(`${BASE_URL}/pedido`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customer_id: clientId,
-        seller_id: sellerId,
-        items: items.map(i => {
-          const itemBody: any = { id: i.id, quantity: i.quantity, price: i.price };
-          if (i.vid) itemBody.vid = i.vid;
-          return itemBody;
-        }),
-        iva: details.iva,
-        discount: details.discount,
-        recargo: details.recargo,
-        methodpay: details.methodpay,
-        transport: details.transport,
-        commit: details.commit,
-        otheremail: details.otheremail,
-        total_calc: details.total_calc
-      })
-    });
-    return res.ok;
+  async createOrder(clientId: string, items: any[], details: any, sellerId: string): Promise<{success: boolean, message: string}> {
+    try {
+      const res = await fetch(`${BASE_URL}/pedido`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sellerId}`
+        },
+        body: JSON.stringify({
+          client_id: parseInt(clientId),
+          seller_id: parseInt(sellerId), // Adding just in case the backend uses it explicitly but not in swagger
+          products: items.map(i => {
+            const itemBody: any = { 
+              product_id: parseInt(i.id), 
+              quantity: i.quantity, 
+              price: i.price 
+            };
+            if (i.vid) {
+              itemBody.variation_id = parseInt(i.vid);
+            }
+            return itemBody;
+          }),
+          iva: details.iva ? parseInt(details.iva) : null,
+          discount: details.discount ? details.discount.toString() : null,
+          recargo: details.recargo ? details.recargo.toString() : null,
+          methodpay: details.methodpay,
+          transport: details.transport,
+          notes: details.commit, // mapping commit to notes
+          otheremail: details.otheremail,
+          total_calc: details.total_calc
+        })
+      });
+      
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        data = {};
+      }
+      
+      return { 
+        success: res.ok, 
+        message: data?.message || (res.ok ? 'Pedido creado con éxito' : 'Error al crear el pedido') 
+      };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Error de conexión' };
+    }
   },
 
   async saveClient(client: Partial<Client>): Promise<boolean> {
+    const names = (client.name || '').split(' ');
+    const firstName = names[0] || 'Cliente';
+    const lastName = names.slice(1).join(' ') || '';
+
     const res = await fetch(`${BASE_URL}/cliente`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        ID: client.id || 0,
-        display_name: client.name,
-        user_email: client.email,
-        description: `Phone: ${client.phone} | Address: ${client.address}`
+        email: client.email || '',
+        first_name: firstName,
+        last_name: lastName,
+        billing_phone: client.phone || '',
+        billing_address: client.address || ''
       })
     });
     return res.ok;
@@ -117,7 +146,7 @@ export const apiService = {
     const res = await fetch(`${BASE_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ PIN: pin })
+      body: JSON.stringify({ data: pin })
     });
     if (!res.ok) {
       console.error('Login failed', res.status, await res.text());
@@ -125,8 +154,8 @@ export const apiService = {
     }
     const json = await res.json();
     return {
-      id: json.data?.id || 'default_seller',
-      name: json.data?.name || 'Vendedor'
+      id: json.user?.id?.toString() || 'default_seller',
+      name: json.user?.name || 'Vendedor'
     };
   }
 };
