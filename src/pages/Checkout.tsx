@@ -59,7 +59,8 @@ export default function Checkout() {
 
   const handleConfirmOrder = () => {
     setIsConfirmModalOpen(false);
-    setIsPinModalOpen(true);
+    // setIsPinModalOpen(true);
+    executeCreateOrder('1');
   };
 
   const handleValidatePin = async () => {
@@ -82,6 +83,7 @@ export default function Checkout() {
   };
 
   const executeCreateOrder = async (sellerId: string) => {
+    setIsLoading(true);
     try {
       const orderData = {
         ...form,
@@ -109,6 +111,8 @@ export default function Checkout() {
     } catch (e) {
       console.error(e);
       alert('Error de conexión');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -312,7 +316,7 @@ export default function Checkout() {
         )}
       </AnimatePresence>
 
-      {/* PIN Modal */}
+      {/* PIN Modal
       <AnimatePresence>
         {isPinModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -370,6 +374,7 @@ export default function Checkout() {
           </div>
         )}
       </AnimatePresence>
+      */}
 
       {/* Success Modal */}
       <AnimatePresence>

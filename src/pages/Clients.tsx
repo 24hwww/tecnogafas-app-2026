@@ -112,7 +112,7 @@ export default function Clients() {
                   ) : (
                     <button 
                       onClick={() => handleSelectClient(client)}
-                      className="text-[10px] font-bold text-primary underline"
+                      className="m3-button-filled text-sm px-4 py-2"
                     >
                       Agregar
                     </button>

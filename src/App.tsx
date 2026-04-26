@@ -4,6 +4,7 @@
  */
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Analytics } from "@vercel/analytics/react";
 import { AppProvider } from './AppContext';
 import { ThemeWrapper } from './components/ThemeWrapper';
 import { Layout } from './components/Layout';
@@ -35,6 +36,7 @@ export default function App() {
           </Layout>
         </Router>
       </ThemeWrapper>
+      <Analytics />
     </AppProvider>
   );
 }
