@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { get, set } from 'idb-keyval';
 import { Product, Client, Order, CartItem, DraftOrder, Seller } from './types';
 import { apiService } from './services/apiService';
 
@@ -58,12 +59,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // Save to cache
       try {
-        localStorage.setItem('tecnogafas_products', JSON.stringify(p));
-        localStorage.setItem('tecnogafas_clients', JSON.stringify(c));
+        await set('tecnogafas_products', p);
+        await set('tecnogafas_clients', c);
         // Omit rawData from orders before saving to cache to prevent quota exceeded
         const cachedOrders = o.map(({ rawData, ...rest }) => rest);
-        localStorage.setItem('tecnogafas_orders', JSON.stringify(cachedOrders));
-        localStorage.setItem('tecnogafas_sellers', JSON.stringify(s));
+        await set('tecnogafas_orders', cachedOrders);
+        await set('tecnogafas_sellers', s);
       } catch (cacheError) {
         console.warn('Failed to save to local storage cache (quota may be exceeded)', cacheError);
       }
@@ -78,15 +79,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const loadCachedAndRefresh = async () => {
       let hasCache = false;
       try {
-        const cachedProducts = localStorage.getItem('tecnogafas_products');
-        const cachedClients = localStorage.getItem('tecnogafas_clients');
-        const cachedOrders = localStorage.getItem('tecnogafas_orders');
-        const cachedSellers = localStorage.getItem('tecnogafas_sellers');
+        const cachedProducts = await get<Product[]>('tecnogafas_products');
+        const cachedClients = await get<Client[]>('tecnogafas_clients');
+        const cachedOrders = await get<Order[]>('tecnogafas_orders');
+        const cachedSellers = await get<Seller[]>('tecnogafas_sellers');
 
-        if (cachedProducts) { setProducts(JSON.parse(cachedProducts)); hasCache = true; }
-        if (cachedClients) { setClients(JSON.parse(cachedClients)); hasCache = true; }
-        if (cachedOrders) { setOrders(JSON.parse(cachedOrders)); hasCache = true; }
-        if (cachedSellers) { setSellers(JSON.parse(cachedSellers)); hasCache = true; }
+        if (cachedProducts) { setProducts(cachedProducts); hasCache = true; }
+        if (cachedClients) { setClients(cachedClients); hasCache = true; }
+        if (cachedOrders) { setOrders(cachedOrders); hasCache = true; }
+        if (cachedSellers) { setSellers(cachedSellers); hasCache = true; }
       } catch (e) {
         console.error('Error reading cache', e);
       }
