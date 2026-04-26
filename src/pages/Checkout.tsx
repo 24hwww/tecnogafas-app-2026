@@ -84,6 +84,45 @@ export default function Checkout() {
   const executeCreateOrder = async (sellerId: string) => {
     setIsLoading(true);
     try {
+      const latestProducts = await apiService.getProducts();
+      const validationErrors: string[] = [];
+
+      for (const item of cart) {
+        const baseProduct = latestProducts.find(p => p.id === item.id);
+        
+        if (!baseProduct) {
+          validationErrors.push(`El producto "${item.name}" ya no existe en el catálogo.`);
+          continue;
+        }
+
+        if (item.vid) {
+          const variation = baseProduct.variations?.find(v => v.vid === item.vid);
+          if (!variation) {
+            validationErrors.push(`La variación "${item.name}" ya no existe.`);
+          } else {
+            if (variation.stock < item.quantity) {
+              validationErrors.push(`Stock insuficiente para "${item.name}". Disponible: ${variation.stock}`);
+            }
+            if (variation.price !== item.price) {
+              validationErrors.push(`El precio de "${item.name}" ha cambiado de ${formatCurrency(item.price)} a ${formatCurrency(variation.price)}.`);
+            }
+          }
+        } else {
+          if (baseProduct.stock < item.quantity) {
+             validationErrors.push(`Stock insuficiente para "${item.name}". Disponible: ${baseProduct.stock}`);
+          }
+          if (baseProduct.price !== item.price) {
+             validationErrors.push(`El precio de "${item.name}" ha cambiado de ${formatCurrency(item.price)} a ${formatCurrency(baseProduct.price)}.`);
+          }
+        }
+      }
+
+      if (validationErrors.length > 0) {
+        alert("No se puede finalizar el pedido debido a cambios en el catálogo:\n\n" + validationErrors.join("\n"));
+        setIsLoading(false);
+        return; 
+      }
+
       const orderData = {
         ...form,
         total_calc: finalTotal

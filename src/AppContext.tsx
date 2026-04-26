@@ -24,7 +24,7 @@ interface AppContextType {
   fontSize: string;
   setPrimaryColor: (color: string) => void;
   setFontSize: (size: string) => void;
-  refreshData: () => Promise<void>;
+  refreshData: (showLoading?: boolean) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -42,8 +42,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [primaryColor, setPrimaryColor] = useState('#1662E1');
   const [fontSize, setFontSize] = useState('16px');
 
-  const refreshData = async () => {
-    setIsLoading(true);
+  const refreshData = async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
     try {
       const [p, c, o, s] = await Promise.all([
         apiService.getProducts(),
@@ -55,6 +55,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setClients(c);
       setOrders(o);
       setSellers(s);
+
+      // Save to cache
+      try {
+        localStorage.setItem('tecnogafas_products', JSON.stringify(p));
+        localStorage.setItem('tecnogafas_clients', JSON.stringify(c));
+        // Omit rawData from orders before saving to cache to prevent quota exceeded
+        const cachedOrders = o.map(({ rawData, ...rest }) => rest);
+        localStorage.setItem('tecnogafas_orders', JSON.stringify(cachedOrders));
+        localStorage.setItem('tecnogafas_sellers', JSON.stringify(s));
+      } catch (cacheError) {
+        console.warn('Failed to save to local storage cache (quota may be exceeded)', cacheError);
+      }
     } catch (error) {
       console.error('Failed to fetch data', error);
     } finally {
@@ -63,7 +75,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    refreshData();
+    const loadCachedAndRefresh = async () => {
+      let hasCache = false;
+      try {
+        const cachedProducts = localStorage.getItem('tecnogafas_products');
+        const cachedClients = localStorage.getItem('tecnogafas_clients');
+        const cachedOrders = localStorage.getItem('tecnogafas_orders');
+        const cachedSellers = localStorage.getItem('tecnogafas_sellers');
+
+        if (cachedProducts) { setProducts(JSON.parse(cachedProducts)); hasCache = true; }
+        if (cachedClients) { setClients(JSON.parse(cachedClients)); hasCache = true; }
+        if (cachedOrders) { setOrders(JSON.parse(cachedOrders)); hasCache = true; }
+        if (cachedSellers) { setSellers(JSON.parse(cachedSellers)); hasCache = true; }
+      } catch (e) {
+        console.error('Error reading cache', e);
+      }
+
+      if (hasCache) {
+        setIsLoading(false);
+      }
+      
+      // Refresh data in the background (or show loading if no cache)
+      await refreshData(!hasCache);
+    };
+
+    loadCachedAndRefresh();
+
     const savedDrafts = localStorage.getItem('tecnogafas_drafts');
     if (savedDrafts) {
       try {

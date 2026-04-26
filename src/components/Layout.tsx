@@ -96,7 +96,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
               <div className="p-4 border-t border-white/5">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary-container text-on-primary-container flex items-center justify-center text-xs font-bold">JD</div>
+                  <div className="w-8 h-8 bg-primary-container text-on-primary-container flex items-center justify-center text-xs font-bold">V</div>
                   <div className="text-xs">
                     <p className="font-semibold text-on-surface">Vendedor</p>
                     <p className="text-outline">Admin • v1.4.2</p>
