@@ -839,20 +839,24 @@
             },
             "Product": {
                 "properties": {
-                    "pid": {
+                    "product_id": {
+                        "description": "ID del producto",
                         "type": "integer",
                         "example": 123
                     },
                     "nombre_producto": {
+                        "description": "Nombre del producto",
                         "type": "string",
                         "example": "Producto Ejemplo"
                     },
                     "variaciones": {
+                        "description": "Variaciones del producto en formato string",
                         "type": "string",
                         "example": "vid:456|Título:Var1|Stock:10|Precio:99.99",
                         "nullable": true
                     },
                     "filtros": {
+                        "description": "Filtros aplicados al producto",
                         "type": "string",
                         "example": "Termino:Color|Slug:rojo",
                         "nullable": true
@@ -863,33 +867,89 @@
             "Customer": {
                 "properties": {
                     "ID": {
+                        "description": "ID único del cliente",
                         "type": "integer",
                         "example": 1
                     },
                     "user_login": {
+                        "description": "Nombre de usuario para login",
                         "type": "string",
                         "example": "cliente123"
                     },
                     "display_name": {
+                        "description": "Nombre para mostrar",
                         "type": "string",
                         "example": "Juan Pérez"
                     },
                     "user_email": {
+                        "description": "Email principal",
                         "type": "string",
                         "format": "email",
                         "example": "juan@email.com"
                     },
                     "first_name": {
+                        "description": "Nombre",
                         "type": "string",
                         "example": "Juan",
                         "nullable": true
                     },
                     "last_name": {
+                        "description": "Apellido",
                         "type": "string",
                         "example": "Pérez",
                         "nullable": true
                     },
+                    "billing_first_name": {
+                        "description": "Nombre de facturación",
+                        "type": "string",
+                        "example": "Juan",
+                        "nullable": true
+                    },
+                    "billing_last_name": {
+                        "description": "Apellido de facturación",
+                        "type": "string",
+                        "example": "Pérez",
+                        "nullable": true
+                    },
+                    "billing_company": {
+                        "description": "Empresa",
+                        "type": "string",
+                        "example": "Empresa S.A.",
+                        "nullable": true
+                    },
+                    "billing_email": {
+                        "description": "Email de facturación",
+                        "type": "string",
+                        "format": "email",
+                        "example": "facturacion@empresa.com",
+                        "nullable": true
+                    },
+                    "billing_address_1": {
+                        "description": "Dirección",
+                        "type": "string",
+                        "example": "Calle 123",
+                        "nullable": true
+                    },
+                    "billing_city": {
+                        "description": "Ciudad",
+                        "type": "string",
+                        "example": "Buenos Aires",
+                        "nullable": true
+                    },
+                    "billing_state": {
+                        "description": "Provincia/Estado",
+                        "type": "string",
+                        "example": "CABA",
+                        "nullable": true
+                    },
+                    "billing_country": {
+                        "description": "País (código ISO)",
+                        "type": "string",
+                        "example": "AR",
+                        "nullable": true
+                    },
                     "billing_phone": {
+                        "description": "Teléfono",
                         "type": "string",
                         "example": "+54 11 1234-5678",
                         "nullable": true
@@ -900,28 +960,34 @@
             "User": {
                 "properties": {
                     "ID": {
+                        "description": "ID único del vendedor",
                         "type": "integer",
                         "example": 1
                     },
                     "user_login": {
+                        "description": "PIN/Login del vendedor",
                         "type": "string",
                         "example": "vendedor123"
                     },
                     "display_name": {
+                        "description": "Nombre para mostrar",
                         "type": "string",
                         "example": "María Vendedora"
                     },
                     "user_email": {
+                        "description": "Email del vendedor",
                         "type": "string",
                         "format": "email",
                         "example": "maria@tecnogafas.com"
                     },
                     "first_name": {
+                        "description": "Nombre",
                         "type": "string",
                         "example": "María",
                         "nullable": true
                     },
                     "last_name": {
+                        "description": "Apellido",
                         "type": "string",
                         "example": "García",
                         "nullable": true
@@ -1063,24 +1129,30 @@
             "LoginResponse": {
                 "properties": {
                     "success": {
+                        "description": "Indica si la autenticación fue exitosa",
                         "type": "boolean",
                         "example": true
                     },
                     "message": {
+                        "description": "Mensaje descriptivo del resultado",
                         "type": "string",
                         "example": "PIN verificado"
                     },
                     "user": {
+                        "description": "Datos del usuario autenticado",
                         "properties": {
                             "id": {
+                                "description": "ID del usuario",
                                 "type": "integer",
                                 "example": 1
                             },
                             "name": {
+                                "description": "Nombre completo del usuario",
                                 "type": "string",
                                 "example": "María García"
                             },
                             "email": {
+                                "description": "Email del usuario",
                                 "type": "string",
                                 "format": "email",
                                 "example": "maria@tecnogafas.com"
@@ -1299,6 +1371,11 @@
                         "example": "Rojo",
                         "nullable": true
                     },
+                    "is_variable": {
+                        "description": "Indica si el producto tiene variaciones",
+                        "type": "boolean",
+                        "example": false
+                    },
                     "verified_price": {
                         "type": "number",
                         "format": "float",
@@ -1321,9 +1398,22 @@
                         "type": "boolean",
                         "example": true
                     },
-                    "stock_match": {
+                    "stock_sufficient": {
+                        "description": "Indica si hay stock suficiente para la cantidad solicitada",
                         "type": "boolean",
                         "example": true
+                    },
+                    "stock_needed": {
+                        "description": "Cantidad de stock solicitada",
+                        "type": "integer",
+                        "example": 10,
+                        "nullable": true
+                    },
+                    "stock_shortage": {
+                        "description": "Cuántas unidades faltan (0 si hay suficiente)",
+                        "type": "integer",
+                        "example": 0,
+                        "nullable": true
                     },
                     "status": {
                         "type": "string",
@@ -1331,10 +1421,17 @@
                             "ok",
                             "not_found",
                             "price_changed",
-                            "stock_changed",
-                            "both_changed"
+                            "out_of_stock",
+                            "insufficient_stock",
+                            "variation_required"
                         ],
                         "example": "ok"
+                    },
+                    "error": {
+                        "description": "Mensaje de error descriptivo si el status no es 'ok'",
+                        "type": "string",
+                        "example": null,
+                        "nullable": true
                     }
                 },
                 "type": "object"
@@ -1377,7 +1474,7 @@
         "securitySchemes": {
             "bearerAuth": {
                 "type": "http",
-                "description": "Ingrese el ID de usuario como Token Bearer (ej: '123')",
+                "description": "JWT Token Bearer (recomendado) o User ID Legacy. Para JWT: configure JWT_SECRET en .env e instale firebase/php-jwt. El token debe contener 'sub' con el user_id.",
                 "scheme": "bearer"
             }
         }

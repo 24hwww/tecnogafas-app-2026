@@ -87,12 +87,18 @@ export default function Checkout() {
                  return baseId ? c.id.startsWith(baseId) && (!varId || c.vid === varId) : false;
                });
                const itemName = (r.variation_name ? `${r.product_name} - ${r.variation_name}` : r.product_name) || (originalItem ? originalItem.name : `Producto`);
-               if (r.status === 'not_found') {
+               if (r.error) {
+                 validationErrors.push(r.error);
+               } else if (r.status === 'not_found') {
                   validationErrors.push(`El producto "${itemName}" ya no existe en el catálogo.`);
-               } else if (r.status === 'stock_changed' || r.status === 'both_changed') {
+               } else if (r.status === 'out_of_stock' || r.status === 'insufficient_stock' || r.status === 'stock_changed' || r.status === 'both_changed') {
                   validationErrors.push(`Stock insuficiente para "${itemName}". Disponible: ${r.current_stock || 0}`);
                } else if (r.status === 'price_changed') {
                   validationErrors.push(`El precio de "${itemName}" ha cambiado de ${formatCurrency(r.verified_price)} a ${formatCurrency(r.current_price)}.`);
+               } else if (r.status === 'variation_required') {
+                  validationErrors.push(`El producto "${itemName}" requiere seleccionar una variación.`);
+               } else {
+                  validationErrors.push(`Error con "${itemName}": ${r.status}`);
                }
              }
            });
