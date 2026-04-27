@@ -42,9 +42,7 @@ export default function Products() {
     const pFiltros = productFiltrosMap.get(p.id) || [];
     const matchesFilters = activeFilters.every((f, i) => pFiltros[i] === f);
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const hasStock = p.stock > 0;
-    const hasPrice = p.price > 0;
-    return matchesFilters && matchesSearch && hasStock && hasPrice;
+    return matchesFilters && matchesSearch;
   });
 
   const nextLevel = activeFilters.length;
@@ -54,9 +52,7 @@ export default function Products() {
     products.forEach(p => {
       const pFiltros = productFiltrosMap.get(p.id) || [];
       const matchesActive = activeFilters.every((f, i) => pFiltros[i] === f);
-      const hasStock = p.stock > 0;
-      const hasPrice = p.price > 0;
-      if (matchesActive && pFiltros[nextLevel] && hasStock && hasPrice) {
+      if (matchesActive && pFiltros[nextLevel]) {
         terms.add(pFiltros[nextLevel]);
       }
     });
@@ -75,23 +71,36 @@ export default function Products() {
 
   const handleOpenVariationModal = (product: Product) => {
     setVariationModalProduct(product);
-    const firstAvailable = product.variations?.find(v => v.stock > 0) || null;
-    setSelectedVariation(firstAvailable);
-    setVariationQuantity(firstAvailable ? 1 : 0);
+    const hasVariations = product.variations && product.variations.length > 0;
+    if (hasVariations) {
+      const firstAvailable = product.variations?.find(v => v.stock > 0) || product.variations?.[0] || null;
+      setSelectedVariation(firstAvailable);
+      setVariationQuantity(1);
+    } else {
+      setSelectedVariation(null);
+      setVariationQuantity(1);
+    }
   };
 
-  const handleAddToCartWithVariation = () => {
-    if (!variationModalProduct || !selectedVariation) return;
-    const productToAdd = {
-      ...variationModalProduct,
-      id: `${variationModalProduct.id}-${selectedVariation.vid}`,
-      name: `${variationModalProduct.name} - ${selectedVariation.title}`,
-      price: selectedVariation.price,
-      stock: selectedVariation.stock,
-      vid: selectedVariation.vid
-    };
-    addToCart(productToAdd, variationQuantity);
-    triggerAddedAnimation(productToAdd.id);
+  const handleAddToCartFromModal = () => {
+    if (!variationModalProduct) return;
+    
+    if (selectedVariation) {
+      const productToAdd = {
+        ...variationModalProduct,
+        id: `${variationModalProduct.id}-${selectedVariation.vid}`,
+        name: `${variationModalProduct.name} - ${selectedVariation.title}`,
+        price: selectedVariation.price,
+        stock: selectedVariation.stock,
+        vid: selectedVariation.vid
+      };
+      addToCart(productToAdd, variationQuantity);
+      triggerAddedAnimation(productToAdd.id);
+    } else {
+      addToCart(variationModalProduct, variationQuantity);
+      triggerAddedAnimation(variationModalProduct.id);
+    }
+    setVariationModalProduct(null);
   };
 
   return (
@@ -204,18 +213,11 @@ export default function Products() {
                       <motion.button 
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => {
-                          if (hasVariations) {
-                            handleOpenVariationModal(product);
-                          } else {
-                            addToCart(product, 1);
-                            triggerAddedAnimation(product.id);
-                          }
-                        }}
+                        onClick={() => handleOpenVariationModal(product)}
                         className={`m3-button-filled !px-4 !py-1.5 text-xs flex items-center gap-2 shadow-sm font-bold ${addedProductId === product.id ? '!bg-green-600' : ''}`}
                       >
                        {addedProductId === product.id ? <Check size={14} /> : <ShoppingCart size={14} />}
-                        {addedProductId === product.id ? 'Agregado' : hasVariations ? 'Seleccionar...' : 'Agregar'}
+                        {addedProductId === product.id ? 'Agregado' : (hasVariations ? 'Seleccionar...' : 'Agregar')}
                       </motion.button>
                     )}
                   </div>
@@ -228,76 +230,93 @@ export default function Products() {
       
       {/* Variation Modal */}
       {variationModalProduct && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="m3-card bg-white w-full max-w-sm space-y-4">
-            <h3 className="font-bold text-lg">{variationModalProduct.name}</h3>
-            
-            <div className="space-y-2">
-              {variationModalProduct.variations?.map(v => (
-                <button
-                  key={v.vid}
-                  disabled={v.stock === 0}
-                  onClick={() => v.stock > 0 && setSelectedVariation(v)}
-                  className={`w-full p-3 border text-left text-sm ${
-                    v.stock === 0 ? 'opacity-50 cursor-not-allowed' : ''
-                  } ${selectedVariation?.vid === v.vid ? 'border-primary bg-primary/10' : 'border-surface-variant'}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold">{v.title}</span>
-                    {addedProductId === `${variationModalProduct.id}-${v.vid}` && (
-                      <motion.div
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="text-green-600 bg-green-100 rounded-full p-0.5"
-                      >
-                        <Check size={14} />
-                      </motion.div>
-                    )}
-                  </div>
-                  <div className="text-base font-medium">Stock: {v.stock} | {formatCurrency(v.price)}</div>
-                </button>
-              ))}
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="m3-card bg-white w-full max-w-sm flex flex-col max-h-[90vh] shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="p-4 border-b border-surface-variant flex justify-between items-center">
+              <h3 className="font-black text-lg">{variationModalProduct.name}</h3>
+              <button onClick={() => setVariationModalProduct(null)} className="p-1 hover:bg-surface-variant rounded-full text-outline">
+                <X size={20} />
+              </button>
             </div>
-
-            <div className="flex items-center gap-4">
-              <label className="text-sm font-bold">Cantidad:</label>
-              <div className="flex items-center border border-surface-variant">
-                <button 
-                  onClick={() => setVariationQuantity(Math.max(1, variationQuantity - 1))}
-                  className="p-2 hover:bg-surface-variant"
-                >
-                  <Minus size={16} />
-                </button>
-                <input 
-                  type="number" 
-                  min="1" 
-                  max={selectedVariation?.stock || 0}
-                  value={variationQuantity}
-                  onChange={(e) => setVariationQuantity(Math.max(1, Math.min(parseInt(e.target.value) || 1, selectedVariation?.stock || 1)))}
-                  className="w-16 p-2 text-center border-x border-surface-variant"
-                />
-                <button 
-                  onClick={() => setVariationQuantity(Math.min(selectedVariation?.stock || 0, variationQuantity + 1))}
-                  className="p-2 hover:bg-surface-variant"
-                >
-                  <Plus size={16} />
-                </button>
+            
+            <div className="p-4 flex-1 overflow-y-auto space-y-4 scroll-smooth">
+              <div className="space-y-2">
+                {variationModalProduct.variations && variationModalProduct.variations.length > 0 ? (
+                  variationModalProduct.variations.map(v => (
+                    <button
+                      key={v.vid}
+                      onClick={() => setSelectedVariation(v)}
+                      className={`w-full p-4 border text-left rounded-xl transition-all ${
+                        selectedVariation?.vid === v.vid ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-surface-variant hover:border-outline/30'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm">{v.title}</span>
+                        {addedProductId === `${variationModalProduct.id}-${v.vid}` && (
+                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-green-600">
+                            <Check size={16} />
+                          </motion.div>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-baseline mt-1">
+                        <span className="text-xs text-outline font-medium">Stock: {v.stock}</span>
+                        <span className="text-base font-black text-primary">{formatCurrency(v.price)}</span>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-6 bg-primary/5 border border-primary/10 rounded-2xl text-center">
+                    <p className="text-sm font-bold text-primary">Producto base</p>
+                    <p className="text-sm font-black mt-1 text-primary-900">{formatCurrency(variationModalProduct.price)}</p>
+                    <p className="text-xs text-outline mt-1 font-medium">Stock disponible: {variationModalProduct.stock}</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <button onClick={() => setVariationModalProduct(null)} className="flex-1 m3-button-outlined">Cancelar</button>
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  handleAddToCartWithVariation();
-                }}
-                disabled={!selectedVariation || variationQuantity > (selectedVariation?.stock || 0) || variationQuantity < 1}
-                className="flex-1 m3-button-filled"
-              >
-                Agregar
-              </motion.button>
+            <div className="p-4 bg-surface-variant/20 border-t border-surface-variant space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold text-outline">Cantidad</span>
+                <div className="flex items-center bg-white border border-outline/20 rounded-full overflow-hidden shadow-sm">
+                  <button 
+                    onClick={() => setVariationQuantity(Math.max(1, variationQuantity - 1))}
+                    className="p-2 px-3 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors"
+                  >
+                    <Minus size={18} />
+                  </button>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    value={variationQuantity}
+                    onChange={(e) => setVariationQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-12 text-center bg-transparent focus:outline-none font-black text-primary"
+                  />
+                  <button 
+                    onClick={() => setVariationQuantity(variationQuantity + 1)}
+                    className="p-2 px-3 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors"
+                  >
+                    <Plus size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setVariationModalProduct(null)} 
+                  className="flex-1 py-3 text-sm font-bold text-outline hover:bg-surface-variant rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleAddToCartFromModal}
+                  disabled={variationQuantity < 1}
+                  className="flex-[2] py-3 bg-primary text-on-primary rounded-xl font-black text-sm shadow-lg shadow-primary/20 disabled:opacity-50"
+                >
+                  Confirmar Selección
+                </motion.button>
+              </div>
             </div>
           </div>
         </div>
