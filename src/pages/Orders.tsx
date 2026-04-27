@@ -26,7 +26,7 @@ export default function Orders() {
   // Load only the 10 most recent orders
   const recentOrders = orders.slice(0, 10);
 
-  const handleActionClick = (type: 'pdf'|'email') => {
+  const handleActionClick = (type: 'pdf'|'email'|'status') => {
     setActionType(type);
     setPinModalOpen(true);
     setPin('');
@@ -58,6 +58,16 @@ export default function Orders() {
         if (res.success) {
            setPinModalOpen(false);
            alert('Email enviado exitosamente');
+        } else {
+           setActionFeedback({ message: res.message, type: 'error' });
+        }
+      } else if (actionType === 'status') {
+        const newStatus = selectedOrder.status === 'Pendiente' ? 'attended' : 'unattended';
+        const res = await apiService.updateOrderStatus(selectedOrder.id, newStatus, sellerInfo.id);
+        if (res.success) {
+           setPinModalOpen(false);
+           alert(`Estado actualizado a ${newStatus === 'attended' ? 'Completado' : 'Pendiente'}`);
+           window.location.reload(); // Quick refresh
         } else {
            setActionFeedback({ message: res.message, type: 'error' });
         }
@@ -128,7 +138,7 @@ export default function Orders() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold">Borradores</h2>
-            <span className="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 font-bold uppercase tracking-wider">
+            <span className="text-[0.625rem] bg-secondary/10 text-secondary px-2 py-0.5 font-bold uppercase tracking-wider">
               No Enviados
             </span>
           </div>
@@ -139,7 +149,7 @@ export default function Orders() {
                 <div className="p-4 border-b border-outline/10 flex justify-between items-center bg-surface-variant/20">
                   <div>
                     <p className="font-bold text-sm">Borrador #{draft.id.slice(-6)}</p>
-                    <p className="text-[10px] text-on-surface-variant">{new Date(draft.date).toLocaleString()}</p>
+                    <p className="text-[0.625rem] text-on-surface-variant">{new Date(draft.date).toLocaleString()}</p>
                   </div>
                   <div className="flex items-center gap-1 text-xs font-bold text-outline">
                     <Save size={14} />
@@ -149,7 +159,7 @@ export default function Orders() {
                 
                 <div className="p-4 flex justify-between items-center bg-surface gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold mb-1">Cliente</p>
+                    <p className="text-[0.625rem] text-on-surface-variant uppercase tracking-wider font-bold mb-1">Cliente</p>
                     <p className="text-sm font-bold truncate leading-tight">{draft.client.name}</p>
                   </div>
                   <div className="flex gap-2 shrink-0">
@@ -163,7 +173,7 @@ export default function Orders() {
                     </button>
                     <button 
                       onClick={() => handleLoadDraft(draft.id)}
-                      className="m3-button-filled !py-2 !px-4 text-[10px] flex items-center gap-2 whitespace-nowrap h-[36px] shadow-sm hover:shadow-md transition-all active:scale-95 rounded-lg"
+                      className="m3-button-filled !py-2 !px-4 text-[0.625rem] flex items-center gap-2 whitespace-nowrap h-[2.25rem] shadow-sm hover:shadow-md transition-all active:scale-95 rounded-lg"
                     >
                       CONTINUAR <Send size={12} />
                     </button>
@@ -179,7 +189,7 @@ export default function Orders() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Mis Pedidos</h2>
-          <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 font-bold uppercase tracking-wider">
+          <span className="text-[0.625rem] bg-primary/10 text-primary px-2 py-0.5 font-bold uppercase tracking-wider">
             Top 10 Recientes
           </span>
         </div>
@@ -192,8 +202,7 @@ export default function Orders() {
             <div key={order.id} className="m3-card !p-0 overflow-hidden">
             <div className="p-4 border-b border-outline/10 flex justify-between items-center bg-primary/5">
               <div>
-                <p className="font-bold text-sm">Pedido #{order.id.slice(-6)}</p>
-                <p className="text-[10px] text-on-surface-variant">{new Date(order.createdAt).toLocaleString()}</p>
+                <p className="font-bold text-sm">{order.rawData.post_title} – {new Date(order.createdAt).toLocaleString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit'})}</p>
               </div>
               <div className="flex items-center gap-1 text-xs font-bold text-primary">
                 {order.status === 'Pendiente' ? <Clock size={14} /> : <CheckCircle2 size={14} />}
@@ -218,7 +227,7 @@ export default function Orders() {
             
             <button 
               onClick={() => setSelectedOrder(order)}
-              className="w-full p-2 bg-surface-variant/50 text-[10px] font-bold text-center flex items-center justify-center gap-1"
+              className="w-full p-2 bg-surface-variant/50 text-[0.625rem] font-bold text-center flex items-center justify-center gap-1"
             >
               Ver Detalles <ChevronRight size={12} />
             </button>
@@ -235,35 +244,97 @@ export default function Orders() {
             <button onClick={() => setSelectedOrder(null)}><X size={20}/></button>
           </div>
 
-          <div className="space-y-2 text-sm">
-             <p><strong>Estado:</strong> {selectedOrder.status}</p>
-             <p><strong>Fecha:</strong> {selectedOrder.createdAt}</p>
-             <p><strong>Cliente:</strong> {selectedOrder.clientName}</p>
-             <p><strong>Total:</strong> {formatCurrency(selectedOrder.total)}</p>
-             <p><strong>Transporte:</strong> {selectedOrder.rawData.transport}</p>
-             <p><strong>Método de pago:</strong> {selectedOrder.rawData.methodpay}</p>
+          <div className="space-y-4 text-sm bg-surface-variant/20 p-4 rounded-lg">
+             <div className="grid grid-cols-2 gap-4">
+               <div>
+                 <p className="text-[0.625rem] uppercase font-bold text-outline">Estado</p>
+                 <p className="font-bold">{selectedOrder.status}</p>
+               </div>
+               <div>
+                 <p className="text-[0.625rem] uppercase font-bold text-outline">Fecha</p>
+                 <p className="font-medium">{new Date(selectedOrder.createdAt).toLocaleString()}</p>
+               </div>
+               <div>
+                 <p className="text-[0.625rem] uppercase font-bold text-outline">Cliente</p>
+                 <p className="font-bold">{selectedOrder.clientName}</p>
+               </div>
+               <div>
+                 <p className="text-[0.625rem] uppercase font-bold text-outline">País</p>
+                 <p className="font-medium">{selectedOrder.rawData.billing?.country || 'N/A'}</p>
+               </div>
+               <div>
+                 <p className="text-[0.625rem] uppercase font-bold text-outline">Transporte</p>
+                 <p className="font-medium">{selectedOrder.rawData.transport || 'Sin definir'}</p>
+               </div>
+               <div>
+                 <p className="text-[0.625rem] uppercase font-bold text-outline">Método de Pago</p>
+                 <p className="font-medium">{selectedOrder.rawData.methodpay || 'Sin definir'}</p>
+               </div>
+             </div>
+
+             <div className="pt-2 border-t border-outline/10">
+               <p className="text-[0.625rem] uppercase font-bold text-outline">Observaciones</p>
+               <div className="bg-surface p-2 mt-1 rounded border border-outline/10 text-xs italic">
+                 {selectedOrder.rawData.customer_note || "Sin observaciones adicionales."}
+               </div>
+             </div>
+
+             <div className="pt-2 border-t border-outline/10">
+               <div className="flex justify-between text-xs mb-1">
+                 <span className="text-outline">Descuento</span>
+                 <span>{selectedOrder.rawData.discount}%</span>
+               </div>
+               <div className="flex justify-between text-xs mb-1">
+                 <span className="text-outline">Recargo</span>
+                 <span>{selectedOrder.rawData.recargo}%</span>
+               </div>
+               <div className="flex justify-between text-xs">
+                 <span className="text-outline">IVA</span>
+                 <span>{selectedOrder.rawData.iva}%</span>
+               </div>
+             </div>
           </div>
           
           <div className="space-y-2">
-            <p className="font-bold text-sm">Productos:</p>
-            {selectedOrder.items.map((item, i) => (
-              <div key={i} className="flex justify-between text-xs border-b border-outline/5 pb-1">
-                <span>{item.quantity} x {item.productName}</span>
-                <span>{formatCurrency(item.price * item.quantity)}</span>
-              </div>
-            ))}
+            <div className="flex justify-between items-center">
+              <p className="font-bold text-sm uppercase tracking-wider text-primary">Productos</p>
+              <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{selectedOrder.items.length} items</span>
+            </div>
+            <div className="max-h-[200px] overflow-y-auto pr-1 space-y-1">
+              {selectedOrder.items.map((item, i) => (
+                <div key={i} className="flex justify-between text-xs py-2 border-b border-outline/5 last:border-0">
+                  <div className="flex-1 pr-4">
+                    <p className="font-bold">{item.productName}</p>
+                    <p className="text-outline">{item.quantity} x {formatCurrency(item.price)}</p>
+                  </div>
+                  <div className="text-right font-bold">
+                    {formatCurrency(item.price * item.quantity)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="pt-2 border-t-2 border-primary/20 flex justify-between items-center">
+              <span className="font-black text-sm uppercase">Total Pedido</span>
+              <span className="font-black text-xl text-primary">{formatCurrency(selectedOrder.total)}</span>
+            </div>
           </div>
 
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-2 pt-4 flex-wrap">
+            <button 
+               onClick={() => handleActionClick('status')}
+               className="flex-1 min-w-[120px] m3-button-outlined flex items-center justify-center gap-2 py-2"
+            >
+              <CheckCircle2 size={16} /> {selectedOrder.status === 'Pendiente' ? 'Marcar Atendido' : 'Marcar Pendiente'}
+            </button>
             <button 
                onClick={() => handleActionClick('email')}
-               className="flex-1 m3-button-outlined flex items-center justify-center gap-2 py-2"
+               className="flex-1 min-w-[120px] m3-button-outlined flex items-center justify-center gap-2 py-2"
             >
               <Mail size={16} /> Enviar Email
             </button>
             <button 
                onClick={() => handleActionClick('pdf')}
-               className="flex-1 m3-button-filled flex items-center justify-center gap-2 py-2"
+               className="flex-1 min-w-[7.5rem] m3-button-filled flex items-center justify-center gap-2 py-2"
             >
               <FileText size={16} /> Descargar PDF
             </button>
@@ -282,10 +353,13 @@ export default function Orders() {
             type="password"
             autoFocus
             value={pin}
-            onChange={(e) => setPin(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value.replace(/[^0-9]/g, '');
+              setPin(value);
+            }}
             className="w-full text-center text-2xl tracking-[0.5em] font-mono py-3 m3-input"
-            maxLength={6}
-            placeholder="••••••"
+            maxLength={8}
+            placeholder="••••••••"
           />
           {actionFeedback && (
             <p className={`text-xs font-bold ${actionFeedback.type === 'error' ? 'text-red-500' : 'text-primary'}`}>{actionFeedback.message}</p>
@@ -300,7 +374,7 @@ export default function Orders() {
             </button>
             <button 
               onClick={executeAction}
-              disabled={!pin || pin.length < 4 || isActionLoading}
+              disabled={!pin || pin.length !== 8 || isActionLoading}
               className="flex-1 py-3 m3-button-filled font-bold flex items-center justify-center gap-2"
             >
               {isActionLoading && <Loader2 size={16} className="animate-spin" />}

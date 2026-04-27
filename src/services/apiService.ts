@@ -5,6 +5,7 @@ const BASE_URL = 'https://api.tecnogafas.com.ar';
 export const apiService = {
   async getProducts(): Promise<Product[]> {
     const res = await fetch(`${BASE_URL}/productos`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
     return (json.data || []).map((p: any) => {
       // Parse variations e.g. "variation_id:23726|Título:5508 - C1 - BLACK|Stock:6|Precio:58000;..."
@@ -35,6 +36,7 @@ export const apiService = {
 
   async getClients(): Promise<Client[]> {
     const res = await fetch(`${BASE_URL}/clientes`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
     return (json.data || []).map((c: ApiClient) => ({
       id: c.ID?.toString() || Math.random().toString(),
@@ -47,6 +49,7 @@ export const apiService = {
 
   async getOrders(): Promise<Order[]> {
     const res = await fetch(`${BASE_URL}/pedidos`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
     return (json.data || []).map((o: ApiOrder) => ({
       id: o.ID?.toString() || Math.random().toString(),
@@ -62,7 +65,10 @@ export const apiService = {
       status: o.post_status === 'unattended' ? 'Pendiente' : 'Completado',
       createdAt: o.post_date || '',
       sellerId: o.post_author?.toString() || '',
-      rawData: o,
+      rawData: {
+        ...o,
+        customer_note: o.customer_note || (o as any).notes || '', // Handle different possible field names
+      },
     }));
   },
 
@@ -89,6 +95,7 @@ export const apiService = {
 
   async getSellers(): Promise<Seller[]> {
     const res = await fetch(`${BASE_URL}/usuarios`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
     return (json.data || []).map((s: any) => ({
       id: s.ID?.toString() || Math.random().toString(),
@@ -113,19 +120,15 @@ export const apiService = {
           methodpay: details.methodpay || "",
           oemail: details.otheremail || "",
           iva: details.iva ? parseInt(details.iva) : 0,
-          products: items.reduce((acc: any, i) => {
+          products: items.map(i => {
             const parsedId = parseInt(i.id.toString().split('-')[0]);
-            const vid = i.vid ? parseInt(i.vid) : parsedId;
-            acc[vid.toString()] = { 
+            return { 
               product_id: parsedId, 
               variation_id: i.vid ? parseInt(i.vid) : undefined,
               quantity: i.quantity, 
-              qty: i.quantity,
-              price: i.price,
-              name: i.name
+              price: i.price
             };
-            return acc;
-          }, {})
+          })
         })
       });
       
@@ -217,6 +220,24 @@ export const apiService = {
       const data = await res.json();
       if (!res.ok) return { success: false, message: data.message || 'Error al enviar email' };
       return { success: true, message: data.message || 'Email enviado exitosamente' };
+    } catch (e: any) {
+      return { success: false, message: 'Error de conexión' };
+    }
+  },
+
+  async updateOrderStatus(orderId: string, status: 'attended' | 'unattended', sellerId: string): Promise<{success: boolean, message: string}> {
+    try {
+      const res = await fetch(`${BASE_URL}/pedido/${orderId}/estado`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${sellerId}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status })
+      });
+      const data = await res.json();
+      if (!res.ok) return { success: false, message: data.message || 'Error al actualizar estado' };
+      return { success: true, message: data.message || 'Estado actualizado' };
     } catch (e: any) {
       return { success: false, message: 'Error de conexión' };
     }

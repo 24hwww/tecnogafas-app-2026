@@ -90,7 +90,7 @@ export default function Clients() {
               <div className="flex justify-between items-start">
                 <div onClick={() => handleSelectClient(client)} className="flex-1 cursor-pointer">
                   <h4 className="font-semibold text-lg">{client.name}</h4>
-                  <p className="text-[10px] text-primary font-bold mb-1">{client.email}</p>
+                  <p className="text-[0.625rem] text-primary font-bold mb-1">{client.email}</p>
                   <p className="text-xs text-on-surface-variant flex items-center gap-1 mt-1">
                     <Phone size={12} /> {client.phone || 'Sin teléfono'}
                   </p>
@@ -127,7 +127,7 @@ export default function Clients() {
       {selectedClient && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[calc(448px-2rem)] bg-primary-container p-3 flex justify-between items-center shadow-lg border border-primary/20 z-40">
           <div className="flex-1">
-            <span className="text-[10px] uppercase font-black text-primary animate-pulse">Cliente para pedido</span>
+            <span className="text-[0.625rem] uppercase font-black text-primary animate-pulse">Cliente para pedido</span>
             <p className="text-sm font-bold text-on-primary-container truncate">{selectedClient.name}</p>
           </div>
           <div className="flex gap-4">
@@ -139,7 +139,7 @@ export default function Clients() {
             </button>
             <button 
               onClick={() => setSelectedClient(null)}
-              className="text-[10px] font-bold text-outline uppercase"
+              className="text-[0.625rem] font-bold text-outline uppercase"
             >
               Quitar
             </button>
@@ -171,7 +171,7 @@ export default function Clients() {
 
               <form onSubmit={handleSaveClient} className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase text-outline">Nombre Completo</label>
+                  <label className="text-[0.625rem] font-bold uppercase text-outline">Nombre Completo</label>
                   <input 
                     required
                     className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none"
@@ -180,7 +180,7 @@ export default function Clients() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase text-outline">Correo Electrónico</label>
+                  <label className="text-[0.625rem] font-bold uppercase text-outline">Correo Electrónico</label>
                   <input 
                     required type="email"
                     className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none"
@@ -190,7 +190,7 @@ export default function Clients() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase text-outline">Teléfono</label>
+                    <label className="text-[0.625rem] font-bold uppercase text-outline">Teléfono</label>
                     <input 
                       className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none"
                       value={editingClient?.phone || ''}
@@ -198,7 +198,7 @@ export default function Clients() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase text-outline">Dirección</label>
+                    <label className="text-[0.625rem] font-bold uppercase text-outline">Dirección</label>
                     <input 
                       className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none"
                       value={editingClient?.address || ''}

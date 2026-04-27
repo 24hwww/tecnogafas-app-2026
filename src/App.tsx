@@ -16,6 +16,7 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
+import TestApiPage from './pages/TestApiPage';
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
               <Route path="/pago" element={<Checkout />} />
               <Route path="/notificaciones" element={<Notifications />} />
               <Route path="/configuracion" element={<Settings />} />
+              <Route path="/test" element={<TestApiPage />} />
             </Routes>
           </Layout>
         </Router>

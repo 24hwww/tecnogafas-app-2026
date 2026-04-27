@@ -1,0 +1,1675 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "API TecnoGafas",
+        "description": "API RESTful para la gestión de productos, clientes y pedidos de TecnoGafas. Soporta operaciones CRUD, autenticación JWT, gestión de estados de pedidos, envío de emails con múltiples destinatarios y zona horaria Buenos Aires.",
+        "contact": {
+            "name": "Soporte TecnoGafas",
+            "email": "soporte@tecnogafas.com"
+        },
+        "version": "2.2.0"
+    },
+    "servers": [
+        {
+            "url": "/",
+            "description": "Servidor Principal"
+        }
+    ],
+    "paths": {
+        "/": {
+            "get": {
+                "tags": [
+                    "Documentación"
+                ],
+                "summary": "Mostrar documentación de la API (Swagger UI)",
+                "description": "Retorna la interfaz de Swagger UI para explorar la API",
+                "operationId": "getSwaggerUI",
+                "responses": {
+                    "200": {
+                        "description": "Swagger UI HTML"
+                    }
+                }
+            }
+        },
+        "/openapi-spec": {
+            "get": {
+                "tags": [
+                    "Documentación"
+                ],
+                "summary": "Obtener la especificación OpenAPI en formato JSON",
+                "description": "Retorna la especificación OpenAPI 3.0 en formato JSON",
+                "operationId": "getOpenAPISpec",
+                "responses": {
+                    "200": {
+                        "description": "Especificación OpenAPI JSON",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/productos": {
+            "get": {
+                "tags": [
+                    "Productos"
+                ],
+                "summary": "Listar todos los productos",
+                "description": "Obtiene el listado completo de productos con sus variaciones y filtros. Opcionalmente puede filtrar por SKU.",
+                "operationId": "getProductos",
+                "parameters": [
+                    {
+                        "name": "sku",
+                        "in": "path",
+                        "description": "SKU del producto para filtrar (opcional)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "lente-001"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de productos obtenida exitosamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer",
+                                                    "example": 100
+                                                },
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Product"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SuccessResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno del servidor",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/producto/verificar": {
+            "post": {
+                "tags": [
+                    "Productos"
+                ],
+                "summary": "Verificar múltiples productos y variaciones",
+                "description": "Verifica uno o varios productos comparando precio y stock con la base de datos. Retorna resultado individual por cada producto.",
+                "operationId": "verificarProductos",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProductVerificationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Verificación completada - ver campo 'failed' para ver productos alterados",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProductVerificationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inválidos o faltantes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno del servidor",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/clientes": {
+            "get": {
+                "tags": [
+                    "Clientes"
+                ],
+                "summary": "Listar todos los clientes",
+                "description": "Obtiene el listado completo de clientes registrados en el sistema. Opcionalmente puede filtrar por ID de cliente.",
+                "operationId": "getClientes",
+                "parameters": [
+                    {
+                        "name": "cid",
+                        "in": "path",
+                        "description": "ID del cliente para filtrar (opcional)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 123
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de clientes obtenida exitosamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer",
+                                                    "example": 50
+                                                },
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Customer"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SuccessResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno del servidor",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/cliente": {
+            "post": {
+                "tags": [
+                    "Clientes"
+                ],
+                "summary": "Crear o actualizar un cliente",
+                "description": "Crea un nuevo cliente o actualiza uno existente según el email proporcionado. Para actualizar un cliente existente, incluir el ID en la URL (/cliente/{id}).",
+                "operationId": "createOrUpdateCliente",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID del cliente a actualizar (opcional). Si se omite, se crea un nuevo cliente.",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 123
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CustomerRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Cliente creado o actualizado exitosamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "properties": {
+                                                "client_id": {
+                                                    "type": "integer",
+                                                    "example": 123
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SuccessResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Datos inválidos",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Cliente no encontrado (al actualizar)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Email duplicado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validación fallida",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno del servidor",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/usuarios": {
+            "get": {
+                "tags": [
+                    "Usuarios"
+                ],
+                "summary": "Listar usuarios (vendedores/admins)",
+                "description": "Obtiene el listado de usuarios con rol vendedor o administrador",
+                "operationId": "getUsuarios",
+                "responses": {
+                    "200": {
+                        "description": "Lista de usuarios obtenida exitosamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/User"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SuccessResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno del servidor",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/login": {
+            "post": {
+                "tags": [
+                    "Autenticación"
+                ],
+                "summary": "Login con PIN",
+                "description": "Autentica un vendedor o administrador usando su PIN numérico enviado como parámetro de consulta",
+                "operationId": "loginWithPIN",
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "query",
+                        "description": "PIN de autenticación (user_login numérico)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "1234"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Autenticación exitosa",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LoginResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "PIN no proporcionado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "PIN o credenciales inválidos",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno del servidor",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/pedidos": {
+            "get": {
+                "tags": [
+                    "Pedidos"
+                ],
+                "summary": "Listar todos los pedidos",
+                "description": "Obtiene el listado de pedidos con items, totales e información del cliente. Opcionalmente puede filtrar por ID de vendedor.",
+                "operationId": "getPedidos",
+                "parameters": [
+                    {
+                        "name": "userId",
+                        "in": "path",
+                        "description": "ID del vendedor para filtrar pedidos (opcional)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1044
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de pedidos obtenida exitosamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer",
+                                                    "example": 25
+                                                },
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Order"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SuccessResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno del servidor",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/pedido": {
+            "post": {
+                "tags": [
+                    "Pedidos"
+                ],
+                "summary": "Crear un nuevo pedido",
+                "description": "Crea un nuevo pedido de requisición con productos y datos del cliente",
+                "operationId": "createPedido",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OrderRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Pedido creado exitosamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "properties": {
+                                                "order_id": {
+                                                    "type": "integer",
+                                                    "example": 1234
+                                                },
+                                                "order_total": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 299.99
+                                                },
+                                                "items_count": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SuccessResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Datos inválidos",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autorizado - Token Bearer requerido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Prohibido - Usuario sin permisos",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Cliente no encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validación fallida",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno del servidor",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/pedido/{id}/pdf": {
+            "get": {
+                "tags": [
+                    "Pedidos"
+                ],
+                "summary": "Descargar pedido en PDF",
+                "description": "Genera y descarga un PDF del pedido usando la plantilla invoice-2.html",
+                "operationId": "downloadPedidoPdf",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID del pedido",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1234
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF generado exitosamente (Content-Type: application/pdf, Content-Disposition: attachment)"
+                    },
+                    "401": {
+                        "description": "No autorizado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Pedido no encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno del servidor",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/pedido/{id}/enviar": {
+            "post": {
+                "tags": [
+                    "Pedidos"
+                ],
+                "summary": "Enviar pedido por email",
+                "description": "Envía el pedido por email al vendedor, al cliente y al email alternativo (oemail) si está especificado en el pedido. Requiere autenticación de vendedor.",
+                "operationId": "enviarPedidoEmail",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID del pedido",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1234
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Email enviado exitosamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "properties": {
+                                                "recipients": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "example": [
+                                                        "vendedor@email.com",
+                                                        "cliente@email.com",
+                                                        "alternativo@email.com"
+                                                    ]
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SuccessResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autorizado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Pedido no encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno del servidor o SMTP no configurado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/pedido/{id}/estado": {
+            "put": {
+                "tags": [
+                    "Pedidos"
+                ],
+                "summary": "Actualizar estado del pedido",
+                "description": "Actualiza el estado de un pedido a 'attended' (atendido) o 'unattended' (desatendido). Requiere autenticación de vendedor.",
+                "operationId": "updatePedidoEstado",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID del pedido",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1234
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "status": {
+                                        "description": "Nuevo estado del pedido",
+                                        "type": "string",
+                                        "enum": [
+                                            "attended",
+                                            "unattended"
+                                        ],
+                                        "example": "attended"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Estado actualizado exitosamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "properties": {
+                                                "order_id": {
+                                                    "type": "integer",
+                                                    "example": 1234
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "attended"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SuccessResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Estado inválido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autorizado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Prohibido - Usuario sin permisos",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Pedido no encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno del servidor",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "PaginationMeta": {
+                "properties": {
+                    "total": {
+                        "type": "integer",
+                        "example": 100
+                    },
+                    "page": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "per_page": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "total_pages": {
+                        "type": "integer",
+                        "example": 10
+                    }
+                },
+                "type": "object"
+            },
+            "ErrorResponse": {
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Error descripción"
+                    },
+                    "code": {
+                        "type": "integer",
+                        "example": 400,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Product": {
+                "properties": {
+                    "product_id": {
+                        "description": "ID del producto",
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "nombre_producto": {
+                        "description": "Nombre del producto",
+                        "type": "string",
+                        "example": "Producto Ejemplo"
+                    },
+                    "variaciones": {
+                        "description": "Variaciones del producto en formato string",
+                        "type": "string",
+                        "example": "vid:456|Título:Var1|Stock:10|Precio:99.99",
+                        "nullable": true
+                    },
+                    "filtros": {
+                        "description": "Filtros aplicados al producto",
+                        "type": "string",
+                        "example": "Termino:Color|Slug:rojo",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Customer": {
+                "properties": {
+                    "ID": {
+                        "description": "ID único del cliente",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "user_login": {
+                        "description": "Nombre de usuario para login",
+                        "type": "string",
+                        "example": "cliente123"
+                    },
+                    "display_name": {
+                        "description": "Nombre para mostrar",
+                        "type": "string",
+                        "example": "Juan Pérez"
+                    },
+                    "user_email": {
+                        "description": "Email principal",
+                        "type": "string",
+                        "format": "email",
+                        "example": "juan@email.com"
+                    },
+                    "first_name": {
+                        "description": "Nombre",
+                        "type": "string",
+                        "example": "Juan",
+                        "nullable": true
+                    },
+                    "last_name": {
+                        "description": "Apellido",
+                        "type": "string",
+                        "example": "Pérez",
+                        "nullable": true
+                    },
+                    "billing_first_name": {
+                        "description": "Nombre de facturación",
+                        "type": "string",
+                        "example": "Juan",
+                        "nullable": true
+                    },
+                    "billing_last_name": {
+                        "description": "Apellido de facturación",
+                        "type": "string",
+                        "example": "Pérez",
+                        "nullable": true
+                    },
+                    "billing_company": {
+                        "description": "Empresa",
+                        "type": "string",
+                        "example": "Empresa S.A.",
+                        "nullable": true
+                    },
+                    "billing_email": {
+                        "description": "Email de facturación",
+                        "type": "string",
+                        "format": "email",
+                        "example": "facturacion@empresa.com",
+                        "nullable": true
+                    },
+                    "billing_address_1": {
+                        "description": "Dirección",
+                        "type": "string",
+                        "example": "Calle 123",
+                        "nullable": true
+                    },
+                    "billing_city": {
+                        "description": "Ciudad",
+                        "type": "string",
+                        "example": "Buenos Aires",
+                        "nullable": true
+                    },
+                    "billing_state": {
+                        "description": "Provincia/Estado",
+                        "type": "string",
+                        "example": "CABA",
+                        "nullable": true
+                    },
+                    "billing_country": {
+                        "description": "País (código ISO)",
+                        "type": "string",
+                        "example": "AR",
+                        "nullable": true
+                    },
+                    "billing_phone": {
+                        "description": "Teléfono",
+                        "type": "string",
+                        "example": "+54 11 1234-5678",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "User": {
+                "properties": {
+                    "ID": {
+                        "description": "ID único del vendedor",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "user_login": {
+                        "description": "PIN/Login del vendedor",
+                        "type": "string",
+                        "example": "vendedor123"
+                    },
+                    "display_name": {
+                        "description": "Nombre para mostrar",
+                        "type": "string",
+                        "example": "María Vendedora"
+                    },
+                    "user_email": {
+                        "description": "Email del vendedor",
+                        "type": "string",
+                        "format": "email",
+                        "example": "maria@tecnogafas.com"
+                    },
+                    "first_name": {
+                        "description": "Nombre",
+                        "type": "string",
+                        "example": "María",
+                        "nullable": true
+                    },
+                    "last_name": {
+                        "description": "Apellido",
+                        "type": "string",
+                        "example": "García",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "OrderItem": {
+                "properties": {
+                    "product_id": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "variation_id": {
+                        "type": "integer",
+                        "example": 456,
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Producto Ejemplo"
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "price": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 99.99
+                    },
+                    "total": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 199.98
+                    }
+                },
+                "type": "object"
+            },
+            "Order": {
+                "properties": {
+                    "ID": {
+                        "type": "integer",
+                        "example": 1001
+                    },
+                    "post_title": {
+                        "type": "string",
+                        "example": "Pedido 20240115-123456"
+                    },
+                    "post_status": {
+                        "type": "string",
+                        "example": "unattended"
+                    },
+                    "post_date": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-01-15T12:34:56"
+                    },
+                    "post_author": {
+                        "type": "integer",
+                        "example": 1044
+                    },
+                    "order_total": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 199.99,
+                        "nullable": true
+                    },
+                    "items_count": {
+                        "type": "integer",
+                        "example": 2,
+                        "nullable": true
+                    },
+                    "customer_id": {
+                        "type": "integer",
+                        "example": 990,
+                        "nullable": true
+                    },
+                    "ocode": {
+                        "type": "string",
+                        "example": "ABC123",
+                        "nullable": true
+                    },
+                    "seller_id": {
+                        "type": "integer",
+                        "example": 1044,
+                        "nullable": true
+                    },
+                    "discount": {
+                        "type": "string",
+                        "example": "0",
+                        "nullable": true
+                    },
+                    "recargo": {
+                        "type": "string",
+                        "example": "0",
+                        "nullable": true
+                    },
+                    "transport": {
+                        "type": "string",
+                        "example": "juanjo",
+                        "nullable": true
+                    },
+                    "methodpay": {
+                        "type": "string",
+                        "example": "echeq 30/60/90",
+                        "nullable": true
+                    },
+                    "iva": {
+                        "type": "integer",
+                        "example": 21,
+                        "nullable": true
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OrderItem"
+                        }
+                    },
+                    "customer": {
+                        "$ref": "#/components/schemas/Customer"
+                    }
+                },
+                "type": "object"
+            },
+            "LoginRequest": {
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "description": "PIN de autenticación (user_login)",
+                        "type": "string",
+                        "example": "1234"
+                    }
+                },
+                "type": "object"
+            },
+            "LoginResponse": {
+                "properties": {
+                    "success": {
+                        "description": "Indica si la autenticación fue exitosa",
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "message": {
+                        "description": "Mensaje descriptivo del resultado",
+                        "type": "string",
+                        "example": "PIN verificado"
+                    },
+                    "user": {
+                        "description": "Datos del usuario autenticado",
+                        "properties": {
+                            "id": {
+                                "description": "ID del usuario",
+                                "type": "integer",
+                                "example": 1
+                            },
+                            "name": {
+                                "description": "Nombre completo del usuario",
+                                "type": "string",
+                                "example": "María García"
+                            },
+                            "email": {
+                                "description": "Email del usuario",
+                                "type": "string",
+                                "format": "email",
+                                "example": "maria@tecnogafas.com"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "CustomerRequest": {
+                "required": [
+                    "email",
+                    "first_name",
+                    "last_name"
+                ],
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "cliente@email.com"
+                    },
+                    "first_name": {
+                        "type": "string",
+                        "example": "Juan"
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "example": "Pérez"
+                    },
+                    "user_login": {
+                        "type": "string",
+                        "example": "juan.perez",
+                        "nullable": true
+                    },
+                    "billing_address": {
+                        "type": "string",
+                        "example": "Calle 123",
+                        "nullable": true
+                    },
+                    "billing_city": {
+                        "type": "string",
+                        "example": "Buenos Aires",
+                        "nullable": true
+                    },
+                    "billing_state": {
+                        "type": "string",
+                        "example": "CABA",
+                        "nullable": true
+                    },
+                    "billing_country": {
+                        "type": "string",
+                        "example": "AR",
+                        "nullable": true
+                    },
+                    "billing_phone": {
+                        "type": "string",
+                        "example": "+54 11 1234-5678",
+                        "nullable": true
+                    },
+                    "billing_company": {
+                        "type": "string",
+                        "example": "Empresa S.A.",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "OrderRequest": {
+                "required": [
+                    "client_id",
+                    "products"
+                ],
+                "properties": {
+                    "client_id": {
+                        "description": "ID del cliente",
+                        "type": "integer",
+                        "example": 990
+                    },
+                    "notes": {
+                        "description": "Notas adicionales del pedido",
+                        "type": "string",
+                        "example": "Notas del pedido",
+                        "nullable": true
+                    },
+                    "discount": {
+                        "description": "Porcentaje de descuento",
+                        "type": "string",
+                        "example": "10",
+                        "nullable": true
+                    },
+                    "recargo": {
+                        "description": "Monto de recargo fijo",
+                        "type": "string",
+                        "example": "5",
+                        "nullable": true
+                    },
+                    "transport": {
+                        "description": "Método de transporte",
+                        "type": "string",
+                        "example": "juanjo",
+                        "nullable": true
+                    },
+                    "methodpay": {
+                        "description": "Método de pago",
+                        "type": "string",
+                        "example": "echeq 30/60/90",
+                        "nullable": true
+                    },
+                    "iva": {
+                        "description": "Porcentaje de IVA",
+                        "type": "integer",
+                        "example": 21,
+                        "nullable": true
+                    },
+                    "oemail": {
+                        "description": "Email alternativo para recibir copia del pedido",
+                        "type": "string",
+                        "format": "email",
+                        "example": "alternativo@email.com",
+                        "nullable": true
+                    },
+                    "products": {
+                        "description": "Lista de productos del pedido",
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "product_id": {
+                                    "description": "ID del producto",
+                                    "type": "integer",
+                                    "example": 123
+                                },
+                                "variation_id": {
+                                    "description": "ID de variación (si aplica)",
+                                    "type": "integer",
+                                    "example": 456,
+                                    "nullable": true
+                                },
+                                "quantity": {
+                                    "description": "Cantidad solicitada",
+                                    "type": "integer",
+                                    "example": 2
+                                },
+                                "price": {
+                                    "description": "Precio unitario (será validado contra DB)",
+                                    "type": "number",
+                                    "format": "float",
+                                    "example": 99.99,
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "SuccessResponse": {
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Operación exitosa"
+                    }
+                },
+                "type": "object"
+            },
+            "ProductVerificationItem": {
+                "required": [
+                    "product_id",
+                    "price",
+                    "stock"
+                ],
+                "properties": {
+                    "product_id": {
+                        "description": "ID del producto",
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "variation_id": {
+                        "description": "ID de la variación (opcional)",
+                        "type": "integer",
+                        "example": 456,
+                        "nullable": true
+                    },
+                    "price": {
+                        "description": "Precio a verificar",
+                        "type": "number",
+                        "format": "float",
+                        "example": 99.99
+                    },
+                    "stock": {
+                        "description": "Stock a verificar",
+                        "type": "integer",
+                        "example": 10
+                    }
+                },
+                "type": "object"
+            },
+            "ProductVerificationRequest": {
+                "required": [
+                    "products"
+                ],
+                "properties": {
+                    "products": {
+                        "description": "Array de productos a verificar (mínimo 1, máximo 50)",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ProductVerificationItem"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ProductVerificationResult": {
+                "properties": {
+                    "product_id": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "variation_id": {
+                        "type": "integer",
+                        "example": 456,
+                        "nullable": true
+                    },
+                    "product_name": {
+                        "type": "string",
+                        "example": "Lentes Ejemplo"
+                    },
+                    "variation_name": {
+                        "type": "string",
+                        "example": "Rojo",
+                        "nullable": true
+                    },
+                    "is_variable": {
+                        "description": "Indica si el producto tiene variaciones",
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "verified_price": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 99.99
+                    },
+                    "verified_stock": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "current_price": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 99.99
+                    },
+                    "current_stock": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "price_match": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "stock_sufficient": {
+                        "description": "Indica si hay stock suficiente para la cantidad solicitada",
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "stock_needed": {
+                        "description": "Cantidad de stock solicitada",
+                        "type": "integer",
+                        "example": 10,
+                        "nullable": true
+                    },
+                    "stock_shortage": {
+                        "description": "Cuántas unidades faltan (0 si hay suficiente)",
+                        "type": "integer",
+                        "example": 0,
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "ok",
+                            "not_found",
+                            "price_changed",
+                            "out_of_stock",
+                            "insufficient_stock",
+                            "variation_required"
+                        ],
+                        "example": "ok"
+                    },
+                    "error": {
+                        "description": "Mensaje de error descriptivo si el status no es 'ok'",
+                        "type": "string",
+                        "example": null,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ProductVerificationResponse": {
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Verificación completada"
+                    },
+                    "total": {
+                        "description": "Total de productos enviados",
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "verified": {
+                        "description": "Productos que coinciden",
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "failed": {
+                        "description": "Productos con discrepancias",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ProductVerificationResult"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "OrderStatusUpdate": {
+                "required": [
+                    "status"
+                ],
+                "properties": {
+                    "status": {
+                        "description": "Nuevo estado del pedido: 'attended' (atendido) o 'unattended' (desatendido)",
+                        "type": "string",
+                        "enum": [
+                            "attended",
+                            "unattended"
+                        ],
+                        "example": "attended"
+                    }
+                },
+                "type": "object"
+            },
+            "OrderStatusResponse": {
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Estado del pedido actualizado correctamente"
+                    },
+                    "order_id": {
+                        "description": "ID del pedido actualizado",
+                        "type": "integer",
+                        "example": 1234
+                    },
+                    "status": {
+                        "description": "Nuevo estado del pedido",
+                        "type": "string",
+                        "example": "attended"
+                    },
+                    "previous_status": {
+                        "description": "Estado anterior del pedido",
+                        "type": "string",
+                        "example": "unattended",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "JWT Token Bearer (recomendado) o User ID Legacy. Para JWT: configure JWT_SECRET en .env e instale firebase/php-jwt. El token debe contener 'sub' con el user_id. El token JWT es el método de autenticación recomendado, pero también se admite el uso de User ID Legacy para compatibilidad con sistemas antiguos.",
+                "scheme": "bearer"
+            }
+        }
+    }
+}

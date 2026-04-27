@@ -30,6 +30,10 @@ export interface ApiOrder {
   transport: string;
   methodpay: string;
   iva: number;
+  customer_note?: string;
+  billing?: {
+    country?: string;
+  };
   items?: ApiOrderItem[];
   customer?: ApiCustomer;
 }

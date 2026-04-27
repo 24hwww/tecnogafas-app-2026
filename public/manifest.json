@@ -1,7 +1,7 @@
 {
-  "name": "TecnoGafas App",
-  "short_name": "TecnoGafas",
-  "description": "Gestión de óptica TecnoGafas",
+  "name": "Tecnogafas",
+  "short_name": "Tecnogafas",
+  "description": "Gestión Tecnogafas",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FEF7FF",

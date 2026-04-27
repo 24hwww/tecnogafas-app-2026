@@ -150,7 +150,7 @@ export default function Products() {
           {/* Sequential Filter Options */}
           {availableNextTerms.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] font-black uppercase text-outline tracking-widest pl-1">Filtrar por {nextLevel === 0 ? 'Categoría' : 'Sub-Categoría'}</p>
+              <p className="text-[0.625rem] font-black uppercase text-outline tracking-widest pl-1">Filtrar por {nextLevel === 0 ? 'Categoría' : 'Sub-Categoría'}</p>
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
                 {availableNextTerms.map(term => (
                   <button
@@ -185,7 +185,7 @@ export default function Products() {
                 <div className="flex-1 flex flex-col justify-between">
                   <div>
                     <h4 className="font-semibold text-sm">{product.name}</h4>
-                    <p className="text-[10px] text-primary font-bold">Stock: {product.stock}</p>
+                    <p className="text-[0.625rem] text-primary font-bold">Stock: {product.stock}</p>
                   </div>
                   <div className="flex items-center justify-between mt-2">
                     <span className="font-bold text-lg text-primary">{formatCurrency(product.price)}</span>

@@ -261,7 +261,7 @@ export default function Checkout() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-outline tracking-widest pl-1">IVA (%)</label>
+              <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">IVA (%)</label>
               <input 
                 type="number"
                 className="w-full bg-surface-variant p-4 focus:ring-2 focus:ring-primary outline-none text-sm font-bold"
@@ -270,7 +270,7 @@ export default function Checkout() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-outline tracking-widest pl-1">Descuento (%)</label>
+              <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">Descuento (%)</label>
               <input 
                 type="number"
                 className="w-full bg-surface-variant p-4 focus:ring-2 focus:ring-primary outline-none text-sm font-bold"
@@ -282,7 +282,7 @@ export default function Checkout() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-outline tracking-widest pl-1">Recargo (%)</label>
+              <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">Recargo (%)</label>
               <input 
                 type="number"
                 className="w-full bg-surface-variant p-4 focus:ring-2 focus:ring-primary outline-none text-sm font-bold"
@@ -291,7 +291,7 @@ export default function Checkout() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-outline tracking-widest pl-1">Forma de Pago</label>
+              <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">Forma de Pago</label>
               <input 
                 type="text"
                 placeholder="Efectivo..."
@@ -303,7 +303,7 @@ export default function Checkout() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-bold uppercase text-outline tracking-widest pl-1">Transporte</label>
+            <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">Transporte</label>
             <input 
               type="text"
               placeholder="Nombre del transporte"
@@ -314,7 +314,7 @@ export default function Checkout() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-bold uppercase text-outline tracking-widest pl-1">Nota de Pedido</label>
+            <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">Nota de Pedido</label>
             <textarea 
               rows={2}
               className="w-full bg-surface-variant p-4 focus:ring-2 focus:ring-primary outline-none text-sm font-bold resize-none"
@@ -325,7 +325,7 @@ export default function Checkout() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-bold uppercase text-outline tracking-widest pl-1">Enviar a otro Email</label>
+            <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">Enviar a otro Email</label>
             <input 
               type="email"
               className="w-full bg-surface-variant p-4 focus:ring-2 focus:ring-primary outline-none text-sm font-bold"
@@ -434,7 +434,10 @@ export default function Checkout() {
                   maxLength={8}
                   className="w-full bg-surface-variant p-4 text-center text-3xl tracking-[0.6rem] font-black focus:ring-2 focus:ring-primary outline-none"
                   value={sellerPin}
-                  onChange={e => setSellerPin(e.target.value)}
+                  onChange={e => {
+                    const value = e.target.value.replace(/[^0-9]/g, '');
+                    setSellerPin(value);
+                  }}
                   autoFocus
                 />
                 
@@ -449,7 +452,7 @@ export default function Checkout() {
                   </button>
                   <button 
                     onClick={handleValidatePin}
-                    disabled={isLoading || !sellerPin}
+                    disabled={isLoading || sellerPin.length !== 8}
                     className="flex-1 py-3 bg-primary text-on-primary font-bold text-sm flex items-center justify-center"
                   >
                     {isLoading ? '...' : 'VALIDAR'}
@@ -510,7 +513,7 @@ export default function Checkout() {
                   const wasSuccess = orderFeedback.type === 'success';
                   setOrderFeedback(null);
                   if (wasSuccess) {
-                    navigate('/pedidos');
+                    navigate('/');
                   }
                 }}
                 className={`w-full py-3 font-bold text-sm tracking-widest ${orderFeedback.type === 'success' ? 'bg-primary text-on-primary' : 'bg-red-500 text-white'}`}

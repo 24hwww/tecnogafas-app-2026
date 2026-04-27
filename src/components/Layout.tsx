@@ -86,7 +86,7 @@ export function Layout({ children }: { children: ReactNode }) {
                     <item.icon size={18} />
                     <span>{item.label}</span>
                     {item.label === 'Carrito' && cart.length > 0 && (
-                      <span className="ml-auto bg-primary text-on-primary text-[10px] px-1.5 py-0.5 font-bold">
+                      <span className="ml-auto bg-primary text-on-primary text-[0.625rem] px-1.5 py-0.5 font-bold">
                         {cart.reduce((a, b) => a + b.quantity, 0)}
                       </span>
                     )}
@@ -126,7 +126,7 @@ export function Layout({ children }: { children: ReactNode }) {
             >
               <ShoppingCart size={24} />
               {cart.reduce((a, b) => a + b.quantity, 0) > 0 && (
-                <span className="absolute top-1 right-1 bg-primary text-on-primary text-[10px] w-4 h-4 flex items-center justify-center font-bold">
+                <span className="absolute top-1 right-1 bg-primary text-on-primary text-[0.625rem] w-4 h-4 flex items-center justify-center font-bold">
                   {cart.reduce((a, b) => a + b.quantity, 0)}
                 </span>
               )}

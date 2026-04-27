@@ -24,7 +24,7 @@ export default function Notifications() {
             <div className="flex-1">
               <div className="flex justify-between items-start">
                 <h4 className="font-bold text-sm">{n.title}</h4>
-                <span className="text-[10px] text-on-surface-variant font-medium">{n.time}</span>
+                <span className="text-[0.625rem] text-on-surface-variant font-medium">{n.time}</span>
               </div>
               <p className="text-xs text-on-surface-variant mt-1">{n.message}</p>
             </div>

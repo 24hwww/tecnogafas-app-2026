@@ -32,7 +32,7 @@ export default function Dashboard() {
         {stats.map((stat, i) => (
           <div key={stat.label} className="m3-card !items-start space-y-4 animate-in fade-in slide-in-from-bottom-2" style={{ animationDelay: `${i * 100}ms` }}>
             <div className="flex justify-between w-full">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-outline">{stat.label}</span>
+              <span className="text-[0.625rem] font-bold uppercase tracking-widest text-outline">{stat.label}</span>
               <stat.icon size={16} className="text-primary/40" />
             </div>
             <div className="space-y-1 w-full">
@@ -51,7 +51,7 @@ export default function Dashboard() {
           <h3 className="font-bold text-sm uppercase tracking-widest text-primary">Pedidos</h3>
           <button 
             onClick={() => navigate('/pedidos')}
-            className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 font-bold hover:bg-primary/20 transition-colors"
+            className="text-[0.625rem] bg-primary/10 text-primary px-2 py-0.5 font-bold hover:bg-primary/20 transition-colors"
           >
             Ver todo
           </button>
@@ -90,12 +90,12 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="font-bold text-sm text-on-surface">{order.clientName}</p>
-                    <p className="text-[10px] text-outline font-medium capitalize">{new Date(order.createdAt).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+                    <p className="text-[0.625rem] text-outline font-medium capitalize">{new Date(order.createdAt).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="font-black text-sm text-primary">{formatCurrency(order.total || 0)}</p>
-                  <p className="text-[8px] uppercase tracking-tighter text-outline">Confirmado</p>
+                  <p className="text-[0.5rem] uppercase tracking-tighter text-outline">Confirmado</p>
                 </div>
               </div>
             ))}
