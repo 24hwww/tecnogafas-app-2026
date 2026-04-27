@@ -96,7 +96,7 @@ export const apiService = {
     }));
   },
 
-  async createOrder(clientId: string, items: any[], details: any, sellerId: string): Promise<{success: boolean, message: string}> {
+  async createOrder(clientId: string, items: any[], details: any, sellerId: string): Promise<{success: boolean, message: string, orderId?: string}> {
     try {
       const res = await fetch(`${BASE_URL}/pedido`, {
         method: 'POST',
@@ -111,18 +111,21 @@ export const apiService = {
           recargo: details.recargo ? details.recargo.toString() : "0",
           transport: details.transport || "",
           methodpay: details.methodpay || "",
+          oemail: details.otheremail || "",
           iva: details.iva ? parseInt(details.iva) : 0,
-          products: items.map(i => {
-            const itemBody: any = { 
-              product_id: parseInt(i.id.split('-')[0]), 
+          products: items.reduce((acc: any, i) => {
+            const parsedId = parseInt(i.id.toString().split('-')[0]);
+            const vid = i.vid ? parseInt(i.vid) : parsedId;
+            acc[vid.toString()] = { 
+              product_id: parsedId, 
+              variation_id: i.vid ? parseInt(i.vid) : undefined,
               quantity: i.quantity, 
-              price: i.price 
+              qty: i.quantity,
+              price: i.price,
+              name: i.name
             };
-            if (i.vid) {
-              itemBody.variation_id = parseInt(i.vid);
-            }
-            return itemBody;
-          })
+            return acc;
+          }, {})
         })
       });
       
@@ -139,7 +142,8 @@ export const apiService = {
 
       return { 
         success: res.ok, 
-        message: msg 
+        message: msg,
+        orderId: data?.order_id || data?.data?.order_id
       };
     } catch (error: any) {
       return { success: false, message: error?.message || 'Error de conexión' };

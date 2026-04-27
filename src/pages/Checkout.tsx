@@ -15,6 +15,7 @@ export default function Checkout() {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [orderFeedback, setOrderFeedback] = useState<{title: string, message: string, type: 'error' | 'success'} | null>(null);
   const [lastOrder, setLastOrder] = useState<any>(null);
+  const [isSendingOrder, setIsSendingOrder] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [sellerPin, setSellerPin] = useState('');
   const [seller, setSeller] = useState<any>(null);
@@ -149,6 +150,7 @@ export default function Checkout() {
   };
 
   const executeCreateOrder = async (sellerId: string) => {
+    setIsSendingOrder(true);
     setIsLoading(true);
     try {
       const orderData = {
@@ -157,6 +159,12 @@ export default function Checkout() {
       };
       const result = await apiService.createOrder(selectedClient!.id, cart, orderData, sellerId);
       if (result.success) {
+        if (result.orderId) {
+          // Send email automatically
+          apiService.sendOrderEmail(result.orderId.toString(), sellerId).then(emailResult => {
+             console.log("Email send result:", emailResult);
+          });
+        }
         setLastOrder({ 
           client: selectedClient, 
           items: cart, 
@@ -171,7 +179,7 @@ export default function Checkout() {
         await refreshData();
         setOrderFeedback({
           title: 'Pedido Exitoso',
-          message: result.message || 'Envío de pedido exitoso',
+          message: 'El pedido fue enviado exitosamente',
           type: 'success'
         });
       } else {
@@ -189,6 +197,7 @@ export default function Checkout() {
         type: 'error'
       });
     } finally {
+      setIsSendingOrder(false);
       setIsLoading(false);
     }
   };
@@ -447,6 +456,24 @@ export default function Checkout() {
                   </button>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Sending Order Modal */}
+      <AnimatePresence>
+        {isSendingOrder && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-surface p-8 shadow-2xl text-center space-y-4 border border-primary/20 flex flex-col items-center"
+            >
+              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <h3 className="text-lg font-bold tracking-widest uppercase">Enviando pedido...</h3>
+              <p className="text-sm text-on-surface-variant">Por favor espere mientras procesamos su solicitud.</p>
             </motion.div>
           </div>
         )}
