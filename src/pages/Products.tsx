@@ -245,13 +245,18 @@ export default function Products() {
                   variationModalProduct.variations.map(v => (
                     <button
                       key={v.vid}
+                      disabled={v.stock === 0}
                       onClick={() => setSelectedVariation(v)}
                       className={`w-full p-4 border text-left rounded-xl transition-all ${
+                        v.stock === 0 ? 'opacity-40 grayscale cursor-not-allowed border-dashed' : 
                         selectedVariation?.vid === v.vid ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-surface-variant hover:border-outline/30'
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm">{v.title}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`${v.stock === 0 ? 'text-outline' : 'font-bold'} text-sm`}>{v.title}</span>
+                          {v.stock === 0 && <span className="text-[10px] bg-outline/10 px-1.5 py-0.5 rounded uppercase font-black text-outline">Sin Stock</span>}
+                        </div>
                         {addedProductId === `${variationModalProduct.id}-${v.vid}` && (
                           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-green-600">
                             <Check size={16} />
@@ -260,14 +265,16 @@ export default function Products() {
                       </div>
                       <div className="flex justify-between items-baseline mt-1">
                         <span className="text-xs text-outline font-medium">Stock: {v.stock}</span>
-                        <span className="text-base font-black text-primary">{formatCurrency(v.price)}</span>
+                        <span className={`text-base font-black ${v.stock === 0 ? 'text-outline/40' : 'text-primary'}`}>{formatCurrency(v.price)}</span>
                       </div>
                     </button>
                   ))
                 ) : (
-                  <div className="p-6 bg-primary/5 border border-primary/10 rounded-2xl text-center">
-                    <p className="text-sm font-bold text-primary">Producto base</p>
-                    <p className="text-sm font-black mt-1 text-primary-900">{formatCurrency(variationModalProduct.price)}</p>
+                  <div className={`p-6 border rounded-2xl text-center ${variationModalProduct.stock === 0 ? 'bg-outline/5 border-dashed border-outline/20' : 'bg-primary/5 border-primary/10'}`}>
+                    <p className={`text-sm font-bold ${variationModalProduct.stock === 0 ? 'text-outline' : 'text-primary'}`}>
+                      {variationModalProduct.stock === 0 ? 'Producto Agotado' : 'Producto base'}
+                    </p>
+                    <p className={`text-sm font-black mt-1 ${variationModalProduct.stock === 0 ? 'text-outline/40' : 'text-primary-900'}`}>{formatCurrency(variationModalProduct.price)}</p>
                     <p className="text-xs text-outline mt-1 font-medium">Stock disponible: {variationModalProduct.stock}</p>
                   </div>
                 )}
@@ -276,24 +283,27 @@ export default function Products() {
 
             <div className="p-4 bg-surface-variant/20 border-t border-surface-variant space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-outline">Cantidad</span>
+                <span className="text-sm font-bold text-outline uppercase tracking-wider">Cantidad</span>
                 <div className="flex items-center bg-white border border-outline/20 rounded-full overflow-hidden shadow-sm">
                   <button 
+                    disabled={(selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0)}
                     onClick={() => setVariationQuantity(Math.max(1, variationQuantity - 1))}
-                    className="p-2 px-3 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors"
+                    className="p-2 px-3 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-30"
                   >
                     <Minus size={18} />
                   </button>
                   <input 
                     type="number" 
                     min="1" 
+                    disabled={(selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0)}
                     value={variationQuantity}
                     onChange={(e) => setVariationQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-12 text-center bg-transparent focus:outline-none font-black text-primary"
+                    className="w-12 text-center bg-transparent focus:outline-none font-black text-primary disabled:text-outline/40"
                   />
                   <button 
+                    disabled={(selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0)}
                     onClick={() => setVariationQuantity(variationQuantity + 1)}
-                    className="p-2 px-3 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors"
+                    className="p-2 px-3 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-30"
                   >
                     <Plus size={18} />
                   </button>
@@ -308,13 +318,13 @@ export default function Products() {
                   Cancelar
                 </button>
                 <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={!(selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0) ? { scale: 1.02 } : {}}
+                  whileTap={!(selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0) ? { scale: 0.98 } : {}}
                   onClick={handleAddToCartFromModal}
-                  disabled={variationQuantity < 1}
-                  className="flex-[2] py-3 bg-primary text-on-primary rounded-xl font-black text-sm shadow-lg shadow-primary/20 disabled:opacity-50"
+                  disabled={variationQuantity < 1 || (selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0)}
+                  className="flex-[2] py-3 bg-primary text-on-primary rounded-xl font-black text-sm shadow-lg shadow-primary/20 disabled:bg-outline/20 disabled:text-outline disabled:shadow-none disabled:cursor-not-allowed"
                 >
-                  Confirmar Selección
+                  { (selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0) ? 'Sin Stock' : 'Confirmar Selección' }
                 </motion.button>
               </div>
             </div>
