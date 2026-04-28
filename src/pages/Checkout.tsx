@@ -170,6 +170,14 @@ export default function Checkout() {
       const result = await apiService.createOrder(selectedClient!.id, cart, orderData, sellerId);
       if (result.success) {
         if (result.orderId) {
+          // Play success sound
+          try {
+            const audio = new Audio('https://actions.google.com/sounds/v1/notifications/complete.ogg');
+            audio.play();
+          } catch (e) {
+            console.error("Error playing success sound", e);
+          }
+
           // Send email automatically
           apiService.sendOrderEmail(result.orderId.toString(), sellerId).then(emailResult => {
              console.log("Email send result:", emailResult);
