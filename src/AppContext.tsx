@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { get, set } from 'idb-keyval';
+import { get, set, del } from 'idb-keyval';
 import { Product, Client, Order, CartItem, DraftOrder, Seller } from './types';
 import { apiService } from './services/apiService';
 
@@ -41,6 +41,7 @@ interface AppContextType {
   setTotalOrders: (total: number) => void;
   setDeployNotification: (event: any) => void;
   setUnreadNotifications: (count: number) => void;
+  fetchNotifications: () => Promise<void>;
   sendNotification: (toUserId: number, content: string, type?: 'message' | 'notification') => Promise<boolean>;
   fetchOrders: (page: number, perPage: number, sellerId?: number, customerId?: number) => Promise<void>;
   refreshData: (showLoading?: boolean) => Promise<void>;
@@ -48,8 +49,6 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
-
-import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -73,6 +72,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [deployEvent, setDeployEvent] = useState<any | null>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   const playNotificationSound = () => {
     const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
@@ -104,7 +104,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await apiService.createEvent({
         user_id: toUserId,
         type,
-        content: { text: content, sender: currentSeller?.name || 'Vendedor' }
+        from_id: currentSeller?.id ? parseInt(currentSeller.id) : undefined,
+        content: { 
+          title: type === 'message' ? `Mensaje de ${currentSeller?.name || 'Vendedor'}` : 'Notificación de TecnoGafas',
+          body: content 
+        },
+        read: 0
       }, globalPin);
       return true;
     } catch (e) {
@@ -134,6 +139,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Force refresh failed', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    if (!globalPin) return;
+    try {
+      const data = await apiService.getEvents(undefined, globalPin);
+      setNotifications(data);
+      const unread = await apiService.getUnreadCount(globalPin);
+      setUnreadNotifications(unread);
+    } catch (e) {
+      console.error('Error fetching notifications', e);
     }
   };
 
@@ -197,6 +214,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (globalPin) {
         apiService.getUnreadCount(globalPin).then(setUnreadNotifications);
+        fetchNotifications();
       }
 
       if (hasCache) {
@@ -307,11 +325,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    let abortController: AbortController | null = null;
-    
     // Check and trigger manual sync
     const handleOnline = async () => {
       console.log('Online, manually triggering sync...');
+      setIsOnline(true);
       if (!('indexedDB' in window)) return;
       
       const dbRequest = indexedDB.open('tecnogafas-sync', 1);
@@ -343,14 +360,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       };
     };
 
+    const handleOffline = () => {
+      console.log('Sin conexión');
+      setIsOnline(false);
+    };
+
     window.addEventListener('online', handleOnline);
-    handleOnline(); // Run on initial load to clear any pending syncs
+    window.addEventListener('offline', handleOffline);
+    handleOnline(); 
 
     const handleApiError = (e: any) => {
       const msg = e.detail?.message || 'Error de API';
       setApiError(msg);
       
-      // Dispatch push notification
       if ('Notification' in window && Notification.permission === 'granted') {
           navigator.serviceWorker.ready.then(reg => {
             reg.showNotification('Alerta de Conexión', {
@@ -361,7 +383,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           });
       }
 
-      // Hide after a few seconds
       setTimeout(() => {
         setApiError(null);
       }, 5000);
@@ -372,87 +393,142 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const savedPin = localStorage.getItem('tecnogafas_pin');
     if (savedPin) {
       setGlobalPin(savedPin);
-      
-      // Start SSE if pin is available and valid
-      apiService.loginSeller(savedPin).then(seller => {
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('api-error', handleApiError);
+    };
+  }, []);
+
+  useEffect(() => {
+    let eventSource: EventSource | null = null;
+    
+    if (globalPin) {
+      // Start SSE if pin is available
+      apiService.loginSeller(globalPin).then(seller => {
          if (seller) {
             setCurrentSeller(seller);
-            abortController = new AbortController();
-            fetchEventSource('https://api.tecnogafas.com.ar/events/stream', {
-              headers: {
-                'Authorization': `Bearer ${savedPin}`,
-                'Accept': 'text/event-stream'
-              },
-              signal: abortController.signal,
-              async onopen(res) {
-                if (res.ok && res.status === 200) {
-                  console.log('SSE connection established');
-                } else {
-                  console.error('SSE connection failed', res);
-                }
-              },
-              onmessage(event) {
-                try {
-                  const data = JSON.parse(event.data);
-                  
-                  // Ignore system maintenance/keep-alive messages
-                  if (data.message === 'max runtime reached' || data.keepalive === true) {
-                      return;
-                  }
-                  
-                  console.log('Notification received:', data);
-                  
-                  // Check if it's a presence event or has online users count
-                  if (data.type === 'presence' || data.onlineCount !== undefined) {
-                      setOnlineUsersCount(data.onlineCount ?? data.count);
-                      return; // Don't show push notification just for presence update
-                  }
+            
+            const lastId = localStorage.getItem('tecnogafas_last_event_id') || '';
+            const url = new URL('https://api.tecnogafas.com.ar/events/stream');
+            
+            // Pass authorization token and last_id via query params for native EventSource compatibility
+            url.searchParams.set('token', globalPin);
+            if (lastId) {
+              url.searchParams.set('last_id', lastId);
+            }
 
-                  if (data.type === 'deploy') {
-                      setDeployNotification(data);
-                  }
+            const es = new EventSource(url.toString());
+            eventSource = es;
 
-                  if (data.type === 'notification' || data.type === 'message') {
-                    setUnreadNotifications(prev => prev + 1);
-                    playNotificationSound();
-                    // Optionally refresh notifications list if on that page
-                  }
-
-                  if (Notification.permission === 'granted') {
-                    navigator.serviceWorker.ready.then(reg => {
-                      reg.showNotification(data.title || 'TecnoGafas', {
-                        body: data.body || JSON.stringify(data),
-                        icon: '/icon.png',
-                        badge: '/icon.png'
-                      });
-                    });
-                  }
-                } catch(e) {
-                  console.warn('Could not parse SSE message:', event.data);
-                }
-              },
-              onerror(err) {
-                console.error('SSE Error:', err);
-                // optionally we could throw an error to prevent reconnects on fatal errors
+            // 🔹 conexión abierta
+            es.addEventListener('connected', (e: any) => {
+              try {
+                const data = JSON.parse(e.data);
+                console.log('SSE connected', data);
+              } catch (err) {
+                console.log('SSE connected event received');
               }
             });
+
+            // 🔹 heartbeat / online status
+            es.addEventListener('ping', (e: any) => {
+              try {
+                const data = JSON.parse(e.data);
+                if (data.onlineCount !== undefined) {
+                  setOnlineUsersCount(data.onlineCount);
+                } else if (data.count !== undefined) {
+                  setOnlineUsersCount(data.count);
+                }
+              } catch (err) {}
+            });
+
+            const handleSSEEvent = (e: MessageEvent) => {
+              try {
+                const data = JSON.parse(e.data);
+                
+                if (data.message === 'max runtime reached' || data.keepalive === true) return;
+                
+                if (e.lastEventId) {
+                  localStorage.setItem('tecnogafas_last_event_id', e.lastEventId);
+                }
+
+                console.log(`SSE Event [${e.type}]:`, data);
+
+                // Handle Deploy
+                if (data.type === 'deploy' || e.type === 'deploy') {
+                  setDeployNotification(data);
+                }
+
+                // Handle Presence
+                if (data.type === 'presence' || data.onlineCount !== undefined) {
+                  setOnlineUsersCount(data.onlineCount ?? data.count);
+                }
+
+                // Handle Notifications/Messages
+                if (data.type === 'notification' || data.type === 'message' || e.type === 'notification' || e.type === 'message') {
+                  setUnreadNotifications(prev => prev + 1);
+                  playNotificationSound();
+                  
+                  const newNotif = {
+                    id: data.id || Date.now(),
+                    type: data.type || e.type,
+                    from_id: data.from_id,
+                    content: data.content,
+                    timestamp: data.timestamp || new Date().toISOString(),
+                    read: 0
+                  };
+                  setNotifications(prev => [newNotif, ...prev]);
+                }
+
+                if (Notification.permission === 'granted' && (data.type === 'notification' || data.type === 'message' || e.type === 'notification' || e.type === 'message')) {
+                  navigator.serviceWorker.ready.then(reg => {
+                    reg.showNotification(data.title || 'TecnoGafas', {
+                      body: data.message || (typeof data.content === 'object' ? data.content.body || data.content.text : data.content) || 'Nueva notificación',
+                      icon: '/icon-192x192.png',
+                      badge: '/icon-192x192.png',
+                      tag: 'tecnogafas-notif'
+                    });
+                  });
+                }
+              } catch (err) {
+                console.warn('SSE parse error (skipping message)', err);
+              }
+            };
+
+            es.onmessage = handleSSEEvent;
+            es.addEventListener('message', handleSSEEvent);
+            es.addEventListener('notification', handleSSEEvent);
+            es.addEventListener('deploy', handleSSEEvent);
+
+            es.onerror = (err) => {
+              console.warn('SSE error', err);
+              es.close();
+              
+              // Fallback to reload if it persists (manual pattern)
+              setTimeout(() => {
+                if (globalPin) {
+                   console.log('SSE connection lost, waiting for automatic reconnect or manual fetch...');
+                }
+              }, 5000);
+            };
          }
       });
     }
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('api-error', handleApiError);
-      if (abortController) {
-        abortController.abort();
+      if (eventSource) {
+        eventSource.close();
       }
     };
-  }, []);
+  }, [globalPin, isOnline]);
 
       return (
     <AppContext.Provider value={{
       products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, notifications, unreadNotifications, setSelectedClient,
-      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, sendNotification, fetchOrders, refreshData, forceRefresh
+      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh
     }}>
       {children}
     </AppContext.Provider>

@@ -1,6 +1,6 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, ClipboardList, ShoppingCart, Menu, X, Bell, Settings, Loader2, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Package, Users, ClipboardList, ShoppingCart, Menu, X, Bell, Settings, Loader2, RefreshCw, ArrowLeft } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useApp } from '../AppContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -23,6 +23,17 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
+
+  const isHome = location.pathname === '/';
+
+  // Explicitly listen for popstate to ensure history back works on all environments
+  useEffect(() => {
+    const handlePopState = () => {
+      console.log('Navigation: PopState triggered (Back Button)');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   return (
     <div className="flex h-screen max-w-md mx-auto bg-surface overflow-hidden shadow-2xl relative text-on-surface">
@@ -116,7 +127,16 @@ export function Layout({ children }: { children: ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="p-4 flex items-center justify-between bg-surface sticky top-0 z-30 border-b border-surface-variant/50">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {!isHome && (
+              <button 
+                onClick={() => navigate(-1)} 
+                className="p-2 -ml-2 hover:bg-surface-variant rounded-full transition-colors"
+                aria-label="Ir atrás"
+              >
+                <ArrowLeft size={20} className="text-primary" />
+              </button>
+            )}
             <h1 
               onClick={() => navigate('/')} 
               className="text-xl font-bold text-primary tracking-tight cursor-pointer hover:opacity-80 transition-opacity"

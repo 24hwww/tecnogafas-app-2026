@@ -198,14 +198,15 @@ export const apiService = {
 
   async getEvents(type?: string, sellerId?: string): Promise<any[]> {
     const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
-    const url = type ? `${BASE_URL}/events/list?type=${type}` : `${BASE_URL}/events/list`;
+    // Según la imagen, el endpoint funcional es /notifications
+    const url = type ? `${BASE_URL}/notifications?type=${type}` : `${BASE_URL}/notifications`;
     const res = await customFetch(url, { headers });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
-    return json.data || [];
+    return json.events || json.data || json.notifications || [];
   },
 
-  async createEvent(data: { user_id: number; type: 'message' | 'notification'; content: any }, sellerId?: string): Promise<any> {
+  async createEvent(data: { user_id: number; type: 'message' | 'notification' | string; from_id?: number; content: any; read?: number }, sellerId?: string): Promise<any> {
     const headers = { 
       'Content-Type': 'application/json',
       ...(sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {})

@@ -6,9 +6,8 @@ import { PinModal } from '../components/PinModal';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Notifications() {
-  const { globalPin, setGlobalPin, sellers, currentSeller, unreadNotifications, setUnreadNotifications, sendNotification } = useApp();
-  const [events, setEvents] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { globalPin, setGlobalPin, sellers, currentSeller, notifications, unreadNotifications, setUnreadNotifications, fetchNotifications, sendNotification } = useApp();
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   
@@ -18,35 +17,17 @@ export default function Notifications() {
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
 
-  const fetchEvents = async () => {
-    try {
-      setIsLoading(true);
-      const data = await apiService.getEvents(undefined, globalPin || undefined);
-      setEvents(data);
-      setError(null);
-      
-      // If we are looking at them, we can assume they are read or the user will ack them
-      if (unreadNotifications > 0) {
-        // Option: ack all visible? For now just reset local count if any
-      }
-    } catch (err: any) {
-      if (err.message.includes('401')) {
-         setIsPinModalOpen(true);
-         setError('Sesión expirada. Por favor ingrese su PIN.');
-      } else {
-         setError(err.message || 'Error al cargar eventos');
-      }
-    } finally {
-      setIsLoading(false);
-    }
+  const refreshEvents = async () => {
+    setIsLoading(true);
+    await fetchNotifications();
+    setIsLoading(false);
   };
 
   const handleAck = async (id: number) => {
     if (!globalPin) return;
     try {
       await apiService.ackEvent(id, globalPin);
-      setEvents(prev => prev.map(e => e.id === id ? { ...e, read: true } : e));
-      setUnreadNotifications(Math.max(0, unreadNotifications - 1));
+      fetchNotifications();
     } catch (e) {
       console.error('Failed to ack event', e);
     }
@@ -62,20 +43,22 @@ export default function Notifications() {
     if (success) {
       setMessageContent('');
       setShowSendForm(false);
-      fetchEvents(); // Refresh to see sent message if backend supports it
+      fetchNotifications(); 
     }
   };
 
   useEffect(() => {
-    fetchEvents();
-  }, [globalPin]);
-
-  // Handle real-time updates: if unreadCount changes, refresh list
-  useEffect(() => {
-    if (unreadNotifications > 0) {
-      fetchEvents();
+    if (globalPin) {
+      fetchNotifications();
+      
+      // Reset unread count when user enters the module
+      if (unreadNotifications > 0) {
+        setUnreadNotifications(0);
+      }
+    } else {
+      setIsPinModalOpen(true);
     }
-  }, [unreadNotifications]);
+  }, [globalPin]);
 
   return (
     <div className="space-y-4 pb-20">
@@ -84,7 +67,7 @@ export default function Notifications() {
         onClose={() => setIsPinModalOpen(false)} 
         onSuccess={(seller, pin) => {
           setGlobalPin(pin);
-          fetchEvents();
+          fetchNotifications();
         }}
       />
       
@@ -155,7 +138,7 @@ export default function Notifications() {
       </AnimatePresence>
       
       <div className="space-y-3">
-        {isLoading && events.length === 0 ? (
+        {isLoading && notifications.length === 0 ? (
           <div className="flex justify-center p-8">
             <Loader2 className="animate-spin text-primary" size={32} />
           </div>
@@ -163,17 +146,20 @@ export default function Notifications() {
           <div className="text-center p-4 text-red-500 bg-red-500/10 rounded-xl">
             {error}
           </div>
-        ) : events.length === 0 ? (
+        ) : notifications.length === 0 ? (
           <div className="text-center p-12 text-on-surface-variant bg-surface-variant/30 rounded-3xl border-2 border-dashed border-outline/10">
             <Bell size={48} className="mx-auto mb-4 opacity-10" />
             <p className="font-medium">No hay notificaciones</p>
             <p className="text-xs opacity-60">Las alertas y mensajes aparecerán aquí.</p>
           </div>
         ) : (
-          events.map((n, i) => {
-            const isRead = n.read || n.status === 'read';
-            const content = typeof n.content === 'string' ? n.content : n.content?.text || n.message || n.details || '';
-            const sender = n.content?.sender || n.sender_name || 'Sistema';
+          notifications.map((n, i) => {
+            const isRead = n.read || n.status === 'read' || n.read === 1;
+            const contentObj = typeof n.content === 'string' ? JSON.parse(n.content || '{}') : n.content;
+            
+            const title = n.title || contentObj?.title || (n.type === 'message' ? 'Mensaje' : 'Notificación');
+            const body = contentObj?.body || contentObj?.text || n.message || n.details || '';
+            const sender = contentObj?.sender || n.sender_name || (n.from_id ? `Vendedor #${n.from_id}` : 'Sistema');
 
             return (
               <motion.div 
@@ -193,13 +179,14 @@ export default function Notifications() {
                 <div className="flex-1">
                   <div className="flex justify-between items-start">
                     <h4 className={`font-bold text-sm ${isRead ? 'text-on-surface' : 'text-primary'}`}>
-                      {sender} • {n.title || (n.type === 'message' ? 'Mensaje' : 'Notificación')}
+                      {title}
                     </h4>
                     <span className="text-[0.625rem] text-on-surface-variant font-medium">
                       {n.timestamp ? new Date(n.timestamp).toLocaleString() : n.time || ''}
                     </span>
                   </div>
-                  <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">{content}</p>
+                  <p className="text-xs font-bold text-on-surface-variant mb-1">De: {sender}</p>
+                  <p className="text-xs text-on-surface-variant leading-relaxed">{body}</p>
                   
                   {!isRead && (
                     <button 
