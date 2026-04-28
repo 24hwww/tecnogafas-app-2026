@@ -1,16 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
-import { TrendingUp, Users, Package, ShoppingBag, RefreshCw } from 'lucide-react';
+import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { Skeleton } from '../components/Skeleton';
 
 export default function Dashboard() {
-  const { products, clients, orders, sellers, refreshData, isLoading } = useApp();
+  const { products, clients, orders, sellers, refreshData, isLoading, onlineUsersCount } = useApp();
   const navigate = useNavigate();
   
   const stats = [
-    { label: 'Vendedores', value: sellers.length, icon: TrendingUp, color: 'text-green-600' },
-    { label: 'Clientes', value: clients.length, icon: Users, color: 'text-blue-600' },
+    { label: 'Vendedores', value: sellers.length, icon: Users, color: 'text-green-600', badge: onlineUsersCount !== null ? `${onlineUsersCount} activos` : null },
+    { label: 'Clientes', value: clients.length, icon: TrendingUp, color: 'text-blue-600' },
     { label: 'Productos', value: products.length, icon: Package, color: 'text-purple-600' },
     { label: 'Pedidos', value: orders.length, icon: ShoppingBag, color: 'text-orange-600' },
   ];
@@ -31,9 +31,17 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-4">
         {stats.map((stat, i) => (
           <div key={stat.label} className="m3-card !items-start space-y-4 animate-in fade-in slide-in-from-bottom-2" style={{ animationDelay: `${i * 100}ms` }}>
-            <div className="flex justify-between w-full">
-              <span className="text-[0.625rem] font-bold uppercase tracking-widest text-outline">{stat.label}</span>
-              <stat.icon size={16} className="text-primary/40" />
+            <div className="flex justify-between items-center w-full">
+              <div className="flex items-center gap-2">
+                <span className="text-[0.625rem] font-bold uppercase tracking-widest text-outline">{stat.label}</span>
+                {stat.badge && (
+                  <span className="px-1.5 py-0.5 bg-green-500/10 text-green-600 text-[0.6rem] font-bold rounded-full flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse"></span>
+                    {stat.badge}
+                  </span>
+                )}
+              </div>
+              <stat.icon size={16} className={`${stat.color || 'text-primary'}/40`} />
             </div>
             <div className="space-y-1 w-full">
               {isLoading ? (

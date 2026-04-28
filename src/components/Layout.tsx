@@ -16,7 +16,7 @@ const navItems = [
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { cart, isLoading } = useApp();
+  const { cart, isLoading, apiError, onlineUsersCount } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -120,6 +120,12 @@ export function Layout({ children }: { children: ReactNode }) {
             </h1>
           </div>
           <div className="flex items-center gap-3">
+            {onlineUsersCount !== null && (
+              <div title="Vendedores activos" className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 text-green-700 font-medium text-xs rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                <span>{onlineUsersCount} {onlineUsersCount === 1 ? 'Activo' : 'Activos'}</span>
+              </div>
+            )}
             <button 
               onClick={() => navigate('/carrito')}
               className="relative p-2 hover:bg-surface-variant text-on-surface-variant transition-colors"
@@ -136,6 +142,13 @@ export function Layout({ children }: { children: ReactNode }) {
             </button>
           </div>
         </header>
+
+        {apiError && (
+          <div className="bg-red-500 text-white text-xs font-bold p-2 text-center shadow flex items-center justify-center gap-2">
+            <RefreshCw size={14} className="animate-spin-slow" />
+            {apiError}
+          </div>
+        )}
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-4 bg-surface">

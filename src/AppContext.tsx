@@ -23,12 +23,20 @@ interface AppContextType {
   markDraftAsSent: (draftId: string) => void;
   primaryColor: string;
   fontSize: string;
+  globalPin: string | null;
+  apiError: string | null;
+  onlineUsersCount: number | null;
   setPrimaryColor: (color: string) => void;
   setFontSize: (size: string) => void;
+  setGlobalPin: (pin: string | null) => void;
+  setApiError: (error: string | null) => void;
+  setOnlineUsersCount: (count: number | null) => void;
   refreshData: (showLoading?: boolean) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -42,6 +50,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [primaryColor, setPrimaryColor] = useState('#1662E1');
   const [fontSize, setFontSize] = useState('16px');
+  const [globalPin, setGlobalPin] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [onlineUsersCount, setOnlineUsersCount] = useState<number | null>(null);
 
   const refreshData = async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
@@ -190,10 +201,145 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('tecnogafas_fontSize', size);
   };
 
+  const updateGlobalPin = (pin: string | null) => {
+    setGlobalPin(pin);
+    if (pin) {
+      localStorage.setItem('tecnogafas_pin', pin);
+    } else {
+      localStorage.removeItem('tecnogafas_pin');
+    }
+  };
+
+  useEffect(() => {
+    let abortController: AbortController | null = null;
+    
+    // Check and trigger manual sync
+    const handleOnline = async () => {
+      console.log('Online, manually triggering sync...');
+      if (!('indexedDB' in window)) return;
+      
+      const dbRequest = indexedDB.open('tecnogafas-sync', 1);
+      dbRequest.onsuccess = (e: any) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('pending-orders')) return;
+        const tx = db.transaction('pending-orders', 'readonly');
+        const store = tx.objectStore('pending-orders');
+        const req = store.getAll();
+        
+        req.onsuccess = async () => {
+          for (const item of req.result) {
+            try {
+              const response = await fetch(item.url, {
+                method: 'POST',
+                headers: item.headers,
+                body: item.body
+              });
+              if (response.ok) {
+                const txDel = db.transaction('pending-orders', 'readwrite');
+                txDel.objectStore('pending-orders').delete(item.id);
+                console.log('Manually synced order:', item.id);
+              }
+            } catch (e) {
+              console.error('Manual sync failed for', item.id);
+            }
+          }
+        };
+      };
+    };
+
+    window.addEventListener('online', handleOnline);
+    handleOnline(); // Run on initial load to clear any pending syncs
+
+    const handleApiError = (e: any) => {
+      const msg = e.detail?.message || 'Error de API';
+      setApiError(msg);
+      
+      // Dispatch push notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification('Alerta de Conexión', {
+              body: msg,
+              icon: '/icon.png',
+              badge: '/icon.png'
+            });
+          });
+      }
+
+      // Hide after a few seconds
+      setTimeout(() => {
+        setApiError(null);
+      }, 5000);
+    };
+
+    window.addEventListener('api-error', handleApiError);
+
+    const savedPin = localStorage.getItem('tecnogafas_pin');
+    if (savedPin) {
+      setGlobalPin(savedPin);
+      
+      // Start SSE if pin is available and valid
+      apiService.loginSeller(savedPin).then(seller => {
+         if (seller) {
+            abortController = new AbortController();
+            fetchEventSource('https://api.tecnogafas.com.ar/events/stream', {
+              headers: {
+                'Authorization': `Bearer ${savedPin}`,
+                'Accept': 'text/event-stream'
+              },
+              signal: abortController.signal,
+              async onopen(res) {
+                if (res.ok && res.status === 200) {
+                  console.log('SSE connection established');
+                } else {
+                  console.error('SSE connection failed', res);
+                }
+              },
+              onmessage(event) {
+                try {
+                  const data = JSON.parse(event.data);
+                  console.log('Notification received:', data);
+                  
+                  // Check if it's a presence event or has online users count
+                  if (data.type === 'presence' || data.onlineCount !== undefined) {
+                      setOnlineUsersCount(data.onlineCount ?? data.count);
+                      return; // Don't show push notification just for presence update
+                  }
+
+                  if (Notification.permission === 'granted') {
+                    navigator.serviceWorker.ready.then(reg => {
+                      reg.showNotification(data.title || 'TecnoGafas', {
+                        body: data.body || JSON.stringify(data),
+                        icon: '/icon.png',
+                        badge: '/icon.png'
+                      });
+                    });
+                  }
+                } catch(e) {
+                  console.warn('Could not parse SSE message:', event.data);
+                }
+              },
+              onerror(err) {
+                console.error('SSE Error:', err);
+                // optionally we could throw an error to prevent reconnects on fatal errors
+              }
+            });
+         }
+      });
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('api-error', handleApiError);
+      if (abortController) {
+        abortController.abort();
+      }
+    };
+  }, []);
+
   return (
     <AppContext.Provider value={{
-      products, clients, orders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, setSelectedClient,
-      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, refreshData
+      products, clients, orders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, apiError, onlineUsersCount, setSelectedClient,
+      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, refreshData
     }}>
       {children}
     </AppContext.Provider>

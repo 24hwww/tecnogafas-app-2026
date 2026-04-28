@@ -2,19 +2,105 @@ import { ApiProduct, ApiClient, ApiOrder, Product, Client, Order, Seller } from 
 
 const BASE_URL = 'https://api.tecnogafas.com.ar';
 
+let cachedProducts: Product[] | null = null;
+let cachedProductsTimestamp: number = 0;
+const CACHE_PRODUCTS_TTL = 5 * 60 * 1000; // 5 minutes
+
+const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  try {
+    const res = await fetch(input, {
+      cache: 'no-store', // Always fetch latest data
+      ...init
+    });
+    if (!res.ok && res.status >= 500) {
+      window.dispatchEvent(new CustomEvent('api-error', { detail: { message: `Servidor devolvió error ${res.status}` } }));
+    }
+    return res;
+  } catch (err: any) {
+    window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'No se pudo conectar con la API (caída o sin red)' } }));
+    throw err;
+  }
+};
+
 export const apiService = {
+  async queueOrderForSync(url: string, headers: any, body: any): Promise<boolean> {
+    if (!('indexedDB' in window)) return false;
+
+    return new Promise((resolve) => {
+      const request = indexedDB.open('tecnogafas-sync', 1);
+      request.onupgradeneeded = (e: any) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('pending-orders')) {
+          db.createObjectStore('pending-orders', { keyPath: 'id' });
+        }
+      };
+      request.onsuccess = (e: any) => {
+        const db = e.target.result;
+        const tx = db.transaction('pending-orders', 'readwrite');
+        const store = tx.objectStore('pending-orders');
+        store.add({
+          id: Date.now().toString() + '-' + Math.random().toString(36).substring(7),
+          url,
+          headers,
+          body
+        });
+        tx.oncomplete = async () => {
+          if ('serviceWorker' in navigator && 'SyncManager' in window) {
+            try {
+              const registration = await navigator.serviceWorker.ready;
+              await (registration as any).sync.register('sync-orders');
+              console.log('Sync registered');
+              resolve(true);
+            } catch (err) {
+              console.error('Sync registration failed', err);
+              resolve(true); // Saved to IDB at least
+            }
+          } else {
+            resolve(true);
+          }
+        };
+        tx.onerror = () => resolve(false);
+      };
+      request.onerror = () => resolve(false);
+    });
+  },
+
   async getProducts(): Promise<Product[]> {
-    const res = await fetch(`${BASE_URL}/productos`);
+    const now = Date.now();
+    if (cachedProducts && (now - cachedProductsTimestamp < CACHE_PRODUCTS_TTL)) {
+      return cachedProducts;
+    }
+
+    const res = await customFetch(`${BASE_URL}/productos`);
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
-    return (json.data || []).map((p: any) => {
+    cachedProducts = (json.data || []).map((p: any) => {
       // Parse variations e.g. "variation_id:23726|Título:5508 - C1 - BLACK|Stock:6|Precio:58000;..."
       const variations = (p.variaciones || '').split(';').filter((v: string) => v.trim() !== '').map((v: string) => {
-        const parts = v.split('|');
-        const vid = parts[0]?.split(':')[1] || '';
-        const title = parts[1]?.split(':')[1] || '';
-        const stock = parseInt(parts[2]?.split(':')[1] || '0');
-        const price = parseFloat(parts[3]?.split(':')[1] || '0');
+        let vid = '';
+        let title = '';
+        let stock = 0;
+        let price = 0;
+
+        const vidMatch = v.match(/variation_id:(\d+)/);
+        if (vidMatch) vid = vidMatch[1];
+
+        const stockMatch = v.match(/Stock:(-?\d+)/);
+        if (stockMatch) stock = parseInt(stockMatch[1]);
+
+        const priceMatch = v.match(/Precio:([\d.]+)/);
+        if (priceMatch) price = parseFloat(priceMatch[1]);
+
+        const titleMatch = v.match(/T[ií]tulo:(.*?)(?:\|Stock:|\|Precio:|$)/);
+        if (titleMatch) {
+          title = titleMatch[1];
+        } else {
+          // Fallback if the regex somehow misses
+          const parts = v.split('|');
+          const titlePart = parts.find(p => p.startsWith('Título:') || p.startsWith('Titulo:'));
+          if (titlePart) title = titlePart.split(':')[1] || '';
+        }
+
         return { vid, title, stock, price };
       });
 
@@ -32,10 +118,12 @@ export const apiService = {
         variations
       };
     });
+    cachedProductsTimestamp = now;
+    return cachedProducts;
   },
 
   async getClients(): Promise<Client[]> {
-    const res = await fetch(`${BASE_URL}/clientes`);
+    const res = await customFetch(`${BASE_URL}/clientes`);
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
     return (json.data || []).map((c: ApiClient) => ({
@@ -48,7 +136,7 @@ export const apiService = {
   },
 
   async getOrders(): Promise<Order[]> {
-    const res = await fetch(`${BASE_URL}/pedidos`);
+    const res = await customFetch(`${BASE_URL}/pedidos`);
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
     return (json.data || []).map((o: ApiOrder) => ({
@@ -81,7 +169,7 @@ export const apiService = {
     results?: any[];
   }> {
     try {
-      const res = await fetch(`${BASE_URL}/producto/verificar`, {
+      const res = await customFetch(`${BASE_URL}/producto/verificar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ products })
@@ -94,7 +182,7 @@ export const apiService = {
   },
 
   async getSellers(): Promise<Seller[]> {
-    const res = await fetch(`${BASE_URL}/usuarios`);
+    const res = await customFetch(`${BASE_URL}/usuarios`);
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
     return (json.data || []).map((s: any) => ({
@@ -103,33 +191,51 @@ export const apiService = {
     }));
   },
 
+  async getEvents(): Promise<any[]> {
+    const res = await customFetch(`${BASE_URL}/events/list`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const json = await res.json();
+    return json.data || [];
+  },
+
   async createOrder(clientId: string, items: any[], details: any, sellerId: string): Promise<{success: boolean, message: string, orderId?: string}> {
+    const url = `${BASE_URL}/pedido`;
+    const headers = { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${sellerId}`
+    };
+    const bodyObj = {
+      client_id: parseInt(clientId),
+      notes: details.commit,
+      discount: details.discount ? details.discount.toString() : "0",
+      recargo: details.recargo ? details.recargo.toString() : "0",
+      transport: details.transport || "",
+      methodpay: details.methodpay || "",
+      oemail: details.otheremail || "",
+      iva: details.iva ? parseInt(details.iva) : 0,
+      products: items.map(i => {
+        const parsedId = parseInt(i.id.toString().split('-')[0]);
+        return { 
+          product_id: parsedId, 
+          variation_id: i.vid ? parseInt(i.vid) : undefined,
+          quantity: i.quantity, 
+          price: i.price
+        };
+      })
+    };
+    const body = JSON.stringify(bodyObj);
+
+    if (!navigator.onLine) {
+      const queued = await this.queueOrderForSync(url, headers, body);
+      if (queued) return { success: true, message: 'Estás sin conexión. El pedido se enviará cuando recuperes la conexión.' };
+      return { success: false, message: 'Estás sin conexión y no se pudo guardar el pedido.' };
+    }
+
     try {
-      const res = await fetch(`${BASE_URL}/pedido`, {
+      const res = await customFetch(url, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sellerId}`
-        },
-        body: JSON.stringify({
-          client_id: parseInt(clientId),
-          notes: details.commit,
-          discount: details.discount ? details.discount.toString() : "0",
-          recargo: details.recargo ? details.recargo.toString() : "0",
-          transport: details.transport || "",
-          methodpay: details.methodpay || "",
-          oemail: details.otheremail || "",
-          iva: details.iva ? parseInt(details.iva) : 0,
-          products: items.map(i => {
-            const parsedId = parseInt(i.id.toString().split('-')[0]);
-            return { 
-              product_id: parsedId, 
-              variation_id: i.vid ? parseInt(i.vid) : undefined,
-              quantity: i.quantity, 
-              price: i.price
-            };
-          })
-        })
+        headers,
+        body
       });
       
       let data;
@@ -143,12 +249,21 @@ export const apiService = {
       if (!msg && typeof data === 'string') msg = data;
       if (!msg) msg = res.ok ? 'Pedido creado con éxito' : 'Error al crear el pedido';
 
+      if (!res.ok && res.status >= 500) {
+        // Server error, queue for sync
+        const queued = await this.queueOrderForSync(url, headers, body);
+        if (queued) return { success: true, message: 'El servidor falló. El pedido se guardó y se reintentará.' };
+      }
+
       return { 
         success: res.ok, 
         message: msg,
         orderId: data?.order_id || data?.data?.order_id
       };
     } catch (error: any) {
+      // Network error (fetch failed completely), queue for sync
+      const queued = await this.queueOrderForSync(url, headers, body);
+      if (queued) return { success: true, message: 'Error de red. El pedido se guardó y se reintentará en segundo plano.' };
       return { success: false, message: error?.message || 'Error de conexión' };
     }
   },
@@ -161,7 +276,7 @@ export const apiService = {
     // Si tiene ID, es una actualización (ej: /cliente/123). Si no, crea un nuevo cliente (/cliente)
     const url = client.id ? `${BASE_URL}/cliente/${client.id}` : `${BASE_URL}/cliente`;
 
-    const res = await fetch(url, {
+    const res = await customFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -176,7 +291,7 @@ export const apiService = {
   },
 
   async loginSeller(pin: string): Promise<Seller | null> {
-    const res = await fetch(`${BASE_URL}/login?data=${encodeURIComponent(pin)}`, {
+    const res = await customFetch(`${BASE_URL}/login?data=${encodeURIComponent(pin)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: pin })
@@ -194,7 +309,7 @@ export const apiService = {
 
   async downloadOrderPdf(orderId: string, sellerId: string): Promise<boolean> {
     try {
-      const res = await fetch(`${BASE_URL}/pedido/${orderId}/pdf`, {
+      const res = await customFetch(`${BASE_URL}/pedido/${orderId}/pdf`, {
         headers: { 'Authorization': `Bearer ${sellerId}` }
       });
       if (!res.ok) return false;
@@ -213,7 +328,7 @@ export const apiService = {
 
   async sendOrderEmail(orderId: string, sellerId: string): Promise<{success: boolean, message: string}> {
     try {
-      const res = await fetch(`${BASE_URL}/pedido/${orderId}/enviar`, {
+      const res = await customFetch(`${BASE_URL}/pedido/${orderId}/enviar`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${sellerId}` }
       });
@@ -227,7 +342,7 @@ export const apiService = {
 
   async updateOrderStatus(orderId: string, status: 'attended' | 'unattended', sellerId: string): Promise<{success: boolean, message: string}> {
     try {
-      const res = await fetch(`${BASE_URL}/pedido/${orderId}/estado`, {
+      const res = await customFetch(`${BASE_URL}/pedido/${orderId}/estado`, {
         method: 'PUT',
         headers: { 
           'Authorization': `Bearer ${sellerId}`,
