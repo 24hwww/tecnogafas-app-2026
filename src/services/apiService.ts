@@ -191,8 +191,9 @@ export const apiService = {
     }));
   },
 
-  async getEvents(): Promise<any[]> {
-    const res = await customFetch(`${BASE_URL}/events/list`);
+  async getEvents(sellerId?: string): Promise<any[]> {
+    const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
+    const res = await customFetch(`${BASE_URL}/events/list`, { headers });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
     return json.data || [];
@@ -356,5 +357,25 @@ export const apiService = {
     } catch (e: any) {
       return { success: false, message: 'Error de conexión' };
     }
+  },
+
+  subscribeToEvents(onMessage: (data: any) => void) {
+    const eventSource = new EventSource(`${BASE_URL}/events/stream`);
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        onMessage(data);
+      } catch (e) {
+        console.error('Error parsing SSE data', e);
+      }
+    };
+    
+    eventSource.onerror = (err) => {
+      console.error('SSE error', err);
+      // EventSource automatically attempts to reconnect
+    };
+    
+    return () => eventSource.close();
   }
 };

@@ -39,6 +39,8 @@ export default function TestApiPage() {
         <button className="bg-primary text-on-primary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('getClients', () => apiService.getClients())}>Get Clients</button>
         <button className="bg-primary text-on-primary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('getOrders', () => apiService.getOrders())}>Get Orders</button>
         <button className="bg-primary text-on-primary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('getSellers', () => apiService.getSellers())}>Get Sellers</button>
+        <button className="bg-primary text-on-primary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('getEvents', () => apiService.getEvents(sellerId))}>Get Events</button>
+        <button className="bg-primary text-on-primary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('updateStatus', () => apiService.updateOrderStatus(testOrderId, 'attended', sellerId))}>Update Status</button>
         <button className="bg-secondary text-on-secondary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('downloadPdf', () => apiService.downloadOrderPdf(testOrderId, sellerId))}>Download PDF</button>
         <button className="bg-secondary text-on-secondary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('sendEmail', () => apiService.sendOrderEmail(testOrderId, sellerId))}>Send Email</button>
       </div>

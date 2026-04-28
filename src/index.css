@@ -33,11 +33,15 @@
 }
 
 .m3-button-filled {
-  @apply bg-primary text-on-primary px-6 py-3 font-black text-sm tracking-wide transition-all shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 disabled:grayscale disabled:opacity-50;
+  @apply bg-primary text-on-primary px-6 py-3 font-black text-sm tracking-wide transition-all shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 disabled:grayscale disabled:opacity-50 shrink-0;
 }
 
 .m3-button-tonal {
-  @apply bg-secondary-container text-on-secondary-container px-6 py-3 font-black text-sm tracking-wide transition-all hover:bg-secondary-container/80 active:scale-95;
+  @apply bg-secondary-container text-on-secondary-container px-6 py-3 font-black text-sm tracking-wide transition-all hover:bg-secondary-container/80 active:scale-95 shrink-0;
+}
+
+.m3-button-outlined {
+  @apply border border-outline/20 text-on-surface px-6 py-3 font-black text-sm tracking-wide transition-all hover:bg-surface-variant active:scale-95 shrink-0;
 }
 
 .m3-nav-item {

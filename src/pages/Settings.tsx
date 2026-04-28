@@ -43,7 +43,7 @@ export default function Settings() {
         <div>
           <h3 className="font-bold mb-4 flex items-center gap-2"><Key size={18}/> Cuenta y Sincronización</h3>
           <p className="text-sm text-outline mb-2">Ingresa tu PIN de vendedor para activar la sincronización en segundo plano (pedidos offline) y recibir notificaciones push de sistema.</p>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input 
               type="password" 
               placeholder="PIN numérico de 8 dígitos"

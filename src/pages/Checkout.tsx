@@ -382,7 +382,7 @@ export default function Checkout() {
             >
               <h3 className="text-xl font-bold">¿Confirmar Pedido?</h3>
               <p className="text-sm text-on-surface-variant">Se enviará el pedido al sistema central.</p>
-              <div className="flex gap-4 pt-4">
+              <div className="flex flex-col gap-2 pt-4">
                 <button 
                   onClick={() => setIsConfirmModalOpen(false)}
                   className="flex-1 py-3 bg-surface-variant font-bold"
@@ -443,7 +443,7 @@ export default function Checkout() {
                 
                 {pinError && <p className="text-xs font-bold text-red-400 uppercase tracking-widest">{pinError}</p>}
                 
-                <div className="flex gap-4 pt-2">
+                <div className="flex flex-col gap-2 pt-2">
                   <button 
                     onClick={() => setIsPinModalOpen(false)}
                     className="flex-1 py-3 bg-surface-variant font-bold text-sm"

@@ -1,29 +1,48 @@
 import { useEffect, useState } from 'react';
 import { Bell, Info, Loader2 } from 'lucide-react';
+import { useApp } from '../AppContext';
 import { apiService } from '../services/apiService';
+import { PinModal } from '../components/PinModal';
 
 export default function Notifications() {
+  const { globalPin, setGlobalPin } = useApp();
   const [events, setEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+
+  const fetchEvents = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiService.getEvents(globalPin || undefined);
+      setEvents(data);
+      setError(null);
+    } catch (err: any) {
+      if (err.message.includes('401')) {
+         setIsPinModalOpen(true);
+         setError('Sesión expirada. Por favor ingrese su PIN.');
+      } else {
+         setError(err.message || 'Error al cargar eventos');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        setIsLoading(true);
-        const data = await apiService.getEvents();
-        setEvents(data);
-      } catch (err: any) {
-        setError(err.message || 'Error al cargar eventos');
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchEvents();
-  }, []);
+  }, [globalPin]);
 
   return (
     <div className="space-y-4">
+      <PinModal 
+        isOpen={isPinModalOpen} 
+        onClose={() => setIsPinModalOpen(false)} 
+        onSuccess={(seller, pin) => {
+          setGlobalPin(pin);
+          fetchEvents();
+        }}
+      />
       <h2 className="text-2xl font-bold">Notificaciones</h2>
       
       <div className="space-y-3">

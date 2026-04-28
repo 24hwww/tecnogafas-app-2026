@@ -24,6 +24,7 @@ interface AppContextType {
   primaryColor: string;
   fontSize: string;
   globalPin: string | null;
+  currentSeller: Seller | null;
   apiError: string | null;
   onlineUsersCount: number | null;
   setPrimaryColor: (color: string) => void;
@@ -51,6 +52,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [primaryColor, setPrimaryColor] = useState('#1662E1');
   const [fontSize, setFontSize] = useState('16px');
   const [globalPin, setGlobalPin] = useState<string | null>(null);
+  const [currentSeller, setCurrentSeller] = useState<Seller | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [onlineUsersCount, setOnlineUsersCount] = useState<number | null>(null);
 
@@ -280,6 +282,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Start SSE if pin is available and valid
       apiService.loginSeller(savedPin).then(seller => {
          if (seller) {
+            setCurrentSeller(seller);
             abortController = new AbortController();
             fetchEventSource('https://api.tecnogafas.com.ar/events/stream', {
               headers: {
@@ -338,7 +341,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      products, clients, orders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, apiError, onlineUsersCount, setSelectedClient,
+      products, clients, orders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, setSelectedClient,
       addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, refreshData
     }}>
       {children}

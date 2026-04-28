@@ -10,6 +10,7 @@ export default function Products() {
   const { products, addToCart, cart, updateCartQuantity, isLoading } = useApp();
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [showZeroPrice, setShowZeroPrice] = useState(true);
   const [search, setSearch] = useState('');
   const [variationModalProduct, setVariationModalProduct] = useState<Product | null>(null);
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
@@ -42,7 +43,8 @@ export default function Products() {
     const pFiltros = productFiltrosMap.get(p.id) || [];
     const matchesFilters = activeFilters.every((f, i) => pFiltros[i] === f);
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    return matchesFilters && matchesSearch;
+    const matchesPrice = showZeroPrice || p.price > 0;
+    return matchesFilters && matchesSearch && matchesPrice;
   });
 
   const nextLevel = activeFilters.length;
@@ -157,6 +159,16 @@ export default function Products() {
           </div>
 
           {/* Sequential Filter Options */}
+          <div className="flex items-center gap-2 mb-4 p-2 bg-surface-variant/50">
+             <input 
+               type="checkbox" 
+               id="showZeroPrice" 
+               checked={showZeroPrice} 
+               onChange={(e) => setShowZeroPrice(e.target.checked)}
+               className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+             />
+             <label htmlFor="showZeroPrice" className="text-xs font-bold text-on-surface-variant uppercase">Mostrar productos precio 0</label>
+           </div>
           {availableNextTerms.length > 0 && (
             <div className="space-y-2">
               <p className="text-[0.625rem] font-black uppercase text-outline tracking-widest pl-1">Filtrar por {nextLevel === 0 ? 'Categoría' : 'Sub-Categoría'}</p>
