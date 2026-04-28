@@ -198,12 +198,19 @@ export const apiService = {
 
   async getEvents(type?: string, sellerId?: string): Promise<any[]> {
     const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
-    // Según la imagen, el endpoint funcional es /notifications
-    const url = type ? `${BASE_URL}/notifications?type=${type}` : `${BASE_URL}/notifications`;
+    // Use /events/list as primary endpoint (it's the canonical path in Leaf v2.x)
+    const url = type ? `${BASE_URL}/events/list?type=${type}` : `${BASE_URL}/events/list`;
     const res = await customFetch(url, { headers });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
-    return json.events || json.data || json.notifications || [];
+    
+    // Robust extraction: handle { events: [] }, { data: [] }, { data: { events: [] } }, etc.
+    let list = json.events || json.notifications || json.data || [];
+    if (!Array.isArray(list) && list !== null && typeof list === 'object') {
+      list = list.events || list.notifications || list.data || [];
+    }
+    
+    return Array.isArray(list) ? list : [];
   },
 
   async createEvent(data: { user_id: number; type: 'message' | 'notification' | string; from_id?: number; content: any; read?: number }, sellerId?: string): Promise<any> {

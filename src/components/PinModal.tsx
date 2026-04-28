@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { FileText } from 'lucide-react';
+import { FileText, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { apiService } from '../services/apiService';
 
@@ -13,6 +13,7 @@ export function PinModal({ isOpen, onClose, onSuccess }: PinModalProps) {
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPin, setShowPin] = useState(false);
 
   const handleValidate = async () => {
     if (!pin) return;
@@ -59,16 +60,25 @@ export function PinModal({ isOpen, onClose, onSuccess }: PinModalProps) {
             </div>
             
             <div className="space-y-4">
-              <input 
-                type="password"
-                inputMode="numeric"
-                placeholder="••••••••"
-                maxLength={8}
-                className="w-full bg-surface-variant p-4 text-center text-3xl tracking-[0.6rem] font-black focus:ring-2 focus:ring-primary outline-none"
-                value={pin}
-                onChange={e => setPin(e.target.value.replace(/[^0-9]/g, ''))}
-                autoFocus
-              />
+              <div className="relative">
+                <input 
+                  type={showPin ? "text" : "password"}
+                  inputMode="numeric"
+                  placeholder="••••••••"
+                  maxLength={8}
+                  className="w-full bg-surface-variant p-4 text-center text-3xl tracking-[0.6rem] font-black focus:ring-2 focus:ring-primary outline-none"
+                  value={pin}
+                  onChange={e => setPin(e.target.value.replace(/[^0-9]/g, ''))}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-outline hover:text-primary transition-colors"
+                >
+                  {showPin ? <EyeOff size={24} /> : <Eye size={24} />}
+                </button>
+              </div>
               
               {error && <p className="text-xs font-bold text-red-400 uppercase tracking-widest">{error}</p>}
               

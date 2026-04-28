@@ -1,5 +1,5 @@
 import { useApp } from '../AppContext';
-import { Settings as SettingsIcon, Bell, RefreshCw, Key } from 'lucide-react';
+import { Settings as SettingsIcon, Bell, RefreshCw, Key, Eye, EyeOff } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { kodular } from '../lib/kodular';
 
@@ -7,6 +7,7 @@ export default function Settings() {
   const { primaryColor, fontSize, globalPin, setPrimaryColor, setFontSize, setGlobalPin } = useApp();
   const [pinInput, setPinInput] = useState(globalPin || '');
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [showPin, setShowPin] = useState(false);
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -60,13 +61,23 @@ export default function Settings() {
           <h3 className="font-bold mb-4 flex items-center gap-2"><Key size={18}/> Cuenta y Sincronización</h3>
           <p className="text-sm text-outline mb-2">Ingresa tu PIN de vendedor para activar la sincronización en segundo plano (pedidos offline) y recibir notificaciones push de sistema.</p>
           <div className="flex flex-col sm:flex-row gap-2">
-            <input 
-              type="password" 
-              placeholder="PIN numérico de 8 dígitos"
-              className="m3-input flex-1 font-mono tracking-widest text-lg"
-              value={pinInput}
-              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 8))}
-            />
+            <div className="relative flex-1">
+              <input 
+                type={showPin ? "text" : "password"} 
+                placeholder="PIN numérico de 8 dígitos"
+                className="m3-input w-full font-mono tracking-widest text-lg pr-12"
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 8))}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPin(!showPin)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-outline hover:text-primary transition-colors"
+                title={showPin ? "Ocultar PIN" : "Mostrar PIN"}
+              >
+                {showPin ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
             <button 
               onClick={handleSavePin}
               className="m3-button-filled"

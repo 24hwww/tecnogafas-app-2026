@@ -45,12 +45,6 @@ export default function Dashboard() {
             <div className="flex justify-between items-center w-full">
               <div className="flex items-center gap-2">
                 <span className="text-[0.625rem] font-bold uppercase tracking-widest text-outline">{stat.label}</span>
-                {stat.badge && (
-                  <span className="px-1.5 py-0.5 bg-green-500/10 text-green-600 text-[0.6rem] font-bold rounded-full flex items-center gap-1">
-                    <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse"></span>
-                    {stat.badge}
-                  </span>
-                )}
               </div>
               <stat.icon size={16} className={`${stat.color || 'text-primary'}/40`} />
             </div>

@@ -155,7 +155,13 @@ export default function Notifications() {
         ) : (
           notifications.map((n, i) => {
             const isRead = n.read || n.status === 'read' || n.read === 1;
-            const contentObj = typeof n.content === 'string' ? JSON.parse(n.content || '{}') : n.content;
+            
+            let contentObj: any = {};
+            try {
+              contentObj = typeof n.content === 'string' ? JSON.parse(n.content || '{}') : n.content;
+            } catch (e) {
+              contentObj = { body: n.content };
+            }
             
             const title = n.title || contentObj?.title || (n.type === 'message' ? 'Mensaje' : 'Notificación');
             const body = contentObj?.body || contentObj?.text || n.message || n.details || '';
