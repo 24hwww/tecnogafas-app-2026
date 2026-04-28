@@ -9,7 +9,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   
   const stats = [
-    { label: 'Vendedores', value: sellers.length, icon: Users, color: 'text-green-600', badge: onlineUsersCount !== null ? `${onlineUsersCount} activos` : null },
+    { label: 'Vendedores', value: sellers.length, icon: Users, color: 'text-green-600' },
     { label: 'Clientes', value: clients.length, icon: TrendingUp, color: 'text-blue-600' },
     { label: 'Productos', value: products.length, icon: Package, color: 'text-purple-600' },
     { label: 'Pedidos', value: grandTotalOrders, icon: ShoppingBag, color: 'text-orange-600' },

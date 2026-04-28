@@ -146,9 +146,9 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-3">
             {onlineUsersCount !== null && (
-              <div title="Vendedores activos" className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 text-green-700 font-medium text-xs rounded-full">
+              <div title="Vendedores activos" className="flex items-center gap-1 px-2 py-1 bg-green-500/10 text-green-700 font-bold text-[0.625rem] rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                <span>{onlineUsersCount} {onlineUsersCount === 1 ? 'Activo' : 'Activos'}</span>
+                <span>{onlineUsersCount}</span>
               </div>
             )}
             <button 

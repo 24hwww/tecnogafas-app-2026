@@ -405,8 +405,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let eventSource: EventSource | null = null;
     
-    if (globalPin) {
-      // Start SSE if pin is available
+    if (globalPin && isOnline) {
+      // Start SSE if pin is available and online
       apiService.loginSeller(globalPin).then(seller => {
          if (seller) {
             setCurrentSeller(seller);
@@ -414,8 +414,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const lastId = localStorage.getItem('tecnogafas_last_event_id') || '';
             const url = new URL('https://api.tecnogafas.com.ar/events/stream');
             
-            // Pass authorization token and last_id via query params for native EventSource compatibility
-            url.searchParams.set('token', globalPin);
+            // Per README v2.5.0, EventSource uses user_id in query string
+            url.searchParams.set('user_id', seller.id.toString());
             if (lastId) {
               url.searchParams.set('last_id', lastId);
             }
@@ -423,32 +423,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const es = new EventSource(url.toString());
             eventSource = es;
 
-            // 🔹 conexión abierta
+            // Handshake
             es.addEventListener('connected', (e: any) => {
-              try {
-                const data = JSON.parse(e.data);
-                console.log('SSE connected', data);
-              } catch (err) {
-                console.log('SSE connected event received');
-              }
+              console.log('SSE Handshake:', e.data);
             });
 
-            // 🔹 heartbeat / online status
+            // Heartbeat / Presence
             es.addEventListener('ping', (e: any) => {
               try {
                 const data = JSON.parse(e.data);
-                if (data.onlineCount !== undefined) {
-                  setOnlineUsersCount(data.onlineCount);
-                } else if (data.count !== undefined) {
-                  setOnlineUsersCount(data.count);
-                }
+                setOnlineUsersCount(data.onlineCount ?? data.count ?? 0);
               } catch (err) {}
             });
 
             const handleSSEEvent = (e: MessageEvent) => {
               try {
                 const data = JSON.parse(e.data);
-                
                 if (data.message === 'max runtime reached' || data.keepalive === true) return;
                 
                 if (e.lastEventId) {
@@ -459,12 +449,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
                 // Handle Deploy
                 if (data.type === 'deploy' || e.type === 'deploy') {
-                  setDeployNotification(data);
-                }
-
-                // Handle Presence
-                if (data.type === 'presence' || data.onlineCount !== undefined) {
-                  setOnlineUsersCount(data.onlineCount ?? data.count);
+                  setDeployEvent(data);
                 }
 
                 // Handle Notifications/Messages
@@ -485,8 +470,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
                 if (Notification.permission === 'granted' && (data.type === 'notification' || data.type === 'message' || e.type === 'notification' || e.type === 'message')) {
                   navigator.serviceWorker.ready.then(reg => {
-                    reg.showNotification(data.title || 'TecnoGafas', {
-                      body: data.message || (typeof data.content === 'object' ? data.content.body || data.content.text : data.content) || 'Nueva notificación',
+                    const contentObj = typeof data.content === 'string' ? JSON.parse(data.content || '{}') : data.content;
+                    reg.showNotification(contentObj?.title || data.title || 'TecnoGafas', {
+                      body: contentObj?.body || data.body || data.message || 'Nueva notificación',
                       icon: '/icon-192x192.png',
                       badge: '/icon-192x192.png',
                       tag: 'tecnogafas-notif'
@@ -504,15 +490,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             es.addEventListener('deploy', handleSSEEvent);
 
             es.onerror = (err) => {
-              console.warn('SSE error', err);
+              console.warn('SSE connection error, closing for retry...', err);
               es.close();
-              
-              // Fallback to reload if it persists (manual pattern)
-              setTimeout(() => {
-                if (globalPin) {
-                   console.log('SSE connection lost, waiting for automatic reconnect or manual fetch...');
-                }
-              }, 5000);
             };
          }
       });
