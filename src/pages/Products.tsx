@@ -322,7 +322,7 @@ export default function Products() {
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3">
                 <button 
                   onClick={() => setVariationModalProduct(null)} 
                   className="flex-1 py-3 text-sm font-bold text-outline hover:bg-surface-variant rounded-xl transition-colors"

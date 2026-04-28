@@ -44,12 +44,12 @@ export default function Cart() {
             <button onClick={() => navigate('/clientes')} className="text-xs text-primary font-bold">Cambiar</button>
           </div>
         ) : (
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 w-full">
             <div className="flex items-center gap-2 text-red-500">
               <AlertCircle size={20} />
               <span className="text-xs font-medium">Asigna un cliente para continuar</span>
             </div>
-            <button onClick={() => navigate('/clientes')} className="m3-button-filled !px-3 !py-1 text-xs">Asignar</button>
+            <button onClick={() => navigate('/clientes')} className="m3-button-filled w-full">Asignar</button>
           </div>
         )}
       </div>

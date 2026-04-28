@@ -1,6 +1,7 @@
 import { useApp } from '../AppContext';
 import { Settings as SettingsIcon, Bell, RefreshCw, Key } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { kodular } from '../lib/kodular';
 
 export default function Settings() {
   const { primaryColor, fontSize, globalPin, setPrimaryColor, setFontSize, setGlobalPin } = useApp();
@@ -10,22 +11,37 @@ export default function Settings() {
   useEffect(() => {
     if ('Notification' in window) {
       setPushEnabled(Notification.permission === 'granted');
+      if (Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(console.error);
+      }
     }
   }, []);
 
   const enablePush = async () => {
-    if (!('Notification' in window)) {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
       alert('Tu navegador no soporta notificaciones push');
       return;
     }
     const perm = await Notification.requestPermission();
-    setPushEnabled(perm === 'granted');
+    if (perm === 'granted') {
+      try {
+        await navigator.serviceWorker.register('/sw.js');
+        setPushEnabled(true);
+      } catch (err) {
+        console.error('Error registrando service worker:', err);
+      }
+    } else {
+      setPushEnabled(false);
+    }
   };
 
   const handleSavePin = () => {
     if (pinInput.length === 8) {
       setGlobalPin(pinInput);
       alert('PIN guardado. La sincronización en segundo plano y las notificaciones están activadas.');
+      
+      // Notify Kodular if available
+      kodular.call('onPinChanged', pinInput);
     } else {
       setGlobalPin(null);
       setPinInput('');
@@ -74,6 +90,29 @@ export default function Settings() {
           >
             {pushEnabled ? 'Notificaciones Push Activadas' : 'Permitir Notificaciones Push'}
           </button>
+        </div>
+
+        <hr className="border-outline/10"/>
+
+        <div>
+          <h3 className="font-bold mb-4 flex items-center gap-2"><SettingsIcon size={18}/> Componentes Kodular</h3>
+          {kodular.isAvailable() ? (
+            <div className="p-4 bg-green-100/50 rounded-xl border border-green-200">
+              <p className="text-sm font-bold text-green-800">✅ Interfaz Kodular Detectada</p>
+              <ul className="text-xs text-green-700 mt-2 list-disc pl-4 space-y-1">
+                <li>Web_Viewer</li>
+                <li>InApp_Update</li>
+                <li>Network</li>
+                <li>Download</li>
+                <li>Tiny_DB / Tiny_Web_DB</li>
+                <li>QR_Code / Barcode_Scanner</li>
+                <li>Fingerprint</li>
+                <li>Sharing</li>
+              </ul>
+            </div>
+          ) : (
+            <p className="text-sm text-outline italic">No se detectó un entorno Kodular activo.</p>
+          )}
         </div>
 
         <hr className="border-outline/10"/>

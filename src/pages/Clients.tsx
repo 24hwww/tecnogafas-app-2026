@@ -130,16 +130,16 @@ export default function Clients() {
             <span className="text-[0.625rem] uppercase font-black text-primary animate-pulse">Cliente para pedido</span>
             <p className="text-sm font-bold text-on-primary-container truncate">{selectedClient.name}</p>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-2">
             <button 
               onClick={() => navigate('/carrito')}
-              className="m3-button-filled !px-4 !py-1 text-xs"
+              className="m3-button-filled w-full"
             >
               Ver Carrito
             </button>
             <button 
               onClick={() => setSelectedClient(null)}
-              className="text-[0.625rem] font-bold text-outline uppercase"
+              className="text-[0.625rem] font-bold text-outline uppercase w-full"
             >
               Quitar
             </button>
