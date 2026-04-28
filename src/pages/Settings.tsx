@@ -97,18 +97,24 @@ export default function Settings() {
         <div>
           <h3 className="font-bold mb-4 flex items-center gap-2"><SettingsIcon size={18}/> Componentes Kodular</h3>
           {kodular.isAvailable() ? (
-            <div className="p-4 bg-green-100/50 rounded-xl border border-green-200">
-              <p className="text-sm font-bold text-green-800">✅ Interfaz Kodular Detectada</p>
-              <ul className="text-xs text-green-700 mt-2 list-disc pl-4 space-y-1">
-                <li>Web_Viewer</li>
-                <li>InApp_Update</li>
-                <li>Network</li>
-                <li>Download</li>
-                <li>Tiny_DB / Tiny_Web_DB</li>
-                <li>QR_Code / Barcode_Scanner</li>
-                <li>Fingerprint</li>
-                <li>Sharing</li>
-              </ul>
+            <div className="space-y-3">
+              <div className="p-4 bg-green-100/50 rounded-xl border border-green-200">
+                <p className="text-sm font-bold text-green-800">✅ Interfaz Kodular Detectada</p>
+                <ul className="text-xs text-green-700 mt-2 list-disc pl-4 space-y-1">
+                  <li>Web_Viewer (AppInventor)</li>
+                  <li>InApp_Update</li>
+                  <li>Network / Download</li>
+                  <li>Tiny_DB / Tiny_Web_DB</li>
+                  <li>QR_Code / Barcode_Scanner</li>
+                  <li>Fingerprint / Sharing</li>
+                </ul>
+              </div>
+              <button 
+                onClick={() => kodular.notifyFallback('Prueba de Aviso', 'Esta es una notificación simulada con vibración.')}
+                className="w-full p-3 bg-secondary text-on-secondary rounded-xl font-bold text-xs flex items-center justify-center gap-2"
+              >
+                <Bell size={16} /> Probar Vibración y Aviso
+              </button>
             </div>
           ) : (
             <p className="text-sm text-outline italic">No se detectó un entorno Kodular activo.</p>
