@@ -16,7 +16,7 @@ const navItems = [
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { cart, isLoading, apiError, onlineUsersCount } = useApp();
+  const { cart, unreadNotifications, isLoading, apiError, onlineUsersCount } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -90,6 +90,11 @@ export function Layout({ children }: { children: ReactNode }) {
                         {cart.reduce((a, b) => a + b.quantity, 0)}
                       </span>
                     )}
+                    {item.label === 'Notificaciones' && unreadNotifications > 0 && (
+                      <span className="ml-auto bg-error text-white text-[0.625rem] px-1.5 py-0.5 font-bold rounded-full">
+                        {unreadNotifications}
+                      </span>
+                    )}
                   </NavLink>
                 ))}
               </nav>
@@ -126,6 +131,17 @@ export function Layout({ children }: { children: ReactNode }) {
                 <span>{onlineUsersCount} {onlineUsersCount === 1 ? 'Activo' : 'Activos'}</span>
               </div>
             )}
+            <button 
+              onClick={() => navigate('/notificaciones')}
+              className="relative p-2 hover:bg-surface-variant text-on-surface-variant transition-colors"
+            >
+              <Bell size={24} />
+              {unreadNotifications > 0 && (
+                <span className="absolute top-1 right-1 bg-red-500 text-white text-[0.625rem] w-4 h-4 flex items-center justify-center font-bold rounded-full border border-surface">
+                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                </span>
+              )}
+            </button>
             <button 
               onClick={() => navigate('/carrito')}
               className="relative p-2 hover:bg-surface-variant text-on-surface-variant transition-colors"

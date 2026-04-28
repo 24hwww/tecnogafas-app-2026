@@ -12,22 +12,49 @@ import { motion } from 'motion/react';
 import { apiService } from '../services/apiService';
 
 export default function Orders() {
-  const { orders, drafts, isLoading, loadDraft, refreshData, globalPin, setGlobalPin } = useApp();
+  const { orders, totalOrders, drafts, clients, sellers, isLoading, loadDraft, refreshData, globalPin, setGlobalPin, fetchOrders } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [sharingDraftId, setSharingDraftId] = useState<string | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
   
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSeller, setSelectedSeller] = useState<string>('');
+  const [selectedCustomer, setSelectedCustomer] = useState<string>('');
+  const perPage = 25;
+
   // New states for actions
   const [actionType, setActionType] = useState<'pdf'|'email'|null>(null);
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [pin, setPin] = useState('');
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<{message: string, type: 'error'|'success'} | null>(null);
+  
+  // Fetch orders when page changes or filters change
+  const loadPage = async (page: number, sellerId?: string, customerId?: string) => {
+    setCurrentPage(page);
+    await fetchOrders(
+      page, 
+      perPage, 
+      sellerId ? parseInt(sellerId) : undefined, 
+      customerId ? parseInt(customerId) : undefined
+    );
+  };
 
-  // Load only the 10 most recent orders
-  const recentOrders = orders.slice(0, 10);
+  const handleSellerChange = (sellerId: string) => {
+    setSelectedSeller(sellerId);
+    loadPage(1, sellerId, selectedCustomer);
+  };
+
+  const handleCustomerChange = (customerId: string) => {
+    setSelectedCustomer(customerId);
+    loadPage(1, selectedSeller, customerId);
+  };
+    
+  // Filter orders by title locally
+  const filteredOrders = orders.filter(order => order.rawData.post_title?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleActionClick = async (type: 'pdf'|'email'|'status') => {
     setActionType(type);
@@ -203,16 +230,49 @@ export default function Orders() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold">Mis Pedidos</h2>
-            <span className="text-[0.625rem] bg-primary/10 text-primary px-2 py-0.5 font-bold uppercase tracking-wider">
-              Top 10 Recientes
-            </span>
+          </div>
+          
+          <div className="flex flex-col gap-3">
+            <input 
+              type="text" 
+              placeholder="Buscar por título..." 
+              className="w-full p-3 m3-input rounded-lg border border-outline/20"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            
+            <div className="grid grid-cols-2 gap-3">
+              <select 
+                className="p-3 m3-input rounded-lg border border-outline/20 text-sm bg-surface"
+                value={selectedSeller}
+                onChange={(e) => handleSellerChange(e.target.value)}
+              >
+                <option value="">Todos los Vendedores</option>
+                {sellers.map(seller => (
+                  <option key={seller.id} value={seller.id}>{seller.name}</option>
+                ))}
+              </select>
+              
+              <select 
+                className="p-3 m3-input rounded-lg border border-outline/20 text-sm bg-surface"
+                value={selectedCustomer}
+                onChange={(e) => handleCustomerChange(e.target.value)}
+              >
+                <option value="">Todos los Clientes</option>
+                {clients.map(client => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
           
           <div className="space-y-3">
             {isLoading ? (
               Array(4).fill(0).map((_, i) => <OrderSkeleton key={i} />)
+            ) : filteredOrders.length === 0 ? (
+                <p className="text-center p-4 text-on-surface-variant text-sm">No se encontraron pedidos</p>
             ) : (
-              recentOrders.map((order) => {
+              filteredOrders.map((order) => {
                 const isNew = location.state?.newOrderId == order.id;
                 return (
                   <motion.div
@@ -222,43 +282,64 @@ export default function Orders() {
                     transition={{ duration: 2 }}
                     className="m3-card !p-0 overflow-hidden"
                   >
-              <div className="p-4 border-b border-outline/10 flex justify-between items-center bg-primary/5">
-                <div>
-                  <p className="font-bold text-sm">{order.rawData.post_title} – {new Date(order.createdAt).toLocaleString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit'})}</p>
-                </div>
-                <div className="flex items-center gap-1 text-xs font-bold text-primary">
-                  {order.status === 'Pendiente' ? <Clock size={14} /> : <CheckCircle2 size={14} />}
-                  {order.status}
-                </div>
-              </div>
-              
-              <div className="p-4 space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-on-surface-variant">Cliente</span>
-                  <span className="text-xs font-medium">{order.clientName}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-on-surface-variant">Estado</span>
-                  <span className="text-xs font-medium bg-primary/10 px-2 py-0.5 text-primary">{order.status}</span>
-                </div>
-                <div className="pt-2 border-t border-outline/5 flex justify-between items-center">
-                  <span className="font-bold">Total</span>
-                  <span className="font-bold text-primary text-lg">{formatCurrency(order.total || 0)}</span>
-                </div>
-              </div>
-              
-              <button 
-                onClick={() => setSelectedOrder(order)}
-                className="w-full p-2 bg-surface-variant/50 text-[0.625rem] font-bold text-center flex items-center justify-center gap-1"
-              >
-                Ver Detalles <ChevronRight size={12} />
-              </button>
-                </motion.div>
+                    <div className="p-4 border-b border-outline/10 flex justify-between items-center bg-primary/5">
+                      <div>
+                        <p className="font-bold text-sm">{order.rawData.post_title} – {new Date(order.createdAt).toLocaleString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit'})}</p>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs font-bold text-primary">
+                        {order.status === 'Pendiente' ? <Clock size={14} /> : <CheckCircle2 size={14} />}
+                        {order.status}
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-on-surface-variant">Cliente</span>
+                        <span className="text-xs font-medium">{order.clientName}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-on-surface-variant">Estado</span>
+                        <span className="text-xs font-medium bg-primary/10 px-2 py-0.5 text-primary">{order.status}</span>
+                      </div>
+                      <div className="pt-2 border-t border-outline/5 flex justify-between items-center">
+                        <span className="font-bold">Total</span>
+                        <span className="font-bold text-primary text-lg">{formatCurrency(order.total || 0)}</span>
+                      </div>
+                    </div>
+                    
+                    <button 
+                      onClick={() => setSelectedOrder(order)}
+                      className="w-full p-2 bg-surface-variant/50 text-[0.625rem] font-bold text-center flex items-center justify-center gap-1"
+                    >
+                      Ver Detalles <ChevronRight size={12} />
+                    </button>
+                  </motion.div>
                 );
               })
             )}
+            
+            {/* Pagination Controls */}
+            {!isLoading && totalOrders > perPage && (
+              <div className="flex justify-center items-center gap-4 pt-4">
+                <button 
+                  disabled={currentPage === 1}
+                  onClick={() => loadPage(currentPage - 1, selectedSeller, selectedCustomer)}
+                  className="m3-button-outlined !py-2 !px-4 disabled:opacity-50"
+                >
+                  Anterior
+                </button>
+                <span className="text-sm font-bold">Página {currentPage} de {Math.max(1, Math.ceil(totalOrders / perPage))}</span>
+                <button 
+                   disabled={currentPage >= Math.ceil(totalOrders / perPage)}
+                   onClick={() => loadPage(currentPage + 1, selectedSeller, selectedCustomer)}
+                   className="m3-button-outlined !py-2 !px-4 disabled:opacity-50"
+                >
+                  Siguiente
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
       {selectedOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

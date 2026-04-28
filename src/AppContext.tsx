@@ -7,6 +7,9 @@ interface AppContextType {
   products: Product[];
   clients: Client[];
   orders: Order[];
+  totalOrders: number;
+  grandTotalOrders: number;
+  dashboardOrders: Order[];
   sellers: Seller[];
   cart: CartItem[];
   drafts: DraftOrder[];
@@ -28,13 +31,20 @@ interface AppContextType {
   apiError: string | null;
   onlineUsersCount: number | null;
   deployEvent: any | null;
+  notifications: any[];
+  unreadNotifications: number;
   setPrimaryColor: (color: string) => void;
   setFontSize: (size: string) => void;
   setGlobalPin: (pin: string | null) => void;
   setApiError: (error: string | null) => void;
   setOnlineUsersCount: (count: number | null) => void;
+  setTotalOrders: (total: number) => void;
   setDeployNotification: (event: any) => void;
+  setUnreadNotifications: (count: number) => void;
+  sendNotification: (toUserId: number, content: string, type?: 'message' | 'notification') => Promise<boolean>;
+  fetchOrders: (page: number, perPage: number, sellerId?: number, customerId?: number) => Promise<void>;
   refreshData: (showLoading?: boolean) => Promise<void>;
+  forceRefresh: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -45,6 +55,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [grandTotalOrders, setGrandTotalOrders] = useState(0);
+  const [dashboardOrders, setDashboardOrders] = useState<Order[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [drafts, setDrafts] = useState<DraftOrder[]>([]);
@@ -58,11 +71,71 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [apiError, setApiError] = useState<string | null>(null);
   const [onlineUsersCount, setOnlineUsersCount] = useState<number | null>(null);
   const [deployEvent, setDeployEvent] = useState<any | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  const playNotificationSound = () => {
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    audio.play().catch(e => console.log('Audio play failed', e));
+  };
 
   const setDeployNotification = (event: any) => {
       setDeployEvent(event);
       setTimeout(() => setDeployEvent(null), 10000); // Autohide
   }
+
+  const fetchOrders = async (page: number = 1, perPage: number = 25, sellerId?: number, customerId?: number) => {
+    setIsLoading(true);
+    try {
+      const o = await apiService.getOrders(page, perPage, sellerId, customerId);
+      setOrders(o.orders);
+      setTotalOrders(o.total);
+    } catch (error) {
+      console.error('Failed to fetch orders', error);
+      setApiError('No se pudieron cargar los pedidos');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const sendNotification = async (toUserId: number, content: string, type: 'message' | 'notification' = 'notification') => {
+    if (!globalPin) return false;
+    try {
+      await apiService.createEvent({
+        user_id: toUserId,
+        type,
+        content: { text: content, sender: currentSeller?.name || 'Vendedor' }
+      }, globalPin);
+      return true;
+    } catch (e) {
+      console.error('Error sending notification', e);
+      return false;
+    }
+  };
+
+  const forceRefresh = async () => {
+    setIsLoading(true);
+    try {
+      const keysToClear = [
+        'tecnogafas_products', 
+        'tecnogafas_clients', 
+        'tecnogafas_orders', 
+        'tecnogafas_sellers'
+      ];
+      await Promise.all(keysToClear.map(key => del(key)));
+      await refreshData(false);
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for(let registration of registrations) {
+          registration.update();
+        }
+      }
+    } catch (error) {
+      console.error('Force refresh failed', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const refreshData = async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
@@ -70,12 +143,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const [p, c, o, s] = await Promise.all([
         apiService.getProducts(),
         apiService.getClients(),
-        apiService.getOrders(),
+        apiService.getOrders(1, 25), // Fetch first page
         apiService.getSellers(),
       ]);
       setProducts(p);
       setClients(c);
-      setOrders(o);
+      setOrders(o.orders);
+      setTotalOrders(o.total);
+      setGrandTotalOrders(o.total);
+      setDashboardOrders(o.orders.slice(0, 5));
       setSellers(s);
 
       // Save to cache
@@ -83,7 +159,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await set('tecnogafas_products', p);
         await set('tecnogafas_clients', c);
         // Omit rawData from orders before saving to cache to prevent quota exceeded
-        const cachedOrders = o.map(({ rawData, ...rest }) => rest);
+        const cachedOrders = o.orders.map(({ rawData, ...rest }) => rest);
         await set('tecnogafas_orders', cachedOrders);
         await set('tecnogafas_sellers', s);
       } catch (cacheError) {
@@ -102,15 +178,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const cachedProducts = await get<Product[]>('tecnogafas_products');
         const cachedClients = await get<Client[]>('tecnogafas_clients');
-        const cachedOrders = await get<Order[]>('tecnogafas_orders');
+        const cachedOrdersData = await get<Order[]>('tecnogafas_orders');
         const cachedSellers = await get<Seller[]>('tecnogafas_sellers');
 
         if (cachedProducts) { setProducts(cachedProducts); hasCache = true; }
         if (cachedClients) { setClients(cachedClients); hasCache = true; }
-        if (cachedOrders) { setOrders(cachedOrders); hasCache = true; }
+        if (cachedOrdersData) { 
+          setOrders(cachedOrdersData); 
+          setTotalOrders(cachedOrdersData.length); 
+          setGrandTotalOrders(cachedOrdersData.length);
+          setDashboardOrders(cachedOrdersData.slice(0, 5));
+          hasCache = true; 
+        }
         if (cachedSellers) { setSellers(cachedSellers); hasCache = true; }
       } catch (e) {
         console.error('Error reading cache', e);
+      }
+
+      if (globalPin) {
+        apiService.getUnreadCount(globalPin).then(setUnreadNotifications);
       }
 
       if (hasCache) {
@@ -308,6 +394,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
               onmessage(event) {
                 try {
                   const data = JSON.parse(event.data);
+                  
+                  // Ignore system maintenance/keep-alive messages
+                  if (data.message === 'max runtime reached' || data.keepalive === true) {
+                      return;
+                  }
+                  
                   console.log('Notification received:', data);
                   
                   // Check if it's a presence event or has online users count
@@ -318,6 +410,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
                   if (data.type === 'deploy') {
                       setDeployNotification(data);
+                  }
+
+                  if (data.type === 'notification' || data.type === 'message') {
+                    setUnreadNotifications(prev => prev + 1);
+                    playNotificationSound();
+                    // Optionally refresh notifications list if on that page
                   }
 
                   if (Notification.permission === 'granted') {
@@ -351,10 +449,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  return (
+      return (
     <AppContext.Provider value={{
-      products, clients, orders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, setSelectedClient,
-      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setDeployNotification, refreshData
+      products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, notifications, unreadNotifications, setSelectedClient,
+      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, sendNotification, fetchOrders, refreshData, forceRefresh
     }}>
       {children}
     </AppContext.Provider>

@@ -1,31 +1,42 @@
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
-import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity } from 'lucide-react';
+import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity, Zap } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { Skeleton } from '../components/Skeleton';
 
 export default function Dashboard() {
-  const { products, clients, orders, sellers, refreshData, isLoading, onlineUsersCount } = useApp();
+  const { products, clients, grandTotalOrders, dashboardOrders, sellers, refreshData, forceRefresh, isLoading, onlineUsersCount } = useApp();
   const navigate = useNavigate();
   
   const stats = [
     { label: 'Vendedores', value: sellers.length, icon: Users, color: 'text-green-600', badge: onlineUsersCount !== null ? `${onlineUsersCount} activos` : null },
     { label: 'Clientes', value: clients.length, icon: TrendingUp, color: 'text-blue-600' },
     { label: 'Productos', value: products.length, icon: Package, color: 'text-purple-600' },
-    { label: 'Pedidos', value: orders.length, icon: ShoppingBag, color: 'text-orange-600' },
+    { label: 'Pedidos', value: grandTotalOrders, icon: ShoppingBag, color: 'text-orange-600' },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-on-surface">Panel de Control</h2>
-        <button 
-          onClick={() => refreshData()} 
-          disabled={isLoading}
-          className={`p-2 hover:bg-surface-variant transition-all ${isLoading ? 'animate-spin' : ''}`}
-        >
-          <RefreshCw size={20} className="text-primary" />
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => refreshData()} 
+            disabled={isLoading}
+            className={`p-2 hover:bg-surface-variant transition-all ${isLoading ? 'animate-spin' : ''}`}
+            title="Sincronizar"
+          >
+            <RefreshCw size={20} className="text-primary" />
+          </button>
+          <button 
+            onClick={() => forceRefresh()} 
+            disabled={isLoading}
+            className={`p-2 m3-button !rounded-full shadow-lg ${isLoading ? 'animate-pulse' : ''}`}
+            title="Limpiar Caché y Forzar Recarga"
+          >
+            <Zap size={20} className="text-on-primary" />
+          </button>
+        </div>
       </div>
       
       <div className="grid grid-cols-2 gap-4">
@@ -83,14 +94,14 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-        ) : orders.length === 0 ? (
+        ) : dashboardOrders.length === 0 ? (
           <div className="text-center py-6">
             <ShoppingBag className="mx-auto text-outline mb-2 opacity-20" size={40} />
             <p className="text-xs text-outline font-medium">No hay pedidos registrados.</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {orders.slice(0, 4).map((order) => (
+            {dashboardOrders.slice(0, 4).map((order) => (
               <div key={order.id} className="flex justify-between items-center group">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-surface flex items-center justify-center font-bold text-primary border border-white/5">

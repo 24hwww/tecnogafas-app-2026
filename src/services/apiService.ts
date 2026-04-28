@@ -135,11 +135,15 @@ export const apiService = {
     }));
   },
 
-  async getOrders(): Promise<Order[]> {
-    const res = await customFetch(`${BASE_URL}/pedidos`);
+  async getOrders(page: number = 1, perPage: number = 25, sellerId?: number, customerId?: number): Promise<{ orders: Order[], total: number }> {
+    let url = `${BASE_URL}/pedidos?page=${page}&per_page=${perPage}`;
+    if (sellerId) url += `&seller_id=${sellerId}`;
+    if (customerId) url += `&customer_id=${customerId}`;
+    
+    const res = await customFetch(url);
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
-    return (json.data || []).map((o: ApiOrder) => ({
+    const orders = (json.data || []).map((o: ApiOrder) => ({
       id: o.ID?.toString() || Math.random().toString(),
       clientId: o.customer_id?.toString() || '',
       clientName: o.customer ? `${o.customer.first_name || ''} ${o.customer.last_name || ''}`.trim() : 'Sin cliente',
@@ -158,6 +162,7 @@ export const apiService = {
         customer_note: o.customer_note || (o as any).notes || '', // Handle different possible field names
       },
     }));
+    return { orders, total: parseInt(json.total) || orders.length };
   },
 
   async verifyProducts(products: {product_id: number, variation_id?: number, price: number, stock: number}[]): Promise<{
@@ -191,12 +196,47 @@ export const apiService = {
     }));
   },
 
-  async getEvents(sellerId?: string): Promise<any[]> {
+  async getEvents(type?: string, sellerId?: string): Promise<any[]> {
     const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
-    const res = await customFetch(`${BASE_URL}/events/list`, { headers });
+    const url = type ? `${BASE_URL}/events/list?type=${type}` : `${BASE_URL}/events/list`;
+    const res = await customFetch(url, { headers });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
     return json.data || [];
+  },
+
+  async createEvent(data: { user_id: number; type: 'message' | 'notification'; content: any }, sellerId?: string): Promise<any> {
+    const headers = { 
+      'Content-Type': 'application/json',
+      ...(sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {})
+    };
+    const res = await customFetch(`${BASE_URL}/event`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async getUnreadCount(sellerId?: string): Promise<number> {
+    const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
+    const res = await customFetch(`${BASE_URL}/events/unread`, { headers });
+    if (!res.ok) return 0;
+    const json = await res.json();
+    return json.unread || 0;
+  },
+
+  async ackEvent(id: number, sellerId?: string): Promise<any> {
+    const headers = { 
+      'Content-Type': 'application/json',
+      ...(sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {})
+    };
+    const res = await customFetch(`${BASE_URL}/ack`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ id })
+    });
+    return res.json();
   },
 
   async createOrder(clientId: string, items: any[], details: any, sellerId: string): Promise<{success: boolean, message: string, orderId?: string}> {
