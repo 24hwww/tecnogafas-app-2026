@@ -14,8 +14,9 @@ export default defineConfig(({mode}) => {
         strategies: 'injectManifest',
         srcDir: 'public',
         filename: 'sw.js',
+        buildBase: 'https://app.tecnogafas.com.ar/',
         devOptions: {
-          enabled: true,
+          enabled: false,
           type: 'module',
           navigateFallback: 'index.html',
         },

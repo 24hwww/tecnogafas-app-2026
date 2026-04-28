@@ -8,6 +8,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { AppProvider } from './AppContext';
 import { ThemeWrapper } from './components/ThemeWrapper';
 import { Layout } from './components/Layout';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Clients from './pages/Clients';
@@ -37,6 +38,7 @@ export default function App() {
             </Routes>
           </Layout>
         </Router>
+        <UpdatePrompt />
       </ThemeWrapper>
       <Analytics />
     </AppProvider>
