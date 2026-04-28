@@ -9,6 +9,7 @@ import { AppProvider } from './AppContext';
 import { ThemeWrapper } from './components/ThemeWrapper';
 import { Layout } from './components/Layout';
 import { UpdatePrompt } from './components/UpdatePrompt';
+import { DeployNotification } from './components/DeployNotification';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Clients from './pages/Clients';
@@ -39,6 +40,7 @@ export default function App() {
           </Layout>
         </Router>
         <UpdatePrompt />
+        <DeployNotification />
       </ThemeWrapper>
       <Analytics />
     </AppProvider>

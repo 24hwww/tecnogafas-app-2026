@@ -3,16 +3,18 @@ import { useApp } from '../AppContext';
 import { Package, Clock, CheckCircle2, ChevronRight, Save, Send, X, FileText, Mail, Share2, Loader2 } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { OrderSkeleton } from '../components/Skeleton';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Order, DraftOrder } from '../types';
 import { toBlob } from 'html-to-image';
 import { PullToRefresh } from '../components/PullToRefresh';
+import { motion } from 'motion/react';
 
 import { apiService } from '../services/apiService';
 
 export default function Orders() {
-  const { orders, drafts, isLoading, loadDraft, refreshData } = useApp();
+  const { orders, drafts, isLoading, loadDraft, refreshData, globalPin, setGlobalPin } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [sharingDraftId, setSharingDraftId] = useState<string | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -27,26 +29,35 @@ export default function Orders() {
   // Load only the 10 most recent orders
   const recentOrders = orders.slice(0, 10);
 
-  const handleActionClick = (type: 'pdf'|'email'|'status') => {
+  const handleActionClick = async (type: 'pdf'|'email'|'status') => {
     setActionType(type);
-    setPinModalOpen(true);
-    setPin('');
-    setActionFeedback(null);
+    if (globalPin) {
+      await executeAction(type, globalPin);
+    } else {
+      setPinModalOpen(true);
+      setPin('');
+      setActionFeedback(null);
+    }
   };
 
-  const executeAction = async () => {
-    if (!pin || !selectedOrder || !actionType) return;
+  const executeAction = async (overrideActionType?: string, overridePin?: string) => {
+    const currentPin = overridePin || pin;
+    const currentAction = overrideActionType || actionType;
+    
+    if (!currentPin || !selectedOrder || !currentAction) return;
     setIsActionLoading(true);
     setActionFeedback(null);
     try {
-      const sellerInfo = await apiService.loginSeller(pin);
+      const sellerInfo = await apiService.loginSeller(currentPin);
       if (!sellerInfo) {
         setActionFeedback({ message: 'PIN incorrecto o error de red', type: 'error' });
         setIsActionLoading(false);
         return;
       }
       
-      if (actionType === 'pdf') {
+      setGlobalPin(currentPin);
+      
+      if (currentAction === 'pdf') {
         const success = await apiService.downloadOrderPdf(selectedOrder.id, sellerInfo.id);
         if (success) {
            setPinModalOpen(false);
@@ -54,7 +65,7 @@ export default function Orders() {
         } else {
            setActionFeedback({ message: 'Error al descargar el PDF', type: 'error' });
         }
-      } else if (actionType === 'email') {
+      } else if (currentAction === 'email') {
         const res = await apiService.sendOrderEmail(selectedOrder.id, sellerInfo.id);
         if (res.success) {
            setPinModalOpen(false);
@@ -62,7 +73,7 @@ export default function Orders() {
         } else {
            setActionFeedback({ message: res.message, type: 'error' });
         }
-      } else if (actionType === 'status') {
+      } else if (currentAction === 'status') {
         const newStatus = selectedOrder.status === 'Pendiente' ? 'attended' : 'unattended';
         const res = await apiService.updateOrderStatus(selectedOrder.id, newStatus, sellerInfo.id);
         if (res.success) {
@@ -201,8 +212,16 @@ export default function Orders() {
             {isLoading ? (
               Array(4).fill(0).map((_, i) => <OrderSkeleton key={i} />)
             ) : (
-              recentOrders.map((order) => (
-              <div key={order.id} className="m3-card !p-0 overflow-hidden">
+              recentOrders.map((order) => {
+                const isNew = location.state?.newOrderId == order.id;
+                return (
+                  <motion.div
+                    key={order.id}
+                    initial={isNew ? { backgroundColor: '#fef3c7' } : {}}
+                    animate={isNew ? { backgroundColor: 'transparent' } : {}}
+                    transition={{ duration: 2 }}
+                    className="m3-card !p-0 overflow-hidden"
+                  >
               <div className="p-4 border-b border-outline/10 flex justify-between items-center bg-primary/5">
                 <div>
                   <p className="font-bold text-sm">{order.rawData.post_title} – {new Date(order.createdAt).toLocaleString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit'})}</p>
@@ -234,8 +253,10 @@ export default function Orders() {
               >
                 Ver Detalles <ChevronRight size={12} />
               </button>
-            </div>
-          )))}
+                </motion.div>
+                );
+              })
+            )}
         </div>
       </div>
 
@@ -376,7 +397,7 @@ export default function Orders() {
                 Cancelar
               </button>
               <button 
-                onClick={executeAction}
+                onClick={() => executeAction()}
                 disabled={!pin || pin.length !== 8 || isActionLoading}
                 className="flex-1 py-3 m3-button-filled font-bold flex items-center justify-center gap-2"
               >

@@ -27,11 +27,13 @@ interface AppContextType {
   currentSeller: Seller | null;
   apiError: string | null;
   onlineUsersCount: number | null;
+  deployEvent: any | null;
   setPrimaryColor: (color: string) => void;
   setFontSize: (size: string) => void;
   setGlobalPin: (pin: string | null) => void;
   setApiError: (error: string | null) => void;
   setOnlineUsersCount: (count: number | null) => void;
+  setDeployNotification: (event: any) => void;
   refreshData: (showLoading?: boolean) => Promise<void>;
 }
 
@@ -55,6 +57,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentSeller, setCurrentSeller] = useState<Seller | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [onlineUsersCount, setOnlineUsersCount] = useState<number | null>(null);
+  const [deployEvent, setDeployEvent] = useState<any | null>(null);
+
+  const setDeployNotification = (event: any) => {
+      setDeployEvent(event);
+      setTimeout(() => setDeployEvent(null), 10000); // Autohide
+  }
 
   const refreshData = async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
@@ -308,6 +316,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
                       return; // Don't show push notification just for presence update
                   }
 
+                  if (data.type === 'deploy') {
+                      setDeployNotification(data);
+                  }
+
                   if (Notification.permission === 'granted') {
                     navigator.serviceWorker.ready.then(reg => {
                       reg.showNotification(data.title || 'TecnoGafas', {
@@ -341,8 +353,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      products, clients, orders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, setSelectedClient,
-      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, refreshData
+      products, clients, orders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, setSelectedClient,
+      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setDeployNotification, refreshData
     }}>
       {children}
     </AppContext.Provider>

@@ -8,12 +8,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 
 export default function Checkout() {
-  const { cart, selectedClient, clearCart, refreshData, saveDraft, drafts, currentDraftId, markDraftAsSent } = useApp();
+  const { cart, selectedClient, clearCart, refreshData, saveDraft, drafts, currentDraftId, markDraftAsSent, globalPin, setGlobalPin } = useApp();
   const navigate = useNavigate();
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [orderFeedback, setOrderFeedback] = useState<{title: string, message: string, type: 'error' | 'success'} | null>(null);
+  const [orderFeedback, setOrderFeedback] = useState<{title: string, message: string, type: 'error' | 'success', orderId?: string | number} | null>(null);
   const [lastOrder, setLastOrder] = useState<any>(null);
   const [isSendingOrder, setIsSendingOrder] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -115,6 +115,15 @@ export default function Checkout() {
       }
       
       setIsConfirmModalOpen(false);
+      if (globalPin) {
+        setIsLoading(true);
+        const sellerInfo = await apiService.loginSeller(globalPin);
+        if (sellerInfo) {
+           setSeller(sellerInfo);
+           await executeCreateOrder(sellerInfo.id);
+           return;
+        }
+      }
       setIsPinModalOpen(true);
     } catch(e) {
        console.error("Verification error", e);
@@ -136,6 +145,7 @@ export default function Checkout() {
     try {
       const sellerInfo = await apiService.loginSeller(sellerPin);
       if (sellerInfo) {
+        setGlobalPin(sellerPin); // <-- save to global if successful
         setIsPinModalOpen(false);
         setSeller(sellerInfo);
         await executeCreateOrder(sellerInfo.id);
@@ -180,7 +190,8 @@ export default function Checkout() {
         setOrderFeedback({
           title: 'Pedido Exitoso',
           message: 'El pedido fue enviado exitosamente',
-          type: 'success'
+          type: 'success',
+          orderId: result.orderId
         });
       } else {
         setOrderFeedback({
@@ -513,7 +524,7 @@ export default function Checkout() {
                   const wasSuccess = orderFeedback.type === 'success';
                   setOrderFeedback(null);
                   if (wasSuccess) {
-                    navigate('/');
+                    navigate('/pedidos', { state: { newOrderId: orderFeedback.orderId } });
                   }
                 }}
                 className={`w-full py-3 font-bold text-sm tracking-widest ${orderFeedback.type === 'success' ? 'bg-primary text-on-primary' : 'bg-red-500 text-white'}`}
