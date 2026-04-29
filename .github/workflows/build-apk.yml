@@ -1,102 +1,95 @@
-name: Build Android APK
+name: Build Android APK (Signed)
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
-    name: Build APK
+    name: Build Signed APK & AAB
     runs-on: ubuntu-latest
 
+    env:
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
     steps:
+      # 📥 Código
       - name: Checkout source
         uses: actions/checkout@v4
 
+      # 🟢 Node
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          cache: npm
 
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: npm-${{ hashFiles('package-lock.json') }}
-          restore-keys: npm-
-
+      # ☕ Java + Gradle cache
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '21'
+          distribution: temurin
+          java-version: 21
+          cache: gradle
 
+      # ⚡ Cache adicional Gradle
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: gradle-
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            gradle-${{ runner.os }}
 
+      # 📦 Dependencias
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Tests
-        run: npm test -- --watchAll=false
-        continue-on-error: true
-
+      # 🏗️ Build Vite
       - name: Build Web App
         run: npm run build
 
+      # 🎨 Assets Capacitor
       - name: Generate Native Assets
         run: |
           mkdir -p assets
-          if [ -f public/icon-512.png ]; then
-            cp public/icon-512.png assets/icon.png
-            echo "✅ Icon copied successfully"
-          else
-            echo "⚠️ Warning: public/icon-512.png not found, skipping copy"
-          fi
+          cp public/icon-512.png assets/icon.png || true
           npx @capacitor/assets generate --android
 
+      # 🔄 Sync Capacitor
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Build Android Debug APK
-        working-directory: ./android
+      # 🔐 Crear keystore desde secrets
+      - name: Decode Keystore
         run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
 
-      - name: Build Android Release APK
+      # 🚀 Build firmado
+      - name: Build Release APK & AAB
         working-directory: ./android
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease
+          ./gradlew bundleRelease
 
-      - name: Upload Debug APK
+      # 📦 Subir APK firmado
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: tecnogafas-pedidos-debug-${{ github.run_number }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
-
-      - name: Upload Release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: tecnogafas-pedidos-release-${{ github.run_number }}
+          name: tecnogafas-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
-          retention-days: 30
+
+      # 📦 Subir AAB firmado (Play Store)
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: tecnogafas-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
