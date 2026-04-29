@@ -43,6 +43,7 @@ export default function TestApiPage() {
         <button className="bg-primary text-on-primary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('updateStatus', () => apiService.updateOrderStatus(testOrderId, 'attended', sellerId))}>Update Status</button>
         <button className="bg-secondary text-on-secondary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('downloadPdf', () => apiService.downloadOrderPdf(testOrderId, sellerId))}>Download PDF</button>
         <button className="bg-secondary text-on-secondary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('sendEmail', () => apiService.sendOrderEmail(testOrderId, sellerId))}>Send Email</button>
+        <button className="bg-tertiary text-on-tertiary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('getLogs', () => apiService.getLogs(`POST /pedido/${testOrderId}/enviar`, sellerId))}>Get Logs</button>
       </div>
       
       <h2 className="text-lg font-bold mb-4">Results Log</h2>

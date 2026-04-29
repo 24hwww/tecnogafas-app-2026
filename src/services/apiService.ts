@@ -235,15 +235,17 @@ export const apiService = {
       iva: details.iva ? parseInt(details.iva) : 0,
       products: items.map(i => {
         const parsedId = parseInt(i.id.toString().split('-')[0]);
+        if (isNaN(parsedId)) return null;
         return { 
           product_id: parsedId, 
           variation_id: i.vid ? parseInt(i.vid) : undefined,
           quantity: i.quantity, 
           price: i.price
         };
-      })
+      }).filter(p => p !== null)
     };
     const body = JSON.stringify(bodyObj);
+    console.log("DEBUG: Sending order body:", body);
 
     if (!navigator.onLine) {
       return { success: false, message: 'Estás sin conexión. Guardaremos esto como un borrador para que lo envíes luego.' };
@@ -335,14 +337,34 @@ export const apiService = {
     }
   },
 
+  async getLogs(context: string, sellerId: string): Promise<any> {
+    try {
+      const res = await customFetch(`${BASE_URL}/logs?context=${encodeURIComponent(context)}`, {
+        headers: { 'Authorization': `Bearer ${sellerId}` }
+      });
+      return await res.json();
+    } catch(e) {
+      console.error('Error fetching logs', e);
+      return { success: false, message: 'Error de conexión' };
+    }
+  },
+
   async sendOrderEmail(orderId: string, sellerId: string): Promise<{success: boolean, message: string}> {
     try {
       const res = await customFetch(`${BASE_URL}/pedido/${orderId}/enviar`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${sellerId}` }
       });
-      const data = await res.json();
-      if (!res.ok) return { success: false, message: data.message || 'Error al enviar email' };
+      
+      let data;
+      const text = await res.text();
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        data = { message: text || 'Error desconocido' };
+      }
+      
+      if (!res.ok) return { success: false, message: data.message || `Error al enviar email (Status: ${res.status})` };
       return { success: true, message: data.message || 'Email enviado exitosamente' };
     } catch (e: any) {
       return { success: false, message: 'Error de conexión' };

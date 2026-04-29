@@ -115,14 +115,19 @@ export default function Orders() {
       } else if (currentAction === 'regenerar') {
         setIsRegenerating(true);
         try {
-          const items = selectedOrder.items.map(item => ({
-            id: item.productId.toString(), // Map existing item ID
-            name: item.productName,
-            price: item.price,
-            quantity: item.quantity,
-            vid: item.variationId ? item.variationId.toString() : undefined
-          }));
+          const items = selectedOrder.items
+            .filter(item => item.productId && item.productId !== '')
+            .map(item => ({
+              id: item.productId.toString(), // Map existing item ID
+              name: item.productName,
+              price: item.price,
+              quantity: item.quantity,
+              vid: item.variationId ? item.variationId.toString() : undefined
+            }));
           
+          if (items.length === 0) {
+            throw new Error('No hay productos válidos en el pedido');
+          }
           const orderData = {
             iva: selectedOrder.rawData.iva || 21,
             discount: selectedOrder.rawData.discount || 0,
