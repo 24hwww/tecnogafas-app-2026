@@ -48,6 +48,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # 📦 Cache Assets
+      - name: Cache generated assets
+        uses: actions/cache@v4
+        id: assets-cache
+        with:
+          path: |
+            public/
+            assets/
+          key: assets-${{ hashFiles('download-images.js') }}
+
+      - name: Download assets if needed
+        if: steps.assets-cache.outputs.cache-hit != 'true'
+        run: node download-images.js
+
       # 🏗️ Build Vite
       - name: Build Web App
         run: npm run build

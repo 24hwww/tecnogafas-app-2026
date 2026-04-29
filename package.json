@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "prebuild": "node download-images.js",
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "node fix-gradle.cjs && node prepare-assets.cjs && vite build",
     "android:sync": "npx cap sync android",
