@@ -1,14 +1,107 @@
-name: Build Android APK (Signed)
+name: Build Android APK
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  build-debug:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == null
+
+    env:
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            gradle-${{ runner.os }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache generated assets
+        uses: actions/cache@v4
+        id: assets-cache
+        with:
+          path: |
+            public/
+            assets/
+          key: assets-${{ hashFiles('download-images.js') }}
+
+      - name: Download assets if needed
+        if: steps.assets-cache.outputs.cache-hit != 'true'
+        run: node download-images.js
+
+      - name: Build Web App
+        run: npm run build
+
+      - name: Generate Native Assets
+        run: |
+          mkdir -p assets
+          cp public/icon-512.png assets/icon.png || true
+          npx @capacitor/assets generate --android
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build Debug APK
+        working-directory: ./android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tecnogafas-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
+          if-no-files-found: error
+
+  build-release:
     name: Build Signed APK & AAB
     runs-on: ubuntu-latest
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event.inputs.build_type == 'release'
 
     env:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
@@ -77,22 +170,45 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      # 🔐 Validar secrets
+      - name: Validate Secrets
+        run: |
+          if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "❌ ERROR: KEYSTORE_BASE64 secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.KEYSTORE_PASSWORD }}" ]; then
+            echo "❌ ERROR: KEYSTORE_PASSWORD secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.KEY_ALIAS }}" ]; then
+            echo "❌ ERROR: KEY_ALIAS secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.KEY_PASSWORD }}" ]; then
+            echo "❌ ERROR: KEY_PASSWORD secret is not set"
+            exit 1
+          fi
+          echo "✅ All required secrets are configured"
+
       # 🔐 Crear keystore desde secrets
       - name: Decode Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/release.keystore
+          ls -la android/release.keystore
 
       # 🚀 Build firmado
       - name: Build Release APK & AAB
         working-directory: ./android
         env:
+          KEYSTORE_PATH: release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease
-          ./gradlew bundleRelease
+          ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew bundleRelease --no-daemon --stacktrace
 
       # 📦 Subir APK firmado
       - name: Upload APK
@@ -100,6 +216,8 @@ jobs:
         with:
           name: tecnogafas-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+          if-no-files-found: error
 
       # 📦 Subir AAB firmado (Play Store)
       - name: Upload AAB
@@ -107,3 +225,5 @@ jobs:
         with:
           name: tecnogafas-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+          if-no-files-found: error
