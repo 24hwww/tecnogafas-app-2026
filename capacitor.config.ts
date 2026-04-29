@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.tecnogafas.pedidospwa',
+  appId: 'com.tecnogafas.app',
   appName: 'Tecnogafas Pedidos',
   webDir: 'dist',
   plugins: {
