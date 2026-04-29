@@ -1,5 +1,8 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { get, set, del } from 'idb-keyval';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { Capacitor } from '@capacitor/core';
 import { Product, Client, Order, CartItem, DraftOrder, Seller } from './types';
 import { apiService } from './services/apiService';
 
@@ -47,6 +50,7 @@ interface AppContextType {
   fetchOrders: (page: number, perPage: number, sellerId?: number, customerId?: number) => Promise<void>;
   refreshData: (showLoading?: boolean) => Promise<void>;
   forceRefresh: () => Promise<void>;
+  initializePushNotifications: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -77,6 +81,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [retrySSE, setRetrySSE] = useState(0);
   const [retryDelay, setRetryDelay] = useState(5000);
+  const [pushToken, setPushToken] = useState<string | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     if (!globalPin) return;
@@ -90,6 +95,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Error fetching notifications', e);
     }
   }, [globalPin]);
+
+  const initializePushNotifications = useCallback(async () => {
+    if (Capacitor.getPlatform() === 'web') {
+      console.log('Push Notifications not supported on web natively via Capacitor, using fallback.');
+      return;
+    }
+
+    try {
+      await LocalNotifications.requestPermissions();
+      let permStatus = await PushNotifications.checkPermissions();
+
+      if (permStatus.receive === 'prompt') {
+        permStatus = await PushNotifications.requestPermissions();
+      }
+
+      if (permStatus.receive !== 'granted') {
+        console.warn('User denied push notification permissions');
+        return;
+      }
+
+      await PushNotifications.register();
+
+      // Listeners
+      PushNotifications.addListener('registration', token => {
+        console.log('Push registration success, token: ' + token.value);
+        setPushToken(token.value);
+        // Here you would normally send the token to your server
+      });
+
+      PushNotifications.addListener('registrationError', err => {
+        console.error('Push registration error: ' + err.error);
+      });
+
+      PushNotifications.addListener('pushNotificationReceived', notification => {
+        console.log('Push notification received: ', notification);
+        setUnreadNotifications(prev => prev + 1);
+        fetchNotifications();
+      });
+
+      PushNotifications.addListener('pushNotificationActionPerformed', action => {
+        console.log('Push notification action performed', action);
+      });
+    } catch (e) {
+      console.error('Error initializing Push Notifications', e);
+    }
+  }, [fetchNotifications]);
 
   const syncAll = useCallback(async () => {
     console.log('🔄 Performing global sync via SSE trigger...');
@@ -211,9 +262,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const cachedClients = await get<Client[]>('tecnogafas_clients');
         const cachedOrdersData = await get<Order[]>('tecnogafas_orders');
         const cachedSellers = await get<Seller[]>('tecnogafas_sellers');
+        const cachedDrafts = await get<DraftOrder[]>('tecnogafas_drafts');
 
         if (cachedProducts) { setProducts(cachedProducts); hasCache = true; }
         if (cachedClients) { setClients(cachedClients); hasCache = true; }
+        if (cachedDrafts) { setDrafts(cachedDrafts); }
         if (cachedOrdersData) { 
           setOrders(cachedOrdersData); 
           setTotalOrders(cachedOrdersData.length); 
@@ -241,14 +294,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     loadCachedAndRefresh();
 
-    const savedDrafts = localStorage.getItem('tecnogafas_drafts');
-    if (savedDrafts) {
-      try {
-        setDrafts(JSON.parse(savedDrafts));
-      } catch (e) {
-        console.error('Error parsing drafts', e);
-      }
-    }
     const savedPrimaryColor = localStorage.getItem('tecnogafas_primaryColor');
     if (savedPrimaryColor) setPrimaryColor(savedPrimaryColor);
     const savedFontSize = localStorage.getItem('tecnogafas_fontSize');
@@ -286,21 +331,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCurrentDraftId(null);
   };
 
-  const saveDraft = (details: any) => {
+  const saveDraft = async (details: any) => {
     if (!selectedClient || cart.length === 0) return;
     
-    const newDraft: DraftOrder = {
-      id: `draft_${Date.now()}`,
-      client: selectedClient,
-      items: [...cart],
-      details,
-      status: 'no enviado',
-      date: new Date().toISOString(),
-    };
+    let updatedDrafts: DraftOrder[];
+    
+    if (currentDraftId) {
+      // Update existing draft
+      updatedDrafts = drafts.map(d => d.id === currentDraftId ? {
+        ...d,
+        client: selectedClient,
+        items: [...cart],
+        details,
+        date: new Date().toISOString()
+      } : d);
+    } else {
+      // Create new draft
+      const newDraft: DraftOrder = {
+        id: `draft_${Date.now()}`,
+        client: selectedClient,
+        items: [...cart],
+        details,
+        status: 'no enviado',
+        date: new Date().toISOString(),
+      };
+      updatedDrafts = [...drafts, newDraft];
+    }
 
-    const updatedDrafts = [...drafts, newDraft];
     setDrafts(updatedDrafts);
-    localStorage.setItem('tecnogafas_drafts', JSON.stringify(updatedDrafts));
+    await set('tecnogafas_drafts', updatedDrafts);
     clearCart();
   };
 
@@ -313,10 +372,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const markDraftAsSent = (draftId: string) => {
+  const markDraftAsSent = async (draftId: string) => {
     const updatedDrafts = drafts.map(d => d.id === draftId ? { ...d, status: 'enviado' as const } : d);
     setDrafts(updatedDrafts);
-    localStorage.setItem('tecnogafas_drafts', JSON.stringify(updatedDrafts));
+    await set('tecnogafas_drafts', updatedDrafts);
   };
 
   const updatePrimaryColor = (color: string) => {
@@ -339,39 +398,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Check and trigger manual sync
-    const handleOnline = async () => {
-      console.log('Online, manually triggering sync...');
+    const handleOnline = () => {
+      console.log('En línea');
       setIsOnline(true);
-      if (!('indexedDB' in window)) return;
-      
-      const dbRequest = indexedDB.open('tecnogafas-sync', 1);
-      dbRequest.onsuccess = (e: any) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('pending-orders')) return;
-        const tx = db.transaction('pending-orders', 'readonly');
-        const store = tx.objectStore('pending-orders');
-        const req = store.getAll();
-        
-        req.onsuccess = async () => {
-          for (const item of req.result) {
-            try {
-              const response = await fetch(item.url, {
-                method: 'POST',
-                headers: item.headers,
-                body: item.body
-              });
-              if (response.ok) {
-                const txDel = db.transaction('pending-orders', 'readwrite');
-                txDel.objectStore('pending-orders').delete(item.id);
-                console.log('Manually synced order:', item.id);
-              }
-            } catch (e) {
-              console.error('Manual sync failed for', item.id);
-            }
-          }
-        };
-      };
     };
 
     const handleOffline = () => {
@@ -381,8 +410,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    handleOnline(); 
-
+    
     const handleApiError = (e: any) => {
       const msg = e.detail?.message || 'Error de API';
       setApiError(msg);
@@ -408,6 +436,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (savedPin) {
       setGlobalPin(savedPin);
     }
+
+    // Initialize Native Push Notifications
+    initializePushNotifications();
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -501,17 +532,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   // SYNC: Always re-fetch to ensure the list is updated and ordered correctly
                   fetchNotifications();
 
-                  if (Notification.permission === 'granted') {
+                  let contentObj: any = {};
+                  try {
+                    contentObj = typeof data.content === 'string' ? JSON.parse(data.content || '{}') : data.content;
+                  } catch (err) {
+                    contentObj = { body: data.content };
+                  }
+
+                  const title = contentObj?.title || data.title || 'Tecnogafas';
+                  const body = contentObj?.body || data.body || data.message || 'Nueva notificación';
+
+                  if (Capacitor.isNativePlatform()) {
+                    LocalNotifications.schedule({
+                      notifications: [
+                        {
+                          title,
+                          body,
+                          id: Math.floor(Math.random() * 1000000),
+                          schedule: { at: new Date(Date.now() + 100) },
+                        }
+                      ]
+                    });
+                  } else if (Notification.permission === 'granted') {
                     navigator.serviceWorker.ready.then(reg => {
-                      let contentObj: any = {};
-                      try {
-                        contentObj = typeof data.content === 'string' ? JSON.parse(data.content || '{}') : data.content;
-                      } catch (err) {
-                        contentObj = { body: data.content };
-                      }
-                      
-                      reg.showNotification(contentObj?.title || data.title || 'TecnoGafas', {
-                        body: contentObj?.body || data.body || data.message || 'Nueva notificación',
+                      reg.showNotification(title, {
+                        body,
                         icon: '/icon-192x192.png',
                         badge: '/icon-192x192.png',
                         tag: 'tecnogafas-notif'
@@ -555,7 +600,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return (
     <AppContext.Provider value={{
       products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, setSelectedClient,
-      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh
+      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh, initializePushNotifications
     }}>
       {children}
     </AppContext.Provider>

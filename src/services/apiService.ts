@@ -23,48 +23,6 @@ const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 };
 
 export const apiService = {
-  async queueOrderForSync(url: string, headers: any, body: any): Promise<boolean> {
-    if (!('indexedDB' in window)) return false;
-
-    return new Promise((resolve) => {
-      const request = indexedDB.open('tecnogafas-sync', 1);
-      request.onupgradeneeded = (e: any) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('pending-orders')) {
-          db.createObjectStore('pending-orders', { keyPath: 'id' });
-        }
-      };
-      request.onsuccess = (e: any) => {
-        const db = e.target.result;
-        const tx = db.transaction('pending-orders', 'readwrite');
-        const store = tx.objectStore('pending-orders');
-        store.add({
-          id: Date.now().toString() + '-' + Math.random().toString(36).substring(7),
-          url,
-          headers,
-          body
-        });
-        tx.oncomplete = async () => {
-          if ('serviceWorker' in navigator && 'SyncManager' in window) {
-            try {
-              const registration = await navigator.serviceWorker.ready;
-              await (registration as any).sync.register('sync-orders');
-              console.log('Sync registered');
-              resolve(true);
-            } catch (err) {
-              console.error('Sync registration failed', err);
-              resolve(true); // Saved to IDB at least
-            }
-          } else {
-            resolve(true);
-          }
-        };
-        tx.onerror = () => resolve(false);
-      };
-      request.onerror = () => resolve(false);
-    });
-  },
-
   async getProducts(): Promise<Product[]> {
     const now = Date.now();
     if (cachedProducts && (now - cachedProductsTimestamp < CACHE_PRODUCTS_TTL)) {
@@ -288,9 +246,7 @@ export const apiService = {
     const body = JSON.stringify(bodyObj);
 
     if (!navigator.onLine) {
-      const queued = await this.queueOrderForSync(url, headers, body);
-      if (queued) return { success: true, message: 'Estás sin conexión. El pedido se enviará cuando recuperes la conexión.' };
-      return { success: false, message: 'Estás sin conexión y no se pudo guardar el pedido.' };
+      return { success: false, message: 'Estás sin conexión. Guardaremos esto como un borrador para que lo envíes luego.' };
     }
 
     try {
@@ -311,22 +267,13 @@ export const apiService = {
       if (!msg && typeof data === 'string') msg = data;
       if (!msg) msg = res.ok ? 'Pedido creado con éxito' : 'Error al crear el pedido';
 
-      if (!res.ok && res.status >= 500) {
-        // Server error, queue for sync
-        const queued = await this.queueOrderForSync(url, headers, body);
-        if (queued) return { success: true, message: 'El servidor falló. El pedido se guardó y se reintentará.' };
-      }
-
       return { 
         success: res.ok, 
         message: msg,
         orderId: data?.order_id || data?.data?.order_id
       };
     } catch (error: any) {
-      // Network error (fetch failed completely), queue for sync
-      const queued = await this.queueOrderForSync(url, headers, body);
-      if (queued) return { success: true, message: 'Error de red. El pedido se guardó y se reintentará en segundo plano.' };
-      return { success: false, message: error?.message || 'Error de conexión' };
+      return { success: false, message: error?.message || 'Error de conexión con el servidor.' };
     }
   },
 

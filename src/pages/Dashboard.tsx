@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
-import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity, Zap, Download } from 'lucide-react';
+import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity, Zap, Download, Smartphone } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { Skeleton } from '../components/Skeleton';
 
@@ -61,28 +61,6 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {appVersionInfo && appVersionInfo.success && (
-        <div className="m3-card !bg-blue-50 border border-blue-200">
-          <div className="flex items-center gap-4">
-            <div className="bg-blue-100 p-3 rounded-full">
-              <Download className="text-blue-600" size={24} />
-            </div>
-            <div className="flex-1">
-              <h3 id="dashboard-download-apk-title" className="font-bold text-blue-900">Aplicación Android</h3>
-              <p className="text-xs text-blue-700 font-medium">Versión {appVersionInfo.version}</p>
-              <p className="text-[0.65rem] text-blue-600/70">{appVersionInfo.release_notes}</p>
-            </div>
-            <a 
-              id="dashboard-download-apk-btn"
-              href={appVersionInfo.apk_url}
-              className="m3-button-filled !px-4 !py-2 !bg-blue-600 hover:!bg-blue-700 text-xs font-bold whitespace-nowrap"
-            >
-              Descargar APK
-            </a>
-          </div>
-        </div>
-      )}
-
       <div className="m3-card !bg-surface-variant/40 space-y-6">
         <div className="flex justify-between items-center">
           <h3 id="dashboard-orders-title" className="font-bold text-sm uppercase tracking-widest text-primary">Pedidos</h3>
@@ -140,6 +118,29 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {appVersionInfo && appVersionInfo.success && (
+        <div className="m3-card !bg-blue-50 border border-blue-200">
+          <div className="flex items-center gap-4">
+            <div className="bg-blue-100 p-3 rounded-full">
+              <Download className="text-blue-600" size={24} />
+            </div>
+            <div className="flex-1">
+              <h3 id="dashboard-download-apk-title" className="font-bold text-blue-900">Aplicación Android</h3>
+              <p className="text-xs text-blue-700 font-medium mb-1">Versión {appVersionInfo.version}</p>
+              <p className="text-[0.65rem] text-blue-600/70 mb-3">{appVersionInfo.release_notes}</p>
+              <a 
+                id="dashboard-download-apk-btn"
+                href={appVersionInfo.apk_url}
+                className="m3-button-filled !px-4 !py-2 !bg-blue-600 hover:!bg-blue-700 text-xs font-bold inline-flex items-center gap-2"
+              >
+                <Smartphone className="text-white" size={16} />
+                Descargar APK
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -202,17 +202,21 @@ export default function Checkout() {
           orderId: result.orderId
         });
       } else {
+        // ERROR: Save as draft automatically
+        saveDraft(form);
         setOrderFeedback({
-          title: 'Error de Pedido',
-          message: result.message || 'Error al crear el pedido',
+          title: 'Pedido Guardado como Borrador',
+          message: (result.message || 'Error al crear el pedido') + '\n\nEl pedido se ha guardado localmente como borrador para que puedas reintentarlo más tarde desde la sección de Pedidos.',
           type: 'error'
         });
       }
     } catch (e: any) {
       console.error(e);
+      // ERROR: Save as draft automatically
+      saveDraft(form);
       setOrderFeedback({
-        title: 'Error',
-        message: e?.message || 'Error de conexión',
+        title: 'Error de Conexión',
+        message: (e?.message || 'Error al conectar con el servidor.') + '\n\nEl pedido se ha guardado localmente como borrador.',
         type: 'error'
       });
     } finally {

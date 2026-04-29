@@ -218,7 +218,7 @@ export default function Orders() {
                         onClick={() => handleLoadDraft(draft.id)}
                         className="m3-button-filled !py-2 !px-4 text-[0.625rem] flex items-center gap-2 whitespace-nowrap h-[2.25rem] shadow-sm hover:shadow-md transition-all active:scale-95 rounded-lg"
                       >
-                        CONTINUAR <Send size={12} />
+                        REVISAR Y ENVIAR <Send size={12} />
                       </button>
                     </div>
                   </div>
