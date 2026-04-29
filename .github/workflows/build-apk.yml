@@ -34,6 +34,12 @@ jobs:
       - name: Build Web App
         run: npm run build
 
+      - name: Generate Native Assets
+        run: |
+          mkdir -p assets
+          cp public/icon-512.png assets/icon.png || true
+          npx @capacitor/assets generate --android
+
       - name: Sync Capacitor
         run: npx cap sync android
 
