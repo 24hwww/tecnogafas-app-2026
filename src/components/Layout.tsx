@@ -31,6 +31,13 @@ export function Layout({ children }: { children: ReactNode }) {
     }
   }, [unreadNotifications]);
 
+  // Reset bullet when entering notifications page
+  useEffect(() => {
+    if (location.pathname === '/notificaciones') {
+      setShowNotificationBullet(false);
+    }
+  }, [location.pathname]);
+
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
 
@@ -218,7 +225,7 @@ export function Layout({ children }: { children: ReactNode }) {
             >
               <Bell size={24} className={showNotificationBullet ? 'text-primary scale-110' : ''} />
               {showNotificationBullet && (
-                <span className="absolute top-2 right-2 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
+                <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-orange-400 rounded-full border-2 border-surface animate-pulse" />
               )}
             </button>
             <button onClick={toggleSidebar} className="p-2 hover:bg-surface-variant text-on-surface-variant transition-colors">
