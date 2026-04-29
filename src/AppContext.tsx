@@ -81,10 +81,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [retrySSE, setRetrySSE] = useState(0);
   const [retryDelay, setRetryDelay] = useState(5000);
+  const [sseFailures, setSseFailures] = useState(0);
+  const [ssePaused, setSsePaused] = useState(false);
+  const MAX_SSE_FAILURES = 5;
+  const SSE_PAUSE_DURATION = 60000; // 1 minute pause after max failures
   const [pushToken, setPushToken] = useState<string | null>(null);
 
   const fetchNotifications = useCallback(async () => {
-    if (!globalPin) return;
+    if (!globalPin || ssePaused) return;
     try {
       console.log('📡 Syncing notifications from server...');
       const data = await apiService.getEvents(undefined, globalPin);
@@ -95,7 +99,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // apiService handlers already log warnings, here we just log for context in AppContext
       console.warn('Notification sync paused:', e instanceof Error ? e.message : String(e));
     }
-  }, [globalPin]);
+  }, [globalPin, ssePaused]);
 
   const initializePushNotifications = useCallback(async () => {
     if (Capacitor.getPlatform() === 'web') {
@@ -144,17 +148,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [fetchNotifications]);
 
   const syncAll = useCallback(async () => {
+    if (ssePaused) {
+      console.log('⏸️ SSE sync paused - skipping syncAll');
+      return;
+    }
     console.log('🔄 Performing global sync via SSE trigger...');
-    await Promise.all([
-      fetchNotifications(),
-      // We also refresh orders and products to ensure everything is in sync
-      apiService.getOrders(1, 10).then(o => {
-        setOrders(o.orders);
-        setTotalOrders(o.total);
-      }),
-      apiService.getProducts().then(setProducts)
-    ]);
-  }, [fetchNotifications]);
+    try {
+      await Promise.all([
+        fetchNotifications(),
+        // We also refresh orders and products to ensure everything is in sync
+        apiService.getOrders(1, 10).then(o => {
+          setOrders(o.orders);
+          setTotalOrders(o.total);
+        }).catch(e => console.warn('Sync orders failed:', e)),
+        apiService.getProducts().then(setProducts).catch(e => console.warn('Sync products failed:', e))
+      ]);
+    } catch (e) {
+      console.warn('Global sync failed:', e);
+    }
+  }, [fetchNotifications, ssePaused]);
 
   const setDeployNotification = (event: any) => {
       setDeployEvent(event);
@@ -451,10 +463,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
 
+  // Reset SSE pause when pin changes
+  useEffect(() => {
+    setSsePaused(false);
+    setSseFailures(0);
+  }, [globalPin]);
+
   useEffect(() => {
     let eventSource: EventSource | null = null;
     
-    if (globalPin && isOnline) {
+    if (globalPin && isOnline && !ssePaused) {
       // Start SSE if pin is available and online
       apiService.loginSeller(globalPin).then(seller => {
          if (seller) {
@@ -471,7 +489,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
             es.onopen = () => {
               console.log('✅ SSE Connection established');
               setRetryDelay(2000); // Reset backoff on success
-              syncAll(); 
+              setSseFailures(0); // Reset failure count on success
+              // Only sync if not paused
+              if (!ssePaused) {
+                syncAll();
+              }
             };
 
             const handleSSEEvent = (event: MessageEvent) => {
@@ -572,16 +594,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 readyState: es.readyState,
                 error: err
               });
-              // if (es.readyState === EventSource.CLOSED) {
-                console.log(`🔄 SSE connection lost. Re-establishing in ${retryDelay/1000}s...`);
-                es.close();
-                setTimeout(() => {
-                  if (globalPin && isOnline) {
-                    setRetrySSE(prev => prev + 1);
-                    setRetryDelay(prev => Math.min(prev * 2, 30000));
-                  }
-                }, retryDelay);
-              // }
+              
+              es.close();
+              
+              // Increment failure count
+              setSseFailures(prev => {
+                const newCount = prev + 1;
+                if (newCount >= MAX_SSE_FAILURES) {
+                  console.warn(`🛑 SSE failed ${MAX_SSE_FAILURES} times. Pausing for ${SSE_PAUSE_DURATION/1000}s...`);
+                  setSsePaused(true);
+                  // Auto-resume after pause duration
+                  setTimeout(() => {
+                    console.log('▶️ Resuming SSE after pause');
+                    setSsePaused(false);
+                    setSseFailures(0);
+                    setRetrySSE(s => s + 1); // Trigger reconnection
+                  }, SSE_PAUSE_DURATION);
+                  return newCount;
+                }
+                return newCount;
+              });
+              
+              const nextDelay = Math.min(retryDelay * 2, 30000);
+              console.log(`🔄 SSE connection lost. Re-establishing in ${nextDelay/1000}s... (failure ${sseFailures + 1}/${MAX_SSE_FAILURES})`);
+              
+              setTimeout(() => {
+                if (globalPin && isOnline && !ssePaused) {
+                  setRetrySSE(prev => prev + 1);
+                  setRetryDelay(nextDelay);
+                }
+              }, retryDelay);
             };
          }
       });
@@ -592,7 +634,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         eventSource.close();
       }
     };
-  }, [globalPin, isOnline, retrySSE, syncAll]);
+  }, [globalPin, isOnline, retrySSE, syncAll, ssePaused, sseFailures, retryDelay]);
 
       return (
     <AppContext.Provider value={{
