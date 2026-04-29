@@ -1,4 +1,3 @@
-const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
@@ -6,37 +5,7 @@ const { execSync } = require('child_process');
 const wrapperPath = path.join(__dirname, 'android', 'gradle', 'wrapper', 'gradle-wrapper.jar');
 const wrapperPropertiesPath = path.join(__dirname, 'android', 'gradle', 'wrapper', 'gradle-wrapper.properties');
 
-// Download file from URL to path
-function downloadFile(url, dest) {
-  return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(dest);
-    https.get(url, { timeout: 30000 }, (response) => {
-      if (response.statusCode === 302 || response.statusCode === 301) {
-        // Follow redirects
-        file.close();
-        fs.unlinkSync(dest);
-        downloadFile(response.headers.location, dest).then(resolve).catch(reject);
-        return;
-      }
-      if (response.statusCode !== 200) {
-        file.close();
-        fs.unlinkSync(dest);
-        reject(new Error(`Failed to download: ${response.statusCode}`));
-        return;
-      }
-      response.pipe(file);
-      file.on('finish', () => {
-        file.close();
-        resolve();
-      });
-    }).on('error', (err) => {
-      fs.unlinkSync(dest);
-      reject(err);
-    });
-  });
-}
-
-async function downloadWrapper() {
+function fixWrapper() {
   // If wrapper already exists, verify it's valid by checking size
   if (fs.existsSync(wrapperPath)) {
     const stats = fs.statSync(wrapperPath);
@@ -44,7 +13,7 @@ async function downloadWrapper() {
       console.log('✓ gradle-wrapper.jar already exists and looks valid');
       return;
     }
-    console.log('⚠️ gradle-wrapper.jar seems corrupted, will re-download...');
+    console.log('⚠️ gradle-wrapper.jar seems corrupted, removing...');
     fs.unlinkSync(wrapperPath);
   }
 
@@ -60,35 +29,47 @@ async function downloadWrapper() {
     console.log('Could not read gradle version from properties, using default:', gradleVersion);
   }
 
-  // Download the gradle-wrapper.jar directly from the Gradle repository
-  // The wrapper JAR is available at a specific path in the Gradle distribution
-  const wrapperVersion = gradleVersion.replace(/\.\d+$/, '');  // Remove patch version for wrapper
-  const url = `https://raw.githubusercontent.com/gradle/gradle/v${wrapperVersion}.0/gradle/wrapper/gradle-wrapper.jar`;
-  
-  console.log('⬇️ Downloading gradle-wrapper.jar...');
-  console.log('   URL:', url);
-  
+  console.log('🔄 Regenerating gradle wrapper...');
+  console.log('   Gradle version:', gradleVersion);
+
+  // Try to regenerate using gradle wrapper task if gradle is available
   try {
-    await downloadFile(url, wrapperPath);
-    const stats = fs.statSync(wrapperPath);
-    if (stats.size > 50000) {
-      console.log(`✓ Successfully downloaded gradle-wrapper.jar (${stats.size} bytes)`);
-    } else {
-      throw new Error(`Downloaded file is too small (${stats.size} bytes)`);
-    }
+    execSync(`gradle wrapper --gradle-version ${gradleVersion} --project-dir android`, {
+      cwd: __dirname,
+      stdio: 'inherit'
+    });
+    console.log('✓ Successfully regenerated gradle wrapper using gradle command');
+    return;
   } catch (e) {
-    console.error('❌ Failed to download gradle-wrapper.jar:', e.message);
-    console.log('');
-    console.log('Alternative: Try running:');
-    console.log('  npx cap sync android');
-    console.log('');
-    console.log('Or manually download Gradle from:');
-    console.log(`  https://services.gradle.org/distributions/gradle-${gradleVersion}-all.zip`);
-    process.exit(1);
+    console.log('⚠️ gradle command failed, trying alternative methods...');
   }
+
+  // Check if we have a local gradlew that can self-download
+  const gradlewPath = path.join(__dirname, 'android', 'gradlew');
+  if (fs.existsSync(gradlewPath)) {
+    try {
+      console.log('🔄 Attempting to use gradlew to download wrapper...');
+      execSync('./gradlew wrapper', {
+        cwd: path.join(__dirname, 'android'),
+        stdio: 'inherit',
+        env: { ...process.env, CI: 'true' }
+      });
+      console.log('✓ Successfully downloaded wrapper using gradlew');
+      return;
+    } catch (e) {
+      console.log('⚠️ gradlew wrapper command also failed');
+    }
+  }
+
+  console.error('❌ Failed to regenerate gradle wrapper');
+  console.log('');
+  console.log('Please ensure one of the following is available:');
+  console.log('  1. gradle command in PATH');
+  console.log('  2. Valid gradlew script in android/ directory');
+  console.log('');
+  console.log('Or manually install Gradle from:');
+  console.log(`  https://services.gradle.org/distributions/gradle-${gradleVersion}-all.zip`);
+  process.exit(1);
 }
 
-downloadWrapper().catch(e => {
-  console.error('Error:', e.message);
-  process.exit(1);
-});
+fixWrapper();
