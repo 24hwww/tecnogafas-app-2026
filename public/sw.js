@@ -1,5 +1,9 @@
 // Public Service Worker
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
+
 const CACHE_NAME = 'tecnogafas-v1';
+const CACHE = "pwabuilder-page";
+const offlineFallbackPage = "offline.html";
 
 // Helper: Open IndexedDB
 function getDB() {
@@ -16,6 +20,12 @@ function getDB() {
   });
 }
 
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
@@ -23,10 +33,39 @@ self.addEventListener('install', (event) => {
       return cache.addAll(['/']);
     })
   );
+  event.waitUntil(
+    caches.open(CACHE)
+      .then((cache) => cache.add(offlineFallbackPage))
+  );
 });
 
 self.addEventListener('activate', (event) => {
     event.waitUntil(self.clients.claim());
+});
+
+if (workbox.navigationPreload.isSupported()) {
+  workbox.navigationPreload.enable();
+}
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.mode === 'navigate') {
+    event.respondWith((async () => {
+      try {
+        const preloadResp = await event.preloadResponse;
+
+        if (preloadResp) {
+          return preloadResp;
+        }
+
+        const networkResp = await fetch(event.request);
+        return networkResp;
+      } catch (error) {
+        const cache = await caches.open(CACHE);
+        const cachedResp = await cache.match(offlineFallbackPage);
+        return cachedResp;
+      }
+    })());
+  }
 });
 
 self.addEventListener('sync', (event) => {
@@ -74,7 +113,7 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data.json();
   } catch (e) {
-    data = { title: 'TecnoGafas', body: event.data.text() };
+    data = { title: 'Tecnogafas', body: event.data.text() };
   }
   
   const options = {
@@ -84,7 +123,7 @@ self.addEventListener('push', (event) => {
   };
   
   event.waitUntil(
-    self.registration.showNotification(data.title || 'TecnoGafas', options)
+    self.registration.showNotification(data.title || 'Tecnogafas', options)
   );
 });
 

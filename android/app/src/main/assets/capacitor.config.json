@@ -1,0 +1,14 @@
+{
+	"appId": "com.tecnogafas.pedidospwa",
+	"appName": "TecnoGafas Ventas",
+	"webDir": "dist",
+	"plugins": {
+		"PushNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"alert"
+			]
+		}
+	}
+}

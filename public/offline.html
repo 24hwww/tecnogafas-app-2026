@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sin Conexión - TecnoGafas</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #FDFBFF;
+            color: #1A1C1E;
+            text-align: center;
+            padding: 20px;
+        }
+        h1 { font-size: 24px; font-weight: bold; margin-bottom: 8px; color: #6750A4; }
+        p { font-size: 14px; color: #44474E; margin-bottom: 24px; max-width: 300px; }
+        button {
+            background-color: #6750A4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 100px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: #55428A; }
+        svg { width: 48px; height: 48px; color: #6750A4; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 1l22 22"/>
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
+        <path d="M10.71 5.05A16 16 0 0 1 22.58 9"/>
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+        <line x1="12" y1="20" x2="12.01" y2="20"/>
+    </svg>
+    <h1>Sin Conexión</h1>
+    <p>Parece que no tienes conexión a internet. La aplicación necesita conexión para funcionar.</p>
+    <button onclick="window.location.reload()">Reintentar</button>
+</body>
+</html>

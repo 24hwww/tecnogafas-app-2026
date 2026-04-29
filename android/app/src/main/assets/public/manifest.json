@@ -1,7 +1,7 @@
 {
-  "name": "Tecnogafas Pedidos",
-  "short_name": "Tecnogafas",
-  "description": "Aplicación de ventas y gestión de pedidos para Tecnogafas",
+  "name": "TecnoGafas Ventas",
+  "short_name": "TecnoGafas",
+  "description": "Aplicación de ventas y gestión de pedidos para TecnoGafas",
   "start_url": "/",
   "id": "com.tecnogafas.pedidospwa",
   "display": "standalone",
@@ -101,7 +101,7 @@
   ],
   "widgets": [
     {
-      "name": "Tecnogafas",
+      "name": "TecnoGafas",
       "description": "Accesos rápidos",
       "tag": "tecnogafas-widget",
       "template_url": "widget.html",
