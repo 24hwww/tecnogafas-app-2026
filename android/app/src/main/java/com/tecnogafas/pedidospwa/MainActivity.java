@@ -1,4 +1,4 @@
-package com.tecnogafas.pedidospwa;
+package com.tecnogafas.app;
 
 import com.getcapacitor.BridgeActivity;
 
