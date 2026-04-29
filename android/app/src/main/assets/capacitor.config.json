@@ -1,6 +1,6 @@
 {
 	"appId": "com.tecnogafas.pedidospwa",
-	"appName": "TecnoGafas Ventas",
+	"appName": "Tecnogafas Pedidos",
 	"webDir": "dist",
 	"plugins": {
 		"PushNotifications": {
