@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+@keyframes bounce-short {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.animate-bounce-short {
+  animation: bounce-short 0.5s ease-in-out 3;
+}
+
 @theme {
   --color-primary: #1662E1;
   --color-on-primary: #FFFFFF;

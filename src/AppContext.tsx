@@ -463,13 +463,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const lastId = localStorage.getItem('tecnogafas_last_event_id') || '';
             const url = new URL('https://api.tecnogafas.com.ar/events/stream');
             
-            // Per USER instruction: only user_id is needed, which is the PIN
-            url.searchParams.set('user_id', globalPin);
-            if (lastId) {
-              url.searchParams.set('last_id', lastId);
-            }
-
-            console.log(`🔌 Connecting SSE for PIN: ${globalPin}...`);
+            console.log(`🔌 Connecting SSE...`);
             const es = new EventSource(url.toString());
             eventSource = es;
  
@@ -521,8 +515,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   console.log('✨ Refreshing notifications due to SSE event');
                   setUnreadNotifications(prev => prev + 1);
                   
-                  // Refetch to get actual list
-                  fetchNotifications();
+                  // Refetch to get actual list after a small delay to allow server DB to sync
+                  setTimeout(() => fetchNotifications(), 500);
 
                   let contentObj: any = {};
                   try {
@@ -564,8 +558,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
             es.onmessage = handleSSEEvent;
             es.addEventListener('message', handleSSEEvent);
-            es.addEventListener('notification', handleSSEEvent);
             es.addEventListener('message_received', handleSSEEvent);
+            es.addEventListener('notification', handleSSEEvent);
             es.addEventListener('deploy', handleSSEEvent);
             es.addEventListener('presence', handleSSEEvent);
             es.addEventListener('ping', handleSSEEvent);

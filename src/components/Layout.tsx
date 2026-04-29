@@ -20,6 +20,16 @@ export function Layout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showNotificationBullet, setShowNotificationBullet] = useState(false);
+
+  // Trigger temporary bullet for 1 second when unreadNotifications changes
+  useEffect(() => {
+    if (unreadNotifications > 0) {
+      setShowNotificationBullet(true);
+      const timer = setTimeout(() => setShowNotificationBullet(false), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [unreadNotifications]);
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
@@ -199,6 +209,16 @@ export function Layout({ children }: { children: ReactNode }) {
                 <span className="absolute top-1 right-1 bg-primary text-on-primary text-[0.625rem] w-4 h-4 flex items-center justify-center font-bold">
                   {cart.reduce((a, b) => a + b.quantity, 0)}
                 </span>
+              )}
+            </button>
+            <button 
+              id="toolbar-notifications-btn"
+              onClick={() => navigate('/notificaciones')}
+              className="relative p-2 hover:bg-surface-variant text-on-surface-variant transition-all active:scale-95"
+            >
+              <Bell size={24} className={showNotificationBullet ? 'text-primary scale-110' : ''} />
+              {showNotificationBullet && (
+                <span className="absolute top-2 right-2 w-3 h-3 bg-error rounded-full border-2 border-surface animate-pulse" />
               )}
             </button>
             <button onClick={toggleSidebar} className="p-2 hover:bg-surface-variant text-on-surface-variant transition-colors">

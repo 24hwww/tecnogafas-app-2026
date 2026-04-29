@@ -212,7 +212,15 @@ export const apiService = {
     if (!Array.isArray(list) && list !== null && typeof list === 'object') {
       list = list.events || list.notifications || list.data || [];
     }
-    return Array.isArray(list) ? list : [];
+    
+    if (!Array.isArray(list)) return [];
+    
+    // Normalize events: ensure 'id' exists and 'read' is boolean
+    return list.map((n: any) => ({
+      ...n,
+      id: n.id || n.ID || n.event_id,
+      read: n.read === 1 || n.read === true || n.status === 'read' || n.readed === 1
+    }));
   },
 
   async createEvent(data: { user_id: number; type: 'message' | 'notification' | string; from_id?: number; content: any; read?: number }, sellerId?: string): Promise<any> {

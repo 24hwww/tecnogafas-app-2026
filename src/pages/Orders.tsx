@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useApp } from '../AppContext';
 import { Package, Clock, CheckCircle2, ChevronRight, Save, Send, X, FileText, Mail, Share2, Loader2, RotateCcw } from 'lucide-react';
-import { formatCurrency, formatTimeBA, getRelativeTime } from '../lib/utils';
+import { formatCurrency, formatTimeBA, getRelativeTime, formatDateTimeBA } from '../lib/utils';
 import { OrderSkeleton } from '../components/Skeleton';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Order, DraftOrder } from '../types';
@@ -430,7 +430,7 @@ export default function Orders() {
                  </div>
                  <div>
                    <p className="text-[0.625rem] uppercase font-bold text-outline">Fecha</p>
-                  <p className="font-medium">{new Date(selectedOrder.createdAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</p>
+                  <p className="font-medium">{formatDateTimeBA(selectedOrder.createdAt)}</p>
                  </div>
                  <div>
                    <p className="text-[0.625rem] uppercase font-bold text-outline">Cliente</p>
@@ -588,7 +588,7 @@ export default function Orders() {
                   <>
                       <div className="text-center border-b border-gray-200 pb-4 mb-4">
                         <h1 className="text-2xl font-bold uppercase tracking-tight">PRE-PEDIDO</h1>
-                        <p className="text-sm text-gray-500">#{d.id.slice(-6)} - {new Date(d.date).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</p>
+                        <p className="text-sm text-gray-500">#{d.id.slice(-6)} - {formatDateTimeBA(d.date)}</p>
                       </div>
                     <div className="mb-4">
                       <p className="text-sm"><strong className="uppercase">Cliente:</strong> {d.client.name}</p>

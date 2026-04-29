@@ -13,8 +13,11 @@ export function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-export function formatTimeBA(date: string | Date) {
+export function formatTimeBA(date: string | Date | null | undefined) {
+  if (!date) return 'N/A';
   const d = typeof date === 'string' ? new Date(date) : date;
+  if (!(d instanceof Date) || isNaN(d.getTime())) return 'N/A';
+  
   return d.toLocaleString('es-AR', {
     timeZone: 'America/Argentina/Buenos_Aires',
     hour: '2-digit',
@@ -23,8 +26,40 @@ export function formatTimeBA(date: string | Date) {
   });
 }
 
-export function getRelativeTime(date: string | Date) {
+export function formatDateBA(date: string | Date | null | undefined) {
+  if (!date) return 'N/A';
   const d = typeof date === 'string' ? new Date(date) : date;
+  if (!(d instanceof Date) || isNaN(d.getTime())) return 'N/A';
+  
+  return d.toLocaleDateString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+}
+
+export function formatDateTimeBA(date: string | Date | null | undefined) {
+  if (!date) return 'N/A';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (!(d instanceof Date) || isNaN(d.getTime())) return 'N/A';
+  
+  return d.toLocaleString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+}
+
+export function getRelativeTime(date: string | Date | null | undefined) {
+  if (!date) return 'N/A';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (!(d instanceof Date) || isNaN(d.getTime())) return 'N/A';
+
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - d.getTime()) / 1000);
 

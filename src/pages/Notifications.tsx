@@ -18,6 +18,8 @@ export default function Notifications() {
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
 
+  const [isAcking, setIsAcking] = useState<number[]>([]);
+  
   const refreshEvents = async () => {
     setIsLoading(true);
     await fetchNotifications();
@@ -25,12 +27,16 @@ export default function Notifications() {
   };
 
   const handleAck = async (id: number) => {
-    if (!globalPin) return;
+    if (!globalPin || !id) return;
+    
+    setIsAcking(prev => [...prev, id]);
     try {
       await apiService.ackEvent(id, globalPin);
-      fetchNotifications();
+      await fetchNotifications();
     } catch (e) {
       console.error('Failed to ack event', e);
+    } finally {
+      setIsAcking(prev => prev.filter(item => item !== id));
     }
   };
 
@@ -158,7 +164,8 @@ export default function Notifications() {
           </div>
         ) : (
           notifications.map((n, i) => {
-            const isRead = n.read || n.status === 'read' || n.read === 1;
+            const isRead = n.read;
+            const isProcessing = isAcking.includes(n.id);
             
             let contentObj: any = {};
             try {
@@ -203,9 +210,11 @@ export default function Notifications() {
                     <button 
                       id={`notifications-mark-read-btn-${n.id || i}`}
                       onClick={() => handleAck(n.id)}
-                      className="mt-3 flex items-center gap-1 text-[0.625rem] font-bold text-primary uppercase tracking-wider bg-primary/10 px-2 py-1 rounded"
+                      disabled={isProcessing}
+                      className="mt-3 flex items-center gap-1 text-[0.625rem] font-bold text-primary uppercase tracking-wider bg-primary/10 px-2 py-1 rounded disabled:opacity-50"
                     >
-                      <Check size={12} /> Marcar como leída
+                      {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                      {isProcessing ? 'Procesando...' : 'Marcar como leída'}
                     </button>
                   )}
                 </div>

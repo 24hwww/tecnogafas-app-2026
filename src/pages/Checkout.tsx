@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../AppContext';
 import { useNavigate } from 'react-router-dom';
-import { formatCurrency, formatTimeBA } from '../lib/utils';
+import { formatCurrency, formatTimeBA, formatDateBA } from '../lib/utils';
 import { apiService } from '../services/apiService';
 import { Check, X, ArrowLeft, Download, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -244,7 +244,7 @@ export default function Checkout() {
     doc.setFontSize(12);
     doc.text(`Cliente: ${lastOrder.client.name}`, 20, 40);
     doc.text(`Email: ${lastOrder.client.email}`, 20, 50);
-    doc.text(`Fecha: ${new Date(lastOrder.date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })} ${formatTimeBA(lastOrder.date)} hs`, 20, 60);
+    doc.text(`Fecha: ${formatDateBA(lastOrder.date)} ${formatTimeBA(lastOrder.date)} hs`, 20, 60);
     
     doc.text('Productos:', 20, 80);
     let y = 90;
