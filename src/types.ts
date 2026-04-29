@@ -31,6 +31,7 @@ export interface ApiOrder {
   methodpay: string;
   iva: number;
   customer_note?: string;
+  observaciones?: string;
   billing?: {
     country?: string;
   };

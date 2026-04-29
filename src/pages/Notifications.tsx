@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Bell, Info, Loader2, Send, MessageSquare, Check, UserPlus } from 'lucide-react';
+import { getRelativeTime, formatTimeBA } from '../lib/utils';
 import { useApp } from '../AppContext';
 import { apiService } from '../services/apiService';
 import { PinModal } from '../components/PinModal';
@@ -190,8 +191,9 @@ export default function Notifications() {
                     <h4 id={`notifications-item-title-${n.id || i}`} className={`font-bold text-sm ${isRead ? 'text-on-surface' : 'text-primary'}`}>
                       {title}
                     </h4>
-                    <span className="text-[0.625rem] text-on-surface-variant font-medium">
-                      {n.timestamp ? new Date(n.timestamp).toLocaleString() : n.time || ''}
+                    <span className="text-[0.625rem] text-on-surface-variant font-mono font-bold text-right flex flex-col items-end uppercase">
+                      <span>{new Date(n.timestamp || n.time || Date.now()).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })} {formatTimeBA(n.timestamp || n.time)} HS</span>
+                      <span className="text-primary tracking-tighter">{getRelativeTime(n.timestamp || n.time)}</span>
                     </span>
                   </div>
                   <p className="text-xs font-bold text-on-surface-variant mb-1">De: {sender}</p>

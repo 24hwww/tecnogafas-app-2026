@@ -121,7 +121,7 @@ export const apiService = {
       sellerId: o.post_author?.toString() || '',
       rawData: {
         ...o,
-        customer_note: o.customer_note || (o as any).notes || '', // Handle different possible field names
+        customer_note: o.observaciones || o.customer_note || (o as any).notes || '', // Handle different possible field names
       },
     }));
     return { orders, total: parseInt(json.total) || orders.length };

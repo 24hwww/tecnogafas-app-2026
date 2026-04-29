@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../AppContext';
 import { useNavigate } from 'react-router-dom';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, formatTimeBA } from '../lib/utils';
 import { apiService } from '../services/apiService';
 import { Check, X, ArrowLeft, Download, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -43,11 +43,15 @@ export default function Checkout() {
     }
   }, [currentDraftId, drafts]);
 
-  if (!selectedClient || cart.length === 0) {
+  if (!orderFeedback && (!selectedClient || cart.length === 0)) {
     return (
-      <div className="p-8 text-center space-y-4">
-        <p>No hay datos suficientes para el checkout.</p>
-        <button onClick={() => navigate('/carrito')} className="m3-button-filled">Volver al Carrito</button>
+      <div className="p-8 text-center space-y-4 pt-20">
+        <div className="w-16 h-16 bg-surface-variant/30 rounded-full flex items-center justify-center mx-auto mb-4 text-outline">
+          <ArrowLeft size={32} />
+        </div>
+        <p className="font-bold text-on-surface">No hay datos suficientes para el checkout.</p>
+        <p className="text-sm text-on-surface-variant">Regrese al carrito y seleccione un cliente y productos.</p>
+        <button onClick={() => navigate('/carrito')} className="m3-button-filled w-full max-w-xs uppercase tracking-widest font-bold">Volver al Carrito</button>
       </div>
     );
   }
@@ -173,14 +177,6 @@ export default function Checkout() {
       if (result.success) {
         let emailMessage = '';
         if (result.orderId) {
-          // Play success sound
-          try {
-            const audio = new Audio('https://actions.google.com/sounds/v1/notifications/complete.ogg');
-            audio.play();
-          } catch (e) {
-            console.error("Error playing success sound", e);
-          }
-
           // Step 2: Send email and wait for detailed result as requested
           try {
             console.log("📤 Sending order notification and PDF...");
@@ -205,15 +201,15 @@ export default function Checkout() {
           markDraftAsSent(currentDraftId);
         }
         
-        clearCart();
-        await refreshData();
-
         setOrderFeedback({
           title: 'Envío exitoso',
           message: `${result.message}\n\n${emailMessage}`,
           type: 'success',
           orderId: result.orderId
         });
+
+        clearCart();
+        await refreshData();
       } else {
         // ERROR: Save as draft automatically
         saveDraft(form);
@@ -248,7 +244,7 @@ export default function Checkout() {
     doc.setFontSize(12);
     doc.text(`Cliente: ${lastOrder.client.name}`, 20, 40);
     doc.text(`Email: ${lastOrder.client.email}`, 20, 50);
-    doc.text(`Fecha: ${new Date(lastOrder.date).toLocaleString()}`, 20, 60);
+    doc.text(`Fecha: ${new Date(lastOrder.date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })} ${formatTimeBA(lastOrder.date)} hs`, 20, 60);
     
     doc.text('Productos:', 20, 80);
     let y = 90;
@@ -278,17 +274,21 @@ export default function Checkout() {
       <div className="m3-card !bg-surface-variant/30 space-y-4">
         <div className="flex justify-between border-b pb-2">
           <span className="text-xs font-bold uppercase text-outline">Cliente</span>
-          <span className="font-medium">{selectedClient.name}</span>
+          <span className="font-medium">{selectedClient?.name || 'Procesado'}</span>
         </div>
         
         <div className="space-y-2">
           <p className="text-xs font-bold uppercase text-outline">Productos</p>
-          {cart.map(item => (
+          {cart.length > 0 ? cart.map(item => (
             <div key={item.id} className="flex justify-between text-sm">
               <span>{item.name} x{item.quantity}</span>
               <span className="font-medium">{formatCurrency(item.price * item.quantity)}</span>
             </div>
-          ))}
+          )) : (
+            <div className="text-xs text-on-surface-variant italic py-2">
+              Pedido procesado exitosamente
+            </div>
+          )}
         </div>
       </div>
 

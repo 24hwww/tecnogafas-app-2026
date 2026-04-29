@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity, Zap, Download, Smartphone } from 'lucide-react';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, getRelativeTime, formatTimeBA } from '../lib/utils';
 import { Skeleton } from '../components/Skeleton';
 
 export default function Dashboard() {
@@ -106,7 +106,9 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="font-bold text-sm text-on-surface">{order.clientName}</p>
-                    <p className="text-[0.625rem] text-outline font-medium capitalize">{new Date(order.createdAt).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+                    <p className="text-[0.625rem] text-outline font-mono font-medium flex items-center gap-1 uppercase tracking-tighter">
+                      {new Date(order.createdAt).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })} {formatTimeBA(order.createdAt)} HS ({getRelativeTime(order.createdAt)})
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">

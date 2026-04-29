@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useApp } from '../AppContext';
 import { Package, Clock, CheckCircle2, ChevronRight, Save, Send, X, FileText, Mail, Share2, Loader2, RotateCcw } from 'lucide-react';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, formatTimeBA, getRelativeTime } from '../lib/utils';
 import { OrderSkeleton } from '../components/Skeleton';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Order, DraftOrder } from '../types';
@@ -246,10 +246,14 @@ export default function Orders() {
               {drafts.filter(d => d.status === 'no enviado').map((draft) => (
                 <div key={draft.id} className="m3-card !p-0 overflow-hidden border-dashed border-2 border-outline/20">
                   <div className="p-4 border-b border-outline/10 flex justify-between items-center bg-surface-variant/20">
-                    <div>
-                      <p className="font-bold text-sm">Borrador #{draft.id.slice(-6)}</p>
-                      <p className="text-[0.625rem] text-on-surface-variant">{new Date(draft.date).toLocaleString()}</p>
-                    </div>
+                      <div>
+                        <p className="font-bold text-sm">Borrador #{draft.id.slice(-6)}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[0.625rem] text-on-surface-variant font-mono font-medium flex gap-1 items-center uppercase">
+                            {new Date(draft.date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })} {formatTimeBA(draft.date)} HS – {getRelativeTime(draft.date)}
+                          </p>
+                        </div>
+                      </div>
                     <div className="flex items-center gap-1 text-xs font-bold text-outline">
                       <Save size={14} />
                       PENDIENTE
@@ -346,12 +350,17 @@ export default function Orders() {
                     className="m3-card !p-0 overflow-hidden"
                   >
                     <div className="p-4 border-b border-outline/10 flex justify-between items-center bg-primary/5">
-                      <div>
-                        <p className="font-bold text-sm">{order.rawData.post_title} – {new Date(order.createdAt).toLocaleString('es-AR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit'})}</p>
+                      <div className="flex-1 min-w-0 pr-2">
+                        <p className="font-bold text-sm truncate">{order.rawData.post_title}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[0.625rem] text-on-surface-variant font-mono font-medium uppercase">
+                            {new Date(order.createdAt).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })} {formatTimeBA(order.createdAt)} HS – {getRelativeTime(order.createdAt)}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 text-xs font-bold text-primary">
-                        {order.status === 'Pendiente' ? <Clock size={14} /> : <CheckCircle2 size={14} />}
-                        {order.status}
+                      <div className="flex items-center gap-1 text-[0.625rem] font-bold py-1 px-2 rounded-full bg-primary/10 text-primary shrink-0">
+                        {order.status === 'Pendiente' ? <Clock size={12} /> : <CheckCircle2 size={12} />}
+                        {order.status.toUpperCase()}
                       </div>
                     </div>
                     
@@ -409,7 +418,7 @@ export default function Orders() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="m3-card !bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4">
             <div className="flex justify-between items-center border-b border-outline/10 pb-4">
-              <h2 id="orders-modal-title" className="text-xl font-bold text-primary">Pedido {selectedOrder.id}</h2>
+              <h2 id="orders-modal-title" className="text-xl font-bold text-primary">{selectedOrder.rawData.post_title || `Pedido ${selectedOrder.id}`}</h2>
               <button id="orders-modal-close-btn" onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-surface-variant rounded-full transition-colors"><X size={20}/></button>
             </div>
 
@@ -421,16 +430,13 @@ export default function Orders() {
                  </div>
                  <div>
                    <p className="text-[0.625rem] uppercase font-bold text-outline">Fecha</p>
-                   <p className="font-medium">{new Date(selectedOrder.createdAt).toLocaleString()}</p>
+                  <p className="font-medium">{new Date(selectedOrder.createdAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</p>
                  </div>
                  <div>
                    <p className="text-[0.625rem] uppercase font-bold text-outline">Cliente</p>
                    <p className="font-bold">{selectedOrder.clientName}</p>
                  </div>
-                 <div>
-                   <p className="text-[0.625rem] uppercase font-bold text-outline">País</p>
-                   <p className="font-medium">{selectedOrder.rawData.billing?.country || 'N/A'}</p>
-                 </div>
+
                  <div>
                    <p className="text-[0.625rem] uppercase font-bold text-outline">Transporte</p>
                    <p className="font-medium">{selectedOrder.rawData.transport || 'Sin definir'}</p>
@@ -580,10 +586,10 @@ export default function Orders() {
 
                 return (
                   <>
-                    <div className="text-center border-b border-gray-200 pb-4 mb-4">
-                      <h1 className="text-2xl font-bold uppercase tracking-tight">PRE-PEDIDO</h1>
-                      <p className="text-sm text-gray-500">#{d.id.slice(-6)} - {new Date(d.date).toLocaleString()}</p>
-                    </div>
+                      <div className="text-center border-b border-gray-200 pb-4 mb-4">
+                        <h1 className="text-2xl font-bold uppercase tracking-tight">PRE-PEDIDO</h1>
+                        <p className="text-sm text-gray-500">#{d.id.slice(-6)} - {new Date(d.date).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</p>
+                      </div>
                     <div className="mb-4">
                       <p className="text-sm"><strong className="uppercase">Cliente:</strong> {d.client.name}</p>
                       <p className="text-sm"><strong>Email:</strong> {d.client.email}</p>

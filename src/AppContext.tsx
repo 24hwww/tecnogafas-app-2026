@@ -156,11 +156,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ]);
   }, [fetchNotifications]);
 
-  const playNotificationSound = () => {
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-    audio.play().catch(e => console.log('Audio play failed', e));
-  };
-
   const setDeployNotification = (event: any) => {
       setDeployEvent(event);
       setTimeout(() => setDeployEvent(null), 10000); // Autohide
@@ -525,7 +520,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 if (isNotification) {
                   console.log('✨ Refreshing notifications due to SSE event');
                   setUnreadNotifications(prev => prev + 1);
-                  playNotificationSound();
                   
                   // Refetch to get actual list
                   fetchNotifications();
@@ -559,7 +553,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                         badge: '/icon-192x192.png',
                         tag: 'tecnogafas-notif',
                         vibrate: [200, 100, 200]
-                      });
+                      } as any);
                     });
                   }
                 }
