@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
-import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity, Zap } from 'lucide-react';
+import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity, Zap, Download } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { Skeleton } from '../components/Skeleton';
 
 export default function Dashboard() {
-  const { products, clients, grandTotalOrders, dashboardOrders, sellers, refreshData, forceRefresh, isLoading, onlineUsersCount } = useApp();
+  const { products, clients, grandTotalOrders, dashboardOrders, sellers, refreshData, forceRefresh, isLoading, appVersionInfo } = useApp();
   const navigate = useNavigate();
   
   const stats = [
@@ -18,9 +18,10 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-on-surface">Panel de Control</h2>
+        <h2 id="dashboard-title" className="text-2xl font-bold text-on-surface">Inicio</h2>
         <div className="flex gap-2">
           <button 
+            id="dashboard-refresh-btn"
             onClick={() => refreshData()} 
             disabled={isLoading}
             className={`p-2 hover:bg-surface-variant transition-all ${isLoading ? 'animate-spin' : ''}`}
@@ -29,6 +30,7 @@ export default function Dashboard() {
             <RefreshCw size={20} className="text-primary" />
           </button>
           <button 
+            id="dashboard-force-refresh-btn"
             onClick={() => forceRefresh()} 
             disabled={isLoading}
             className={`p-2 m3-button !rounded-full shadow-lg ${isLoading ? 'animate-pulse' : ''}`}
@@ -59,10 +61,33 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {appVersionInfo && appVersionInfo.success && (
+        <div className="m3-card !bg-blue-50 border border-blue-200">
+          <div className="flex items-center gap-4">
+            <div className="bg-blue-100 p-3 rounded-full">
+              <Download className="text-blue-600" size={24} />
+            </div>
+            <div className="flex-1">
+              <h3 id="dashboard-download-apk-title" className="font-bold text-blue-900">Aplicación Android</h3>
+              <p className="text-xs text-blue-700 font-medium">Versión {appVersionInfo.version}</p>
+              <p className="text-[0.65rem] text-blue-600/70">{appVersionInfo.release_notes}</p>
+            </div>
+            <a 
+              id="dashboard-download-apk-btn"
+              href={appVersionInfo.apk_url}
+              className="m3-button-filled !px-4 !py-2 !bg-blue-600 hover:!bg-blue-700 text-xs font-bold whitespace-nowrap"
+            >
+              Descargar APK
+            </a>
+          </div>
+        </div>
+      )}
+
       <div className="m3-card !bg-surface-variant/40 space-y-6">
         <div className="flex justify-between items-center">
-          <h3 className="font-bold text-sm uppercase tracking-widest text-primary">Pedidos</h3>
+          <h3 id="dashboard-orders-title" className="font-bold text-sm uppercase tracking-widest text-primary">Pedidos</h3>
           <button 
+            id="dashboard-view-all-orders-btn"
             onClick={() => navigate('/pedidos')}
             className="text-[0.625rem] bg-primary/10 text-primary px-2 py-0.5 font-bold hover:bg-primary/20 transition-colors"
           >

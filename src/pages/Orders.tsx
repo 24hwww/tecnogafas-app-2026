@@ -178,7 +178,7 @@ export default function Orders() {
         {hasDrafts && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Borradores</h2>
+              <h2 id="orders-drafts-title" className="text-2xl font-bold">Borradores</h2>
               <span className="text-[0.625rem] bg-secondary/10 text-secondary px-2 py-0.5 font-bold uppercase tracking-wider">
                 No Enviados
               </span>
@@ -205,6 +205,7 @@ export default function Orders() {
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <button 
+                        id={`orders-draft-share-btn-${draft.id}`}
                         onClick={() => handleShareDraft(draft)}
                         disabled={sharingDraftId === draft.id}
                         className="m3-button-outlined !p-2 flex items-center justify-center border border-primary/20 text-primary hover:bg-primary/5 transition-colors disabled:opacity-50 h-[36px] w-[36px] rounded-lg shadow-sm"
@@ -213,6 +214,7 @@ export default function Orders() {
                         {sharingDraftId === draft.id ? <Loader2 size={16} className="animate-spin text-primary" /> : <Share2 size={16} className="text-primary" />}
                       </button>
                       <button 
+                        id={`orders-draft-continue-btn-${draft.id}`}
                         onClick={() => handleLoadDraft(draft.id)}
                         className="m3-button-filled !py-2 !px-4 text-[0.625rem] flex items-center gap-2 whitespace-nowrap h-[2.25rem] shadow-sm hover:shadow-md transition-all active:scale-95 rounded-lg"
                       >
@@ -229,11 +231,12 @@ export default function Orders() {
         {/* Orders Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">Mis Pedidos</h2>
+            <h2 id="orders-title" className="text-2xl font-bold">Pedidos</h2>
           </div>
           
           <div className="flex flex-col gap-3">
             <input 
+              id="orders-search-input"
               type="text" 
               placeholder="Buscar por título..." 
               className="w-full p-3 m3-input rounded-lg border border-outline/20"
@@ -243,6 +246,7 @@ export default function Orders() {
             
             <div className="grid grid-cols-2 gap-3">
               <select 
+                id="orders-seller-select"
                 className="p-3 m3-input rounded-lg border border-outline/20 text-sm bg-surface"
                 value={selectedSeller}
                 onChange={(e) => handleSellerChange(e.target.value)}
@@ -254,6 +258,7 @@ export default function Orders() {
               </select>
               
               <select 
+                id="orders-client-select"
                 className="p-3 m3-input rounded-lg border border-outline/20 text-sm bg-surface"
                 value={selectedCustomer}
                 onChange={(e) => handleCustomerChange(e.target.value)}
@@ -308,6 +313,7 @@ export default function Orders() {
                     </div>
                     
                     <button 
+                      id={`orders-view-details-btn-${order.id}`}
                       onClick={() => setSelectedOrder(order)}
                       className="w-full p-2 bg-surface-variant/50 text-[0.625rem] font-bold text-center flex items-center justify-center gap-1"
                     >
@@ -345,8 +351,8 @@ export default function Orders() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="m3-card !bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4">
             <div className="flex justify-between items-center border-b border-outline/10 pb-4">
-              <h2 className="text-lg font-bold">Detalles Pedido {selectedOrder.id}</h2>
-              <button onClick={() => setSelectedOrder(null)}><X size={20}/></button>
+              <h2 id="orders-modal-title" className="text-xl font-bold text-primary">Pedido {selectedOrder.id}</h2>
+              <button id="orders-modal-close-btn" onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-surface-variant rounded-full transition-colors"><X size={20}/></button>
             </div>
 
             <div className="space-y-4 text-sm bg-surface-variant/20 p-4 rounded-lg">
@@ -377,30 +383,30 @@ export default function Orders() {
                  </div>
                </div>
 
-               <div className="pt-2 border-t border-outline/10">
-                 <p className="text-[0.625rem] uppercase font-bold text-outline">Observaciones</p>
-                 <div className="bg-surface p-2 mt-1 rounded border border-outline/10 text-xs italic">
+               <div className="pt-3 border-t border-outline/10">
+                 <p className="text-[0.625rem] uppercase font-bold text-outline mb-1">Observaciones</p>
+                 <div className="bg-surface p-3 rounded border border-outline/10 text-sm font-medium italic text-on-surface">
                    {selectedOrder.rawData.customer_note || "Sin observaciones adicionales."}
                  </div>
                </div>
 
-               <div className="pt-2 border-t border-outline/10">
+               <div className="pt-3 border-t border-outline/10">
                  <div className="flex justify-between text-xs mb-1">
                    <span className="text-outline">Descuento</span>
-                   <span>{selectedOrder.rawData.discount}%</span>
+                   <span className="font-medium">{selectedOrder.rawData.discount}%</span>
                  </div>
                  <div className="flex justify-between text-xs mb-1">
                    <span className="text-outline">Recargo</span>
-                   <span>{selectedOrder.rawData.recargo}%</span>
+                   <span className="font-medium">{selectedOrder.rawData.recargo}%</span>
                  </div>
                  <div className="flex justify-between text-xs">
                    <span className="text-outline">IVA</span>
-                   <span>{selectedOrder.rawData.iva}%</span>
+                   <span className="font-medium">{selectedOrder.rawData.iva}%</span>
                  </div>
                </div>
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-2 pt-2">
               <div className="flex justify-between items-center">
                 <p className="font-bold text-sm uppercase tracking-wider text-primary">Productos</p>
                 <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{selectedOrder.items.length} items</span>
@@ -418,28 +424,31 @@ export default function Orders() {
                   </div>
                 ))}
               </div>
-              <div className="pt-2 border-t-2 border-primary/20 flex justify-between items-center">
+              <div className="pt-3 border-t-2 border-primary/20 flex justify-between items-center">
                 <span className="font-black text-sm uppercase">Total Pedido</span>
                 <span className="font-black text-xl text-primary">{formatCurrency(selectedOrder.total)}</span>
               </div>
             </div>
 
-            <div className="flex gap-2 pt-4 flex-wrap">
+            <div className="flex flex-col gap-3 pt-4 border-t border-outline/10">
               <button 
+                 id="orders-modal-status-btn"
                  onClick={() => handleActionClick('status')}
-                 className="flex-1 min-w-[120px] m3-button-outlined flex items-center justify-center gap-2 py-2"
+                 className="w-full m3-button-outlined flex items-center justify-center gap-2 py-3"
               >
                 <CheckCircle2 size={16} /> {selectedOrder.status === 'Pendiente' ? 'Marcar Atendido' : 'Marcar Pendiente'}
               </button>
               <button 
+                 id="orders-modal-email-btn"
                  onClick={() => handleActionClick('email')}
-                 className="flex-1 min-w-[120px] m3-button-outlined flex items-center justify-center gap-2 py-2"
+                 className="w-full m3-button-outlined flex items-center justify-center gap-2 py-3"
               >
                 <Mail size={16} /> Enviar Email
               </button>
               <button 
+                 id="orders-modal-pdf-btn"
                  onClick={() => handleActionClick('pdf')}
-                 className="flex-1 min-w-[7.5rem] m3-button-filled flex items-center justify-center gap-2 py-2"
+                 className="w-full m3-button-filled flex items-center justify-center gap-2 py-3"
               >
                 <FileText size={16} /> Descargar PDF
               </button>

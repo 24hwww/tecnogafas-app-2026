@@ -62,6 +62,7 @@ export function PinModal({ isOpen, onClose, onSuccess }: PinModalProps) {
             <div className="space-y-4">
               <div className="relative">
                 <input 
+                  id="pinmodal-input"
                   type={showPin ? "text" : "password"}
                   inputMode="numeric"
                   placeholder="••••••••"
@@ -72,6 +73,7 @@ export function PinModal({ isOpen, onClose, onSuccess }: PinModalProps) {
                   autoFocus
                 />
                 <button
+                  id="pinmodal-visibility-btn"
                   type="button"
                   onClick={() => setShowPin(!showPin)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-outline hover:text-primary transition-colors"
@@ -84,12 +86,14 @@ export function PinModal({ isOpen, onClose, onSuccess }: PinModalProps) {
               
               <div className="flex gap-4 pt-2">
                 <button 
+                  id="pinmodal-cancel-btn"
                   onClick={onClose}
                   className="flex-1 py-3 bg-surface-variant font-bold text-sm"
                 >
                   CANCELAR
                 </button>
                 <button 
+                  id="pinmodal-validate-btn"
                   onClick={handleValidate}
                   disabled={isLoading || pin.length !== 8}
                   className="flex-1 py-3 bg-primary text-on-primary font-bold text-sm flex items-center justify-center"

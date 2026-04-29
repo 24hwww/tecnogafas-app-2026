@@ -31,6 +31,7 @@ interface AppContextType {
   apiError: string | null;
   onlineUsersCount: number | null;
   deployEvent: any | null;
+  appVersionInfo: any | null;
   notifications: any[];
   unreadNotifications: number;
   setPrimaryColor: (color: string) => void;
@@ -70,6 +71,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [apiError, setApiError] = useState<string | null>(null);
   const [onlineUsersCount, setOnlineUsersCount] = useState<number | null>(null);
   const [deployEvent, setDeployEvent] = useState<any | null>(null);
+  const [appVersionInfo, setAppVersionInfo] = useState<any | null>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -167,11 +169,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshData = useCallback(async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
     try {
-      const [p, c, o, s] = await Promise.all([
+      const [p, c, o, s, appVer] = await Promise.all([
         apiService.getProducts(),
         apiService.getClients(),
         apiService.getOrders(1, 25), // Fetch first page
         apiService.getSellers(),
+        apiService.getAppVersion(),
       ]);
       setProducts(p);
       setClients(c);
@@ -180,6 +183,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setGrandTotalOrders(o.total);
       setDashboardOrders(o.orders.slice(0, 5));
       setSellers(s);
+      if (appVer) setAppVersionInfo(appVer);
 
       // Save to cache
       try {
@@ -526,9 +530,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             es.addEventListener('deploy', handleSSEEvent);
 
             es.onerror = (err) => {
-              console.warn('❌ SSE Error State:', es.readyState, err);
               if (es.readyState === EventSource.CLOSED) {
-                console.error(`🔄 SSE connection closed definitively. Retrying in ${retryDelay/1000}s...`);
+                console.log(`🔄 SSE connection dropped. Re-establishing in ${retryDelay/1000}s...`);
                 es.close();
                 setTimeout(() => {
                   if (globalPin && isOnline) {
@@ -551,7 +554,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       return (
     <AppContext.Provider value={{
-      products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, notifications, unreadNotifications, setSelectedClient,
+      products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, setSelectedClient,
       addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh
     }}>
       {children}

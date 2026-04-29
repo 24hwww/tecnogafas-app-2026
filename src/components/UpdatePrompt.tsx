@@ -40,7 +40,7 @@ export function UpdatePrompt() {
           <div className="bg-surface m3-card border border-primary/20 shadow-2xl p-4 flex flex-col gap-3 pointer-events-auto max-w-sm w-full">
             <div className="flex items-start justify-between">
               <div>
-                <h4 className="font-bold text-sm">
+                <h4 id="update-prompt-title" className="font-bold text-sm">
                   {needRefresh ? "¡Nueva actualización!" : "App lista"}
                 </h4>
                 <p className="text-xs text-on-surface-variant mt-1">
@@ -50,6 +50,7 @@ export function UpdatePrompt() {
                 </p>
               </div>
               <button 
+                id="update-prompt-close-btn"
                 onClick={close} 
                 className="p-1 hover:bg-surface-variant rounded-full text-outline"
               >
@@ -59,6 +60,7 @@ export function UpdatePrompt() {
             
             {needRefresh && (
               <button
+                id="update-prompt-update-btn"
                 onClick={() => updateServiceWorker(true)}
                 className="m3-button-filled w-full font-bold text-xs py-2.5 flex items-center justify-center gap-2"
               >

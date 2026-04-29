@@ -72,8 +72,9 @@ export default function Notifications() {
       />
       
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Notificaciones</h2>
+        <h2 id="notifications-title" className="text-2xl font-bold">Notificaciones</h2>
         <button 
+          id="notifications-show-send-form-btn"
           onClick={() => setShowSendForm(!showSendForm)}
           className="m3-button !p-2 rounded-full"
         >
@@ -89,7 +90,7 @@ export default function Notifications() {
             exit={{ height: 0, opacity: 0 }}
             className="m3-card !bg-primary/5 space-y-3 overflow-hidden"
           >
-            <h3 className="font-bold flex items-center gap-2 text-primary">
+            <h3 id="notifications-new-title" className="font-bold flex items-center gap-2 text-primary">
               <Send size={18} /> Enviar Mensaje
             </h3>
             
@@ -120,12 +121,14 @@ export default function Notifications() {
 
             <div className="flex gap-2 pt-2">
               <button 
+                id="notifications-close-send-form-btn"
                 className="flex-1 m3-button-outlined"
                 onClick={() => setShowSendForm(false)}
               >
                 Cancelar
               </button>
               <button 
+                id="notifications-send-btn"
                 className="flex-1 m3-button disabled:opacity-50"
                 onClick={handleSend}
                 disabled={!targetUser || !messageContent || isSending}
@@ -184,7 +187,7 @@ export default function Notifications() {
                 </div>
                 <div className="flex-1">
                   <div className="flex justify-between items-start">
-                    <h4 className={`font-bold text-sm ${isRead ? 'text-on-surface' : 'text-primary'}`}>
+                    <h4 id={`notifications-item-title-${n.id || i}`} className={`font-bold text-sm ${isRead ? 'text-on-surface' : 'text-primary'}`}>
                       {title}
                     </h4>
                     <span className="text-[0.625rem] text-on-surface-variant font-medium">
@@ -196,6 +199,7 @@ export default function Notifications() {
                   
                   {!isRead && (
                     <button 
+                      id={`notifications-mark-read-btn-${n.id || i}`}
                       onClick={() => handleAck(n.id)}
                       className="mt-3 flex items-center gap-1 text-[0.625rem] font-bold text-primary uppercase tracking-wider bg-primary/10 px-2 py-1 rounded"
                     >

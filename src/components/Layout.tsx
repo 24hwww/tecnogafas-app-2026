@@ -1,12 +1,12 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, ClipboardList, ShoppingCart, Menu, X, Bell, Settings, Loader2, RefreshCw } from 'lucide-react';
+import { House, Package, Users, ClipboardList, ShoppingCart, Menu, X, Bell, Settings, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useApp } from '../AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/', label: 'Inicio', icon: House },
   { path: '/productos', label: 'Productos', icon: Package },
   { path: '/clientes', label: 'Clientes', icon: Users },
   { path: '/pedidos', label: 'Pedidos', icon: ClipboardList },
@@ -26,12 +26,60 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const isHome = location.pathname === '/';
 
-  // Explicitly listen for popstate to ensure history back works on all environments
+  const [versions, setVersions] = useState({ app: 'Cargando...', api: 'Cargando...' });
+
   useEffect(() => {
     const handlePopState = () => {
       console.log('Navigation: PopState triggered (Back Button)');
     };
     window.addEventListener('popstate', handlePopState);
+
+    const fetchVersions = async () => {
+      let apiVersion = '1.0.0';
+      let appVersion = '1.0.0';
+
+      // GitHub Commits
+      try {
+        const repoNames = ['tecnogafas-ventas-pwa', 'tecnogafas-pwa', 'tecno-app'];
+        for (const repo of repoNames) {
+           const res = await fetch(`https://api.github.com/repos/24hwww/${repo}/commits?per_page=1`);
+           if (res.ok) {
+              const linkHeader = res.headers.get('link');
+              if (linkHeader) {
+                 const match = linkHeader.match(/&page=(\d+)>; rel="last"/);
+                 if (match) {
+                    appVersion = `1.2.${match[1]}`;
+                    break;
+                 }
+              }
+           }
+        }
+      } catch (e) {}
+
+      // Swagger API Version
+      try {
+        const urls = [
+          'https://api.tecnogafas.com.ar/swagger.json',
+          'https://api.tecnogafas.com.ar/docs/swagger.json',
+          'https://api.tecnogafas.com.ar/api/swagger'
+        ];
+        for (const url of urls) {
+           const res = await fetch(url);
+           if (res.ok) {
+             const data = await res.json();
+             if (data?.info?.version) {
+                 apiVersion = data.info.version;
+                 break;
+             }
+           }
+        }
+      } catch (e) {}
+
+      setVersions({ app: `v${appVersion}`, api: `v${apiVersion}` });
+    };
+
+    fetchVersions();
+
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
@@ -103,7 +151,7 @@ export function Layout({ children }: { children: ReactNode }) {
                     )}
                     {item.label === 'Notificaciones' && unreadNotifications > 0 && (
                       <span className="ml-auto bg-error text-white text-[0.625rem] px-1.5 py-0.5 font-bold rounded-full">
-                        {unreadNotifications}
+                        {unreadNotifications > 99 ? '99+' : unreadNotifications}
                       </span>
                     )}
                   </NavLink>
@@ -115,7 +163,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   <div className="w-8 h-8 bg-primary-container text-on-primary-container flex items-center justify-center text-xs font-bold">V</div>
                   <div className="text-xs">
                     <p className="font-semibold text-on-surface">Vendedor</p>
-                    <p className="text-outline">Admin • v1.4.2</p>
+                    <p className="text-outline">App {versions.app} • API {versions.api}</p>
                   </div>
                 </div>
               </div>
@@ -142,17 +190,6 @@ export function Layout({ children }: { children: ReactNode }) {
                 <span>{onlineUsersCount}</span>
               </div>
             )}
-            <button 
-              onClick={() => navigate('/notificaciones')}
-              className="relative p-2 hover:bg-surface-variant text-on-surface-variant transition-colors"
-            >
-              <Bell size={24} />
-              {unreadNotifications > 0 && (
-                <span className="absolute top-1 right-1 bg-red-500 text-white text-[0.625rem] w-4 h-4 flex items-center justify-center font-bold rounded-full border border-surface">
-                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                </span>
-              )}
-            </button>
             <button 
               onClick={() => navigate('/carrito')}
               className="relative p-2 hover:bg-surface-variant text-on-surface-variant transition-colors"

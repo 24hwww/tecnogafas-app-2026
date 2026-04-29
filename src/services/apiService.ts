@@ -196,6 +196,19 @@ export const apiService = {
     }));
   },
 
+  async getAppVersion(): Promise<any> {
+    try {
+      const res = await customFetch(`${BASE_URL}/app/version`);
+      if (res.ok) {
+        return await res.json();
+      }
+      return null;
+    } catch (e) {
+      console.error('Error fetching app version', e);
+      return null;
+    }
+  },
+
   async getEvents(type?: string, sellerId?: string): Promise<any[]> {
     const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
     // Use /events/list as primary endpoint (it's the canonical path in Leaf v2.x)

@@ -56,8 +56,9 @@ export default function Clients() {
     <PullToRefresh onRefresh={() => refreshData(false)}>
       <div className="space-y-4 min-h-[50vh]">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Clientes</h2>
+          <h2 id="clients-title" className="text-2xl font-bold">Clientes</h2>
           <button 
+            id="clients-add-btn"
             onClick={() => { setEditingClient({ name: '', email: '', phone: '', address: '' }); setIsModalOpen(true); }}
             className="m3-button-tonal !p-2"
           >
@@ -68,6 +69,7 @@ export default function Clients() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" size={20} />
           <input 
+            id="clients-search-input"
             type="text" 
             placeholder="Buscar por nombre o correo..." 
             className="w-full bg-surface-variant py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
@@ -99,26 +101,25 @@ export default function Clients() {
                     <p className="text-xs text-on-surface-variant flex items-center gap-1 mt-1">
                       <MapPin size={12} /> {client.address || 'Sin dirección'}
                     </p>
+                    <div className="mt-3">
+                       <button 
+                         id={`clients-select-btn-${client.id}`}
+                         onClick={() => handleSelectClient(client)}
+                         className={`m3-button-filled w-full !py-2 text-xs flex items-center justify-center gap-2 font-bold ${isSelected ? '!bg-green-600' : ''}`}
+                       >
+                         {isSelected ? <Check size={14} /> : <UserPlus size={14} />}
+                         {isSelected ? 'Seleccionado' : 'Agregar'}
+                       </button>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-2">
                     <button 
-                      onClick={() => openEdit(client)}
+                      id={`clients-edit-btn-${client.id}`}
+                      onClick={(e) => { e.stopPropagation(); openEdit(client); }}
                       className="p-2 hover:bg-surface text-secondary"
                     >
                       <Edit2 size={18} />
                     </button>
-                    {isSelected ? (
-                      <div className="bg-primary text-on-primary p-1 self-end">
-                        <Check size={16} />
-                      </div>
-                    ) : (
-                      <button 
-                        onClick={() => handleSelectClient(client)}
-                        className="m3-button-filled text-sm px-4 py-2"
-                      >
-                        Agregar
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>

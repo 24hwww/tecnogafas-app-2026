@@ -282,6 +282,7 @@ export default function Checkout() {
             <div className="space-y-1">
               <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">IVA (%)</label>
               <input 
+                id="checkout-iva-input"
                 type="number"
                 className="w-full bg-surface-variant p-4 focus:ring-2 focus:ring-primary outline-none text-sm font-bold"
                 value={form.iva}
@@ -291,6 +292,7 @@ export default function Checkout() {
             <div className="space-y-1">
               <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">Descuento (%)</label>
               <input 
+                id="checkout-discount-input"
                 type="number"
                 className="w-full bg-surface-variant p-4 focus:ring-2 focus:ring-primary outline-none text-sm font-bold"
                 value={form.discount}
@@ -303,6 +305,7 @@ export default function Checkout() {
             <div className="space-y-1">
               <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">Recargo (%)</label>
               <input 
+                id="checkout-recargo-input"
                 type="number"
                 className="w-full bg-surface-variant p-4 focus:ring-2 focus:ring-primary outline-none text-sm font-bold"
                 value={form.recargo}
@@ -312,6 +315,7 @@ export default function Checkout() {
             <div className="space-y-1">
               <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">Forma de Pago</label>
               <input 
+                id="checkout-methodpay-input"
                 type="text"
                 placeholder="Efectivo..."
                 className="w-full bg-surface-variant p-4 focus:ring-2 focus:ring-primary outline-none text-sm font-bold"
@@ -324,6 +328,7 @@ export default function Checkout() {
           <div className="space-y-1">
             <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">Transporte</label>
             <input 
+              id="checkout-transport-input"
               type="text"
               placeholder="Nombre del transporte"
               className="w-full bg-surface-variant p-4 focus:ring-2 focus:ring-primary outline-none text-sm font-bold"
@@ -335,6 +340,7 @@ export default function Checkout() {
           <div className="space-y-1">
             <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">Nota de Pedido</label>
             <textarea 
+              id="checkout-commit-input"
               rows={2}
               className="w-full bg-surface-variant p-4 focus:ring-2 focus:ring-primary outline-none text-sm font-bold resize-none"
               placeholder="Escriba alguna observación..."
@@ -346,6 +352,7 @@ export default function Checkout() {
           <div className="space-y-1">
             <label className="text-[0.625rem] font-bold uppercase text-outline tracking-widest pl-1">Enviar a otro Email</label>
             <input 
+              id="checkout-otheremail-input"
               type="email"
               className="w-full bg-surface-variant p-4 focus:ring-2 focus:ring-primary outline-none text-sm font-bold"
               value={form.otheremail}
@@ -364,6 +371,7 @@ export default function Checkout() {
 
       <div className="space-y-3">
         <button 
+          id="checkout-finalize-btn"
           onClick={() => setIsConfirmModalOpen(true)}
           className="w-full m3-button-filled py-4 text-base font-bold shadow-lg"
         >
@@ -371,6 +379,7 @@ export default function Checkout() {
         </button>
 
         <button 
+          id="checkout-save-draft-btn"
           onClick={() => {
             saveDraft(form);
             navigate('/pedidos');
@@ -403,12 +412,14 @@ export default function Checkout() {
               <p className="text-sm text-on-surface-variant">Se enviará el pedido al sistema central.</p>
               <div className="flex flex-col gap-2 pt-4">
                 <button 
+                  id="checkout-confirm-modal-no-btn"
                   onClick={() => setIsConfirmModalOpen(false)}
                   className="flex-1 py-3 bg-surface-variant font-bold"
                 >
                   No
                 </button>
                 <button 
+                  id="checkout-confirm-modal-yes-btn"
                   onClick={handleConfirmOrder}
                   disabled={isLoading}
                   className="flex-1 py-3 bg-primary text-on-primary font-bold flex items-center justify-center"
@@ -447,6 +458,7 @@ export default function Checkout() {
               
               <div className="space-y-4">
                 <input 
+                  id="checkout-pin-input"
                   type="password"
                   inputMode="numeric"
                   placeholder="••••••••"
@@ -464,12 +476,14 @@ export default function Checkout() {
                 
                 <div className="flex flex-col gap-2 pt-2">
                   <button 
+                    id="checkout-pin-modal-cancel-btn"
                     onClick={() => setIsPinModalOpen(false)}
                     className="flex-1 py-3 bg-surface-variant font-bold text-sm"
                   >
                     CANCELAR
                   </button>
                   <button 
+                    id="checkout-pin-modal-validate-btn"
                     onClick={handleValidatePin}
                     disabled={isLoading || sellerPin.length !== 8}
                     className="flex-1 py-3 bg-primary text-on-primary font-bold text-sm flex items-center justify-center"

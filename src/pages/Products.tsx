@@ -110,8 +110,9 @@ export default function Products() {
     <PullToRefresh onRefresh={() => refreshData(false)}>
       <div className="space-y-4 min-h-[50vh]">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Catálogo</h2>
+          <h2 id="products-title" className="text-2xl font-bold">Productos</h2>
           <button 
+            id="products-filters-btn"
             onClick={() => setShowFilters(!showFilters)}
             className={`p-2 hover:bg-surface-variant transition-all ${showFilters ? 'text-primary bg-primary/10' : 'text-outline'}`}
             title="Filtros por categoría"
@@ -124,6 +125,7 @@ export default function Products() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" size={20} />
           <input 
+            id="products-search-input"
             type="text" 
             placeholder="Buscar productos..." 
             className="w-full bg-surface-variant py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
@@ -207,28 +209,30 @@ export default function Products() {
                 <div key={product.id} className="m3-card flex gap-4 animate-in fade-in slide-in-from-bottom-2">
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
-                      <h4 className="font-semibold text-sm">{product.name}</h4>
-                      <p className="text-[0.625rem] text-primary font-bold">Stock: {product.stock}</p>
+                      <h4 className="font-semibold text-sm leading-tight mb-1">{product.name}</h4>
+                      <div className="flex flex-col gap-0.5 mb-2">
+                        <span className="text-[0.625rem] text-yellow-500 font-bold">Stock: {product.stock}</span>
+                        <span className="font-bold text-lg text-white">{formatCurrency(product.price)}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="font-bold text-lg text-primary">{formatCurrency(product.price)}</span>
-                      
+                    <div className="mt-1">
                       {cartItem && !hasVariations ? (
-                        <div className="flex items-center bg-primary-container px-1 py-0.5 border border-primary/20">
-                          <button onClick={() => updateCartQuantity(product.id, cartItem.quantity - 1)} className="p-1.5 text-on-primary-container hover:bg-primary/10">
+                        <div className="flex items-center justify-center bg-primary-container px-1 py-1 border border-primary/20 w-full">
+                          <button id={`products-decrease-qty-${product.id}`} onClick={() => updateCartQuantity(product.id, cartItem.quantity - 1)} className="p-1.5 text-on-primary-container hover:bg-primary/10 flex-1 flex justify-center">
                             <Minus size={14} />
                           </button>
-                          <span className="mx-2 font-black text-xs">{cartItem.quantity}</span>
-                          <button onClick={() => updateCartQuantity(product.id, cartItem.quantity + 1)} className="p-1.5 text-on-primary-container hover:bg-primary/10">
+                          <span className="mx-4 font-black text-sm">{cartItem.quantity}</span>
+                          <button id={`products-increase-qty-${product.id}`} onClick={() => updateCartQuantity(product.id, cartItem.quantity + 1)} className="p-1.5 text-on-primary-container hover:bg-primary/10 flex-1 flex justify-center">
                             <Plus size={14} />
                           </button>
                         </div>
                       ) : (
                         <motion.button 
+                          id={`products-add-btn-${product.id}`}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={() => handleOpenVariationModal(product)}
-                          className={`m3-button-filled !px-4 !py-1.5 text-xs flex items-center gap-2 shadow-sm font-bold ${addedProductId === product.id ? '!bg-green-600' : ''}`}
+                          className={`m3-button-filled w-full !py-2 text-xs flex items-center justify-center gap-2 font-bold ${addedProductId === product.id ? '!bg-green-600' : ''}`}
                         >
                          {addedProductId === product.id ? <Check size={14} /> : <ShoppingCart size={14} />}
                           {addedProductId === product.id ? 'Agregado' : (hasVariations ? 'Seleccionar...' : 'Agregar')}
@@ -247,7 +251,7 @@ export default function Products() {
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="m3-card bg-white w-full max-w-sm flex flex-col max-h-[90vh] shadow-2xl animate-in fade-in zoom-in duration-200">
               <div className="p-4 border-b border-surface-variant flex justify-between items-center">
-                <h3 className="font-black text-lg">{variationModalProduct.name}</h3>
+                <h3 id="products-variation-modal-title" className="font-black text-lg">{variationModalProduct.name}</h3>
                 <button onClick={() => setVariationModalProduct(null)} className="p-1 hover:bg-surface-variant rounded-full text-outline">
                   <X size={20} />
                 </button>
@@ -326,12 +330,14 @@ export default function Products() {
 
                 <div className="flex flex-col gap-3">
                   <button 
+                    id="products-variation-modal-cancel-btn"
                     onClick={() => setVariationModalProduct(null)} 
                     className="flex-1 py-3 text-sm font-bold text-outline hover:bg-surface-variant rounded-xl transition-colors"
                   >
                     Cancelar
                   </button>
                   <motion.button 
+                    id="products-variation-modal-confirm-btn"
                     whileHover={!(selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0) ? { scale: 1.02 } : {}}
                     whileTap={!(selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0) ? { scale: 0.98 } : {}}
                     onClick={handleAddToCartFromModal}

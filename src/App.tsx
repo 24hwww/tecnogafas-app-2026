@@ -19,25 +19,40 @@ import Checkout from './pages/Checkout';
 import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
 import TestApiPage from './pages/TestApiPage';
+import { useAndroidBack } from './hooks/useAndroidBack';
+import { kodular } from './lib/kodularBridge';
+import { useEffect } from 'react';
+
+function AppInner() {
+  useAndroidBack();
+
+  useEffect(() => {
+    kodular.init();
+  }, []);
+
+  return (
+    <Layout>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/productos" element={<Products />} />
+        <Route path="/clientes" element={<Clients />} />
+        <Route path="/pedidos" element={<Orders />} />
+        <Route path="/carrito" element={<Cart />} />
+        <Route path="/pago" element={<Checkout />} />
+        <Route path="/notificaciones" element={<Notifications />} />
+        <Route path="/configuracion" element={<Settings />} />
+        <Route path="/test" element={<TestApiPage />} />
+      </Routes>
+    </Layout>
+  );
+}
 
 export default function App() {
   return (
     <AppProvider>
       <ThemeWrapper>
         <Router>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/productos" element={<Products />} />
-              <Route path="/clientes" element={<Clients />} />
-              <Route path="/pedidos" element={<Orders />} />
-              <Route path="/carrito" element={<Cart />} />
-              <Route path="/pago" element={<Checkout />} />
-              <Route path="/notificaciones" element={<Notifications />} />
-              <Route path="/configuracion" element={<Settings />} />
-              <Route path="/test" element={<TestApiPage />} />
-            </Routes>
-          </Layout>
+          <AppInner />
         </Router>
         <UpdatePrompt />
         <DeployNotification />

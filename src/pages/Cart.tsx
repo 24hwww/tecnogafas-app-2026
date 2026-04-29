@@ -13,22 +13,9 @@ export default function Cart() {
     navigate('/pago');
   };
 
-  if (cart.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center p-8 text-center space-y-4 pt-20">
-        <div className="bg-surface-variant p-6 rounded-full">
-          <ShoppingBag size={64} className="text-outline" />
-        </div>
-        <h3 className="text-xl font-bold">Carrito Vacío</h3>
-        <p className="text-sm text-on-surface-variant">Agrega productos del catálogo para comenzar un pedido.</p>
-        <button onClick={() => navigate('/productos')} className="m3-button-tonal">Ir al Catálogo</button>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Carrito de Pedido</h2>
+    <div className="space-y-6 pb-24">
+      <h2 id="cart-title" className="text-2xl font-bold">Carrito</h2>
 
       {/* Selected Client Section */}
       <div className="m3-card !bg-primary-container/20 border-primary/20">
@@ -41,7 +28,7 @@ export default function Cart() {
               <p className="font-bold">{selectedClient.name}</p>
               <p className="text-xs text-on-surface-variant">{selectedClient.email}</p>
             </div>
-            <button onClick={() => navigate('/clientes')} className="text-xs text-primary font-bold">Cambiar</button>
+            <button id="cart-change-client-btn" onClick={() => navigate('/clientes')} className="text-xs text-primary font-bold">Cambiar</button>
           </div>
         ) : (
           <div className="flex flex-col gap-3 w-full">
@@ -49,56 +36,68 @@ export default function Cart() {
               <AlertCircle size={20} />
               <span className="text-xs font-medium">Asigna un cliente para continuar</span>
             </div>
-            <button onClick={() => navigate('/clientes')} className="m3-button-filled w-full">Asignar</button>
+            <button id="cart-assign-client-btn" onClick={() => navigate('/clientes')} className="m3-button-filled w-full">Asignar</button>
           </div>
         )}
       </div>
 
       {/* Cart Items */}
       <div className="space-y-3">
-        {cart.map((item) => (
-          <div key={item.id} className="m3-card flex gap-4">
-            <div className="flex-1">
-              <h4 className="font-semibold text-sm">{item.name}</h4>
-              <p className="text-xs text-on-surface-variant">{formatCurrency(item.price)} c/u</p>
-              <div className="flex items-center gap-4 mt-2">
-                <div className="flex items-center bg-surface px-2 py-1 border border-outline/10">
-                  <button onClick={() => updateCartQuantity(item.id, item.quantity - 1)} className="p-1">
-                    <span className="text-lg font-bold">−</span>
-                  </button>
-                  <span className="mx-3 font-bold text-xs">{item.quantity}</span>
-                  <button onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="p-1">
-                    <span className="text-lg font-bold">+</span>
+        {cart.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-8 text-center space-y-4 border-2 border-dashed border-outline/20 rounded-2xl">
+            <div className="bg-surface-variant p-4 rounded-full">
+              <ShoppingBag size={48} className="text-outline" />
+            </div>
+            <h3 className="font-bold">Carrito Vacío</h3>
+            <p className="text-xs text-on-surface-variant">Agrega productos del catálogo para comenzar un pedido.</p>
+          </div>
+        ) : (
+          cart.map((item) => (
+            <div key={item.id} className="m3-card flex gap-4">
+              <div className="flex-1">
+                <h4 className="font-semibold text-sm">{item.name}</h4>
+                <p className="text-xs text-on-surface-variant">{formatCurrency(item.price)} c/u</p>
+                <div className="flex items-center gap-4 mt-2">
+                  <div className="flex items-center bg-surface px-2 py-1 border border-outline/10">
+                    <button id={`cart-decrease-qty-btn-${item.id}`} onClick={() => updateCartQuantity(item.id, item.quantity - 1)} className="p-1">
+                      <span className="text-lg font-bold">−</span>
+                    </button>
+                    <span className="mx-3 font-bold text-xs">{item.quantity}</span>
+                    <button id={`cart-increase-qty-btn-${item.id}`} onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="p-1">
+                      <span className="text-lg font-bold">+</span>
+                    </button>
+                  </div>
+                  <button id={`cart-remove-item-btn-${item.id}`} onClick={() => removeFromCart(item.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
+                    <Trash2 size={18} />
                   </button>
                 </div>
-                <button onClick={() => removeFromCart(item.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
-                  <Trash2 size={18} />
-                </button>
+              </div>
+              <div className="text-right flex flex-col justify-between items-end">
+                <span className="font-bold text-primary">{formatCurrency(item.price * item.quantity)}</span>
               </div>
             </div>
-            <div className="text-right flex flex-col justify-between items-end">
-              <span className="font-bold text-primary">{formatCurrency(item.price * item.quantity)}</span>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       <button
+        id="cart-add-products-btn"
         onClick={() => navigate('/productos')}
-        className="w-full text-center text-sm font-bold text-primary py-2 hover:bg-primary/5 transition-colors"
+        className="w-full text-center text-sm font-bold text-primary py-4 border-2 border-primary border-dashed rounded-xl hover:bg-primary/5 transition-colors"
       >
-        + Agregar más productos
+        + Agregar {cart.length === 0 ? 'productos' : 'más productos'}
       </button>
 
       {/* Summary and Action */}
-      <div className="m3-card !bg-surface sticky bottom-0 border-t-2 border-primary/10 shadow-lg -mx-4 px-4 py-6 space-y-4">
+      <div className="m3-card !bg-surface sticky bottom-0 border-t-2 border-primary/10 shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.3)] -mx-4 px-4 py-6 space-y-4 z-10">
         <div className="flex justify-between items-center">
           <span className="text-lg font-medium">Total</span>
           <span className="text-2xl font-bold text-primary">{formatCurrency(total)}</span>
         </div>
         <button 
+          id="cart-confirm-order-btn"
           onClick={handleConfirm}
-          disabled={!selectedClient}
+          disabled={!selectedClient || cart.length === 0}
           className="w-full m3-button-filled py-3 disabled:opacity-50"
         >
           Confirmar Pedido
