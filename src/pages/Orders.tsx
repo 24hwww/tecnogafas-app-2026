@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useApp } from '../AppContext';
 import { Package, Clock, CheckCircle2, ChevronRight, Save, Send, X, FileText, Mail, Share2, Loader2, RotateCcw } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
@@ -33,6 +33,20 @@ export default function Orders() {
   const [actionFeedback, setActionFeedback] = useState<{message: string, type: 'error'|'success'} | null>(null);
   
   const [isRegenerating, setIsRegenerating] = useState(false);
+
+  // Auto-select order if passed via state
+  const targetId = location.state?.highlightOrderId || location.state?.newOrderId;
+  const effectRan = useRef(false);
+
+  useEffect(() => {
+    if (targetId && orders.length > 0 && !selectedOrder && !effectRan.current) {
+        const found = orders.find(o => o.id.toString() === targetId.toString());
+        if (found) {
+            setSelectedOrder(found);
+            effectRan.current = true;
+        }
+    }
+  }, [orders, targetId, selectedOrder]);
   
   // Fetch orders when page changes or filters change
   const loadPage = async (page: number, sellerId?: string, customerId?: string) => {
@@ -322,12 +336,12 @@ export default function Orders() {
                 <p className="text-center p-4 text-on-surface-variant text-sm">No se encontraron pedidos</p>
             ) : (
               filteredOrders.map((order) => {
-                const isNew = location.state?.newOrderId == order.id;
+                const isHighlight = targetId?.toString() === order.id.toString();
                 return (
                   <motion.div
                     key={order.id}
-                    initial={isNew ? { backgroundColor: '#fef3c7' } : {}}
-                    animate={isNew ? { backgroundColor: 'transparent' } : {}}
+                    initial={isHighlight ? { backgroundColor: '#fef3c7' } : {}}
+                    animate={isHighlight ? { backgroundColor: 'transparent' } : {}}
                     transition={{ duration: 2 }}
                     className="m3-card !p-0 overflow-hidden"
                   >

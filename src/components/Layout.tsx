@@ -40,7 +40,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
       // GitHub Commits
       try {
-        const repoNames = ['tecnogafas-ventas-pwa', 'tecnogafas-pwa', 'tecno-app'];
+        const repoNames = ['tecnogafas-app-2026', 'tecnogafas-ventas-pwa', 'tecnogafas-pwa', 'tecno-app'];
         for (const repo of repoNames) {
            const res = await fetch(`https://api.github.com/repos/24hwww/${repo}/commits?per_page=1`);
            if (res.ok) {

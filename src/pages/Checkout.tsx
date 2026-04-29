@@ -167,8 +167,11 @@ export default function Checkout() {
         ...form,
         total_calc: finalTotal
       };
+      
       const result = await apiService.createOrder(selectedClient!.id, cart, orderData, sellerId);
+      
       if (result.success) {
+        let emailMessage = '';
         if (result.orderId) {
           // Play success sound
           try {
@@ -178,11 +181,18 @@ export default function Checkout() {
             console.error("Error playing success sound", e);
           }
 
-          // Send email automatically
-          apiService.sendOrderEmail(result.orderId.toString(), sellerId).then(emailResult => {
-             console.log("Email send result:", emailResult);
-          });
+          // Step 2: Send email and wait for detailed result as requested
+          try {
+            console.log("📤 Sending order notification and PDF...");
+            const emailResult = await apiService.sendOrderEmail(result.orderId.toString(), sellerId);
+            console.log("Email send result:", emailResult);
+            emailMessage = emailResult.message || 'Correo y PDF enviados.';
+          } catch (emailErr) {
+            console.error("Error sending email:", emailErr);
+            emailMessage = 'El pedido se creó pero hubo un error al enviar el comprobante por correo.';
+          }
         }
+
         setLastOrder({ 
           client: selectedClient, 
           items: cart, 
@@ -190,14 +200,17 @@ export default function Checkout() {
           total: finalTotal,
           date: new Date().toISOString() 
         });
+
         if (currentDraftId) {
           markDraftAsSent(currentDraftId);
         }
+        
         clearCart();
         await refreshData();
+
         setOrderFeedback({
-          title: 'Pedido Exitoso',
-          message: 'El pedido fue enviado exitosamente',
+          title: 'Envío exitoso',
+          message: `${result.message}\n\n${emailMessage}`,
           type: 'success',
           orderId: result.orderId
         });
@@ -533,30 +546,62 @@ export default function Checkout() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className={`relative bg-surface w-full max-w-sm p-8 shadow-2xl text-center space-y-6 border ${orderFeedback.type === 'success' ? 'border-primary/50' : 'border-red-500/50'}`}
+              className={`relative bg-surface w-full max-w-sm p-8 shadow-2xl text-center space-y-6 border ${orderFeedback.type === 'success' ? 'border-green-500/50' : 'border-red-500/50'}`}
             >
-              <div className={`w-16 h-16 flex items-center justify-center mx-auto rounded-full ${orderFeedback.type === 'success' ? 'bg-primary/10 text-primary' : 'bg-red-500/10 text-red-500'}`}>
+              <div className={`w-16 h-16 flex items-center justify-center mx-auto rounded-full ${orderFeedback.type === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
                 {orderFeedback.type === 'success' ? <Check size={32} /> : <X size={32} />}
               </div>
               <div className="space-y-4">
-                <h3 className="text-xl font-bold uppercase tracking-tight">{orderFeedback.title}</h3>
-                <div className="text-sm text-on-surface-variant text-left bg-surface-variant/50 p-4 rounded whitespace-pre-wrap max-h-64 overflow-y-auto">
+                <h3 className={`text-xl font-bold uppercase tracking-tight ${orderFeedback.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>{orderFeedback.title === 'Envío exitoso' ? '✅ ENVÍO EXITOSO' : orderFeedback.title}</h3>
+                <div className={`text-sm text-left p-4 rounded whitespace-pre-wrap max-h-64 overflow-y-auto ${orderFeedback.type === 'success' ? 'bg-green-500/5 text-on-surface' : 'bg-red-500/5 text-on-surface'}`}>
                   {orderFeedback.message}
                 </div>
               </div>
               
-              <button 
-                onClick={() => {
-                  const wasSuccess = orderFeedback.type === 'success';
-                  setOrderFeedback(null);
-                  if (wasSuccess) {
-                    navigate('/pedidos', { state: { newOrderId: orderFeedback.orderId } });
-                  }
-                }}
-                className={`w-full py-3 font-bold text-sm tracking-widest ${orderFeedback.type === 'success' ? 'bg-primary text-on-primary' : 'bg-red-500 text-white'}`}
-              >
-                ENTENDIDO
-              </button>
+              <div className="flex flex-col gap-3">
+                {orderFeedback.type === 'success' ? (
+                  <>
+                    <button 
+                      onClick={() => {
+                        setOrderFeedback(null);
+                        navigate('/pedidos', { state: { highlightOrderId: orderFeedback.orderId } });
+                      }}
+                      className="w-full py-4 font-bold text-sm tracking-widest bg-green-600 text-white shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-transform"
+                    >
+                      <FileText size={20} />
+                      VER DETALLES DEL PEDIDO
+                    </button>
+                    
+                    <button 
+                      onClick={() => {
+                        setOrderFeedback(null);
+                        navigate('/pedidos');
+                      }}
+                      className="w-full py-4 font-bold text-sm tracking-widest bg-surface-variant text-on-surface flex items-center justify-center gap-3 active:scale-95 transition-transform"
+                    >
+                      <ArrowLeft size={18} />
+                      IR A TODOS LOS PEDIDOS
+                    </button>
+                    
+                    <button 
+                      onClick={() => {
+                        setOrderFeedback(null);
+                        navigate('/');
+                      }}
+                      className="w-full py-3 text-xs font-bold uppercase tracking-widest text-outline hover:text-primary transition-colors mt-2"
+                    >
+                      FINALIZAR Y VOLVER AL INICIO
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    onClick={() => setOrderFeedback(null)}
+                    className="w-full py-4 font-bold text-sm tracking-widest bg-red-500 text-white"
+                  >
+                    ENTENDIDO
+                  </button>
+                )}
+              </div>
             </motion.div>
           </div>
         )}

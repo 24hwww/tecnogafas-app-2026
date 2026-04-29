@@ -12,11 +12,15 @@ const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       cache: 'no-store', // Always fetch latest data
       ...init
     });
-    if (!res.ok && res.status >= 500) {
-      window.dispatchEvent(new CustomEvent('api-error', { detail: { message: `Servidor devolvió error ${res.status}` } }));
+    if (!res.ok) {
+      console.warn(`⚠️ API call to ${input} returned status ${res.status}`);
+      if (res.status >= 500) {
+        window.dispatchEvent(new CustomEvent('api-error', { detail: { message: `Servidor devolvió error ${res.status}` } }));
+      }
     }
     return res;
   } catch (err: any) {
+    console.error(`❌ Fetch error for ${input}:`, err);
     window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'No se pudo conectar con la API (caída o sin red)' } }));
     throw err;
   }
@@ -168,19 +172,46 @@ export const apiService = {
   },
 
   async getEvents(type?: string, sellerId?: string): Promise<any[]> {
-    const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
-    // Use /events/list as primary endpoint (it's the canonical path in Leaf v2.x)
-    const url = type ? `${BASE_URL}/events/list?type=${type}` : `${BASE_URL}/events/list`;
-    const res = await customFetch(url, { headers });
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
-    const json = await res.json();
+    const url = new URL(`${BASE_URL}/events/list`);
+    if (type) url.searchParams.set('type', type);
+    if (sellerId) {
+      url.searchParams.set('token', sellerId);
+      url.searchParams.set('pin', sellerId);
+      url.searchParams.set('user_id', sellerId); // Added for consistency with what user said
+    }
     
+    const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
+    
+    try {
+      const res = await customFetch(url.toString(), { headers });
+      if (!res.ok) {
+        // Fallback for older versions of the API or different endpoints
+        const fallbackUrl = new URL(`${BASE_URL}/events`);
+        if (type) fallbackUrl.searchParams.set('type', type);
+        if (sellerId) {
+            fallbackUrl.searchParams.set('token', sellerId);
+            fallbackUrl.searchParams.set('pin', sellerId);
+        }
+        
+        const res2 = await customFetch(fallbackUrl.toString(), { headers });
+        if (!res2.ok) return []; // Silent fail for events to avoid crashing UI
+        const json2 = await res2.json();
+        return this.extractEvents(json2);
+      }
+      const json = await res.json();
+      return this.extractEvents(json);
+    } catch (e) {
+      console.error('Error in getEvents:', e);
+      return [];
+    }
+  },
+
+  extractEvents(json: any): any[] {
     // Robust extraction: handle { events: [] }, { data: [] }, { data: { events: [] } }, etc.
     let list = json.events || json.notifications || json.data || [];
     if (!Array.isArray(list) && list !== null && typeof list === 'object') {
       list = list.events || list.notifications || list.data || [];
     }
-    
     return Array.isArray(list) ? list : [];
   },
 
@@ -198,11 +229,22 @@ export const apiService = {
   },
 
   async getUnreadCount(sellerId?: string): Promise<number> {
-    const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
-    const res = await customFetch(`${BASE_URL}/events/unread`, { headers });
-    if (!res.ok) return 0;
-    const json = await res.json();
-    return json.unread || 0;
+    try {
+      const url = new URL(`${BASE_URL}/events/unread`);
+      if (sellerId) {
+        url.searchParams.set('token', sellerId);
+        url.searchParams.set('pin', sellerId);
+        url.searchParams.set('user_id', sellerId);
+      }
+      const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
+      const res = await customFetch(url.toString(), { headers });
+      if (!res.ok) return 0;
+      const json = await res.json();
+      return json.unread || json.count || 0;
+    } catch (e) {
+      console.warn('Silent fail for unread count', e);
+      return 0;
+    }
   },
 
   async ackEvent(id: number, sellerId?: string): Promise<any> {
@@ -365,7 +407,13 @@ export const apiService = {
       }
       
       if (!res.ok) return { success: false, message: data.message || `Error al enviar email (Status: ${res.status})` };
-      return { success: true, message: data.message || 'Email enviado exitosamente' };
+      
+      let msg = data.message || 'Email enviado exitosamente';
+      if (data.recipients && Array.isArray(data.recipients)) {
+        msg += ` a: ${data.recipients.join(', ')}`;
+      }
+      
+      return { success: true, message: msg };
     } catch (e: any) {
       return { success: false, message: 'Error de conexión' };
     }
