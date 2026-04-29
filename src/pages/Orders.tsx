@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useApp } from '../AppContext';
-import { Package, Clock, CheckCircle2, ChevronRight, Save, Send, X, FileText, Mail, Share2, Loader2 } from 'lucide-react';
+import { Package, Clock, CheckCircle2, ChevronRight, Save, Send, X, FileText, Mail, Share2, Loader2, RotateCcw } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { OrderSkeleton } from '../components/Skeleton';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -26,11 +26,13 @@ export default function Orders() {
   const perPage = 25;
 
   // New states for actions
-  const [actionType, setActionType] = useState<'pdf'|'email'|null>(null);
+  const [actionType, setActionType] = useState<'pdf'|'email'|'status'|'regenerar'|null>(null);
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [pin, setPin] = useState('');
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<{message: string, type: 'error'|'success'} | null>(null);
+  
+  const [isRegenerating, setIsRegenerating] = useState(false);
   
   // Fetch orders when page changes or filters change
   const loadPage = async (page: number, sellerId?: string, customerId?: string) => {
@@ -56,7 +58,7 @@ export default function Orders() {
   // Filter orders by title locally
   const filteredOrders = orders.filter(order => order.rawData.post_title?.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const handleActionClick = async (type: 'pdf'|'email'|'status') => {
+  const handleActionClick = async (type: 'pdf'|'email'|'status'|'regenerar') => {
     setActionType(type);
     if (globalPin) {
       await executeAction(type, globalPin);
@@ -109,6 +111,43 @@ export default function Orders() {
            window.location.reload(); // Quick refresh
         } else {
            setActionFeedback({ message: res.message, type: 'error' });
+        }
+      } else if (currentAction === 'regenerar') {
+        setIsRegenerating(true);
+        try {
+          const items = selectedOrder.items.map(item => ({
+            id: item.productId.toString(), // Map existing item ID
+            name: item.productName,
+            price: item.price,
+            quantity: item.quantity,
+            vid: item.variationId ? item.variationId.toString() : undefined
+          }));
+          
+          const orderData = {
+            iva: selectedOrder.rawData.iva || 21,
+            discount: selectedOrder.rawData.discount || 0,
+            recargo: selectedOrder.rawData.recargo || 0,
+            methodpay: selectedOrder.rawData.methodpay || '',
+            transport: selectedOrder.rawData.transport || '',
+            commit: selectedOrder.rawData.customer_note || '',
+            otheremail: '',
+            total_calc: selectedOrder.total
+          };
+          
+          const res = await apiService.createOrder(selectedOrder.clientId, items, orderData, sellerInfo.id);
+          
+          if (res.success) {
+            setPinModalOpen(false);
+            alert('Pedido regenerado con éxito');
+            setSelectedOrder(null);
+            await fetchOrders(1, perPage); // Refresh
+          } else {
+            setActionFeedback({ message: res.message || 'Error al regenerar el pedido', type: 'error' });
+          }
+        } catch (e: any) {
+          setActionFeedback({ message: e.message || 'Error al regenerar', type: 'error' });
+        } finally {
+          setIsRegenerating(false);
         }
       }
     } catch(e) {
@@ -451,6 +490,13 @@ export default function Orders() {
                  className="w-full m3-button-filled flex items-center justify-center gap-2 py-3"
               >
                 <FileText size={16} /> Descargar PDF
+              </button>
+              <button 
+                 id="orders-modal-regenerate-btn"
+                 onClick={() => handleActionClick('regenerar')}
+                 className="w-full py-3 bg-secondary text-on-secondary font-bold flex items-center justify-center gap-2 py-3 rounded-lg"
+              >
+                {isRegenerating ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />} Regenerar Pedido
               </button>
             </div>
           </div>
