@@ -131,7 +131,7 @@ export const apiService = {
         customer_note: o.observaciones || o.customer_note || (o as any).notes || '', // Handle different possible field names
       },
     }));
-    return { orders, total: parseInt(json.count) || orders.length };
+    return { orders, total: parseInt(json.total) || orders.length };
   },
 
   async verifyProducts(products: {product_id: number, variation_id?: number, price: number, stock: number}[]): Promise<{

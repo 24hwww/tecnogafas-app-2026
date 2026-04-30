@@ -119,7 +119,7 @@ export default function Dashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-bold text-sm text-on-surface truncate">{order.clientName}</p>
-                      {getOrderNumber(order.rawData.post_title) && (
+                      {order.rawData?.post_title && getOrderNumber(order.rawData.post_title) && (
                         <span className="text-[0.625rem] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-mono font-bold">
                           {getOrderNumber(order.rawData.post_title)}
                         </span>

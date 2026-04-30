@@ -364,8 +364,8 @@ export default function Orders() {
                     <div className="p-4 border-b border-outline/10 flex justify-between items-center bg-primary/5">
                       <div className="flex-1 min-w-0 pr-2">
                         <div className="flex items-center gap-2">
-                          <p className="font-bold text-sm truncate">{order.clientName}</p>
-                          {getOrderNumber(order.rawData.post_title) && (
+                          <p className="font-bold text-sm truncate">{order.rawData?.post_title || order.clientName}</p>
+                          {order.rawData?.post_title && getOrderNumber(order.rawData.post_title) && (
                             <span className="text-[0.625rem] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-mono font-bold shrink-0">
                               {getOrderNumber(order.rawData.post_title)}
                             </span>

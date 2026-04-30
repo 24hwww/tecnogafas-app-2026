@@ -1,7 +1,8 @@
 import React from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { RefreshCw, X } from 'lucide-react';
+import { RefreshCw, X, Trash2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useApp } from '../AppContext';
 
 export function UpdatePrompt() {
   const {
@@ -23,14 +24,20 @@ export function UpdatePrompt() {
     },
   });
 
+  const { hasNewVersion, currentAppVersion, clearAllCaches } = useApp();
+
   const close = () => {
     setOfflineReady(false);
     setNeedRefresh(false);
   };
 
+  const handleClearCaches = async () => {
+    await clearAllCaches();
+  };
+
   return (
     <AnimatePresence>
-      {(needRefresh || offlineReady) && (
+      {(needRefresh || offlineReady || hasNewVersion) && (
         <motion.div
           initial={{ opacity: 0, y: 50, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -41,10 +48,12 @@ export function UpdatePrompt() {
             <div className="flex items-start justify-between">
               <div>
                 <h4 id="update-prompt-title" className="font-bold text-sm">
-                  {needRefresh ? "¡Nueva actualización!" : "App lista"}
+                  {hasNewVersion ? "¡Nueva versión disponible!" : needRefresh ? "¡Nueva actualización!" : "App lista"}
                 </h4>
                 <p className="text-xs text-on-surface-variant mt-1">
-                  {needRefresh 
+                  {hasNewVersion 
+                    ? `Hay una nueva versión (${currentAppVersion}) disponible. Se recomienda limpiar el cache para ver los cambios.` 
+                    : needRefresh 
                     ? "Hay una nueva versión de la app disponible." 
                     : "La aplicación está lista para funcionar sin conexión."}
                 </p>
@@ -66,6 +75,17 @@ export function UpdatePrompt() {
               >
                 <RefreshCw size={14} className="animate-spin" />
                 Actualizar ahora
+              </button>
+            )}
+            
+            {hasNewVersion && (
+              <button
+                id="update-prompt-clear-btn"
+                onClick={handleClearCaches}
+                className="w-full font-bold text-xs py-2.5 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
+              >
+                <Trash2 size={14} />
+                Limpiar Cache y Recargar
               </button>
             )}
           </div>

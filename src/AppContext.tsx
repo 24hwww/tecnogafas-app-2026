@@ -52,6 +52,9 @@ interface AppContextType {
   refreshData: (showLoading?: boolean) => Promise<void>;
   forceRefresh: () => Promise<void>;
   initializePushNotifications: () => Promise<void>;
+  clearAllCaches: () => Promise<void>;
+  hasNewVersion: boolean;
+  currentAppVersion: string | null;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -83,6 +86,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [retrySSE, setRetrySSE] = useState(0);
   const [retryDelay, setRetryDelay] = useState(5000);
   const [pushToken, setPushToken] = useState<string | null>(null);
+  const [hasNewVersion, setHasNewVersion] = useState(false);
+  const [currentAppVersion, setCurrentAppVersion] = useState<string | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     if (!globalPin) return;
@@ -220,13 +225,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const clearAllCaches = async () => {
+    try {
+      // Limpiar IndexedDB (idb-keyval)
+      const keysToClear = [
+        'tecnogafas_products', 
+        'tecnogafas_clients', 
+        'tecnogafas_orders', 
+        'tecnogafas_sellers',
+        'tecnogafas_drafts'
+      ];
+      await Promise.all(keysToClear.map(key => del(key)));
+      
+      // Limpiar localStorage
+      localStorage.removeItem('tecnogafas_pin');
+      localStorage.removeItem('tecnogafas_primaryColor');
+      localStorage.removeItem('tecnogafas_fontSize');
+      localStorage.removeItem('tecnogafas_last_event_id');
+      
+      // Enviar mensaje al service worker para limpiar caches
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_ALL_CACHES' });
+      }
+      
+      // Limpiar IndexedDB directamente
+      await indexedDB.deleteDatabase('tecnogafas-sync');
+      
+      console.log('[App] All caches cleared');
+      
+      // Recargar la página
+      window.location.reload();
+    } catch (error) {
+      console.error('Error clearing caches:', error);
+    }
+  };
+
   const refreshData = useCallback(async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
     try {
       const [p, c, o, s, appVer] = await Promise.all([
         apiService.getProducts(),
         apiService.getClients(),
-        apiService.getOrders(1, 25, globalPin || undefined), // Fetch first page
+        apiService.getOrders(1, 25, undefined), // Fetch ALL orders (no seller filter) to get total count
         apiService.getSellers(),
         apiService.getAppVersion(),
       ]);
@@ -234,10 +274,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setClients(c);
       setOrders(o.orders);
       setTotalOrders(o.total);
-      setGrandTotalOrders(o.total);
+      setGrandTotalOrders(o.total); // Total of ALL orders from API
       setDashboardOrders(o.orders.slice(0, 5));
       setSellers(s);
-      if (appVer) setAppVersionInfo(appVer);
+      if (appVer) {
+        setAppVersionInfo(appVer);
+        setCurrentAppVersion(appVer.version);
+        
+        // Verificar si hay una nueva versión disponible
+        const storedVersion = localStorage.getItem('tecnogafas_app_version');
+        if (storedVersion && storedVersion !== appVer.version) {
+          console.log('[App] New version detected:', appVer.version, 'vs', storedVersion);
+          setHasNewVersion(true);
+        }
+        localStorage.setItem('tecnogafas_app_version', appVer.version);
+      }
 
       // Save to cache
       try {
@@ -669,7 +720,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return (
     <AppContext.Provider value={{
       products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, setNotifications, setSelectedClient,
-      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh, initializePushNotifications
+      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh, initializePushNotifications, clearAllCaches, hasNewVersion, currentAppVersion
     }}>
       {children}
     </AppContext.Provider>

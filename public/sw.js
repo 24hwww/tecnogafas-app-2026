@@ -1,9 +1,10 @@
 // Public Service Worker
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
 
-const CACHE_NAME = 'tecnogafas-v1';
+const CACHE_NAME = 'tecnogafas-v2';
 const CACHE = "pwabuilder-page";
 const offlineFallbackPage = "offline.html";
+const PREVIOUS_CACHE = 'tecnogafas-v1';
 
 // Helper: Open IndexedDB
 function getDB() {
@@ -23,6 +24,28 @@ function getDB() {
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+  } else if (event.data && event.data.type === "CLEAR_ALL_CACHES") {
+    event.waitUntil(
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            console.log('[SW] Clearing cache:', cacheName);
+            return caches.delete(cacheName);
+          })
+        );
+      }).then(() => {
+        // También limpiar IndexedDB
+        return indexedDB.deleteDatabase('tecnogafas-sync');
+      }).then(() => {
+        console.log('[SW] All caches and IndexedDB cleared');
+        // Notificar a la app que se limpió todo
+        self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            client.postMessage({ type: 'CACHES_CLEARED' });
+          });
+        });
+      })
+    );
   }
 });
 
@@ -40,7 +63,22 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-    event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      // Limpiar caches antiguos
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME && cacheName !== CACHE) {
+              console.log('[SW] Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      })
+    ])
+  );
 });
 
 if (workbox.navigationPreload.isSupported()) {
