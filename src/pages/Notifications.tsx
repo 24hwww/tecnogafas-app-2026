@@ -7,7 +7,7 @@ import { PinModal } from '../components/PinModal';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Notifications() {
-  const { globalPin, setGlobalPin, sellers, currentSeller, notifications, unreadNotifications, setUnreadNotifications, fetchNotifications, sendNotification } = useApp();
+  const { globalPin, setGlobalPin, sellers, currentSeller, notifications, setNotifications, unreadNotifications, setUnreadNotifications, fetchNotifications, sendNotification } = useApp();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
@@ -19,11 +19,27 @@ export default function Notifications() {
   const [isSending, setIsSending] = useState(false);
 
   const [isAcking, setIsAcking] = useState<number[]>([]);
+  const [debugInfo, setDebugInfo] = useState<string>('');
   
   const refreshEvents = async () => {
     setIsLoading(true);
-    await fetchNotifications();
-    setIsLoading(false);
+    setError(null);
+    setDebugInfo('');
+    try {
+      console.log('🔍 Manual refresh triggered');
+      const data = await apiService.getEvents(undefined, globalPin);
+      console.log('🔍 Events received:', data);
+      setNotifications(data);
+      const unread = await apiService.getUnreadCount(globalPin);
+      setUnreadNotifications(unread);
+      setDebugInfo(`✅ Cargados ${data.length} eventos, ${unread} no leídos`);
+    } catch (e) {
+      console.error('❌ Manual refresh failed:', e);
+      setError('Error al cargar notificaciones: ' + (e instanceof Error ? e.message : String(e)));
+      setDebugInfo(`❌ Error: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAck = async (id: number) => {

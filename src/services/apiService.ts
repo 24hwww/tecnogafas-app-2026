@@ -131,7 +131,7 @@ export const apiService = {
         customer_note: o.observaciones || o.customer_note || (o as any).notes || '', // Handle different possible field names
       },
     }));
-    return { orders, total: parseInt(json.total) || orders.length };
+    return { orders, total: parseInt(json.count) || orders.length };
   },
 
   async verifyProducts(products: {product_id: number, variation_id?: number, price: number, stock: number}[]): Promise<{
@@ -182,6 +182,7 @@ export const apiService = {
     if (hasEventsApiFailed) return [];
     
     if (!type && cachedEvents && (Date.now() - cachedEventsTimestamp < CACHE_EVENTS_TTL)) {
+      console.log('📦 Using cached events');
       return cachedEvents;
     }
 
@@ -195,20 +196,26 @@ export const apiService = {
     const body: Record<string, any> = { limit: 100 };
     if (type) body.type = type;
 
+    console.log('📡 Fetching events:', { url: url.toString(), hasSeller: !!sellerId, type });
+
     try {
       const res = await customFetch(url.toString(), {
         method: 'POST',
         headers,
         body: JSON.stringify(body)
       });
+      console.log('📡 Events response status:', res.status);
       if (!res.ok) {
+        console.warn('⚠️ Events API error:', res.status);
         if (res.status === 500) {
           hasEventsApiFailed = true;
         }
         return []; // Silent fail for events to avoid crashing UI
       }
       const json = await res.json();
+      console.log('📡 Events response data:', json);
       const events = this.extractEvents(json);
+      console.log('📡 Extracted events:', events.length);
       
       if (!type) {
         cachedEvents = events;
@@ -217,7 +224,7 @@ export const apiService = {
       
       return events;
     } catch (e) {
-      console.error('Error in getEvents:', e);
+      console.error('❌ Error in getEvents:', e);
       return [];
     }
   },
@@ -367,8 +374,7 @@ export const apiService = {
 
   async loginSeller(pin: string): Promise<Seller | null> {
     const res = await customFetch(`${BASE_URL}/login?data=${encodeURIComponent(pin)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      method: 'POST'
     });
     if (!res.ok) {
       console.error('Login failed', res.status, await res.text());
@@ -384,6 +390,7 @@ export const apiService = {
   async downloadOrderPdf(orderId: string, sellerId: string): Promise<boolean> {
     try {
       const res = await customFetch(`${BASE_URL}/pedido/${orderId}/pdf`, {
+        method: 'POST',
         headers: { 'Authorization': `Bearer ${sellerId}` }
       });
       if (!res.ok) return false;

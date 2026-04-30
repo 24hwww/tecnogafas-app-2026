@@ -127,3 +127,67 @@ self.addEventListener('push', (event) => {
   );
 });
 
+// Polling para verificar eventos no leídos en background
+// Nota: EventSource no está disponible en service workers, usamos polling
+// Solo activo cuando la app está en background (SSE no está activo)
+let pollingInterval = null;
+let isAppActive = false;
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'START_POLLING') {
+    if (!isAppActive) {
+      startPolling(event.data.pin);
+    }
+  } else if (event.data && event.data.type === 'STOP_POLLING') {
+    stopPolling();
+  } else if (event.data && event.data.type === 'APP_ACTIVE') {
+    isAppActive = true;
+    stopPolling(); // Detener polling cuando la app está activa (SSE maneja esto)
+  } else if (event.data && event.data.type === 'APP_INACTIVE') {
+    isAppActive = false;
+    // Reiniciar polling cuando la app se vuelve inactiva
+    if (event.data.pin) {
+      startPolling(event.data.pin);
+    }
+  }
+});
+
+function startPolling(pin) {
+  if (pollingInterval) return;
+  
+  pollingInterval = setInterval(async () => {
+    try {
+      const response = await fetch('https://api.tecnogafas.com.ar/events/unread', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${pin}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.unread > 0) {
+          // Mostrar notificación de eventos pendientes
+          self.registration.showNotification('Tecnogafas', {
+            body: `Tienes ${data.unread} notificación(es) pendiente(s)`,
+            icon: '/icon.png',
+            badge: '/icon.png',
+            tag: 'unread-events',
+            requireInteraction: true
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error polling events:', error);
+    }
+  }, 60000); // Verificar cada minuto
+}
+
+function stopPolling() {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
+}
+

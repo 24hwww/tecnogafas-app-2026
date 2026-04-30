@@ -15,6 +15,18 @@ export default function Dashboard() {
     { label: 'Pedidos', value: grandTotalOrders, icon: ShoppingBag, color: 'text-orange-600' },
   ];
 
+  // Helper para obtener nombre del vendedor por ID
+  const getSellerName = (sellerId: string) => {
+    const seller = sellers.find(s => s.id === sellerId);
+    return seller?.name || 'Vendedor desconocido';
+  };
+
+  // Helper para extraer número de pedido del título (formato: "Pedido #12345" o similar)
+  const getOrderNumber = (title: string) => {
+    const match = title.match(/#(\d+)/);
+    return match ? `#${match[1]}` : '';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -104,10 +116,20 @@ export default function Dashboard() {
                   <div className="w-10 h-10 bg-surface flex items-center justify-center font-bold text-primary border border-white/5">
                     {order.clientName.charAt(0)}
                   </div>
-                  <div>
-                    <p className="font-bold text-sm text-on-surface">{order.clientName}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-sm text-on-surface truncate">{order.clientName}</p>
+                      {getOrderNumber(order.rawData.post_title) && (
+                        <span className="text-[0.625rem] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-mono font-bold">
+                          {getOrderNumber(order.rawData.post_title)}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[0.625rem] text-outline font-mono font-medium flex items-center gap-1 uppercase tracking-tighter">
                       {new Date(order.createdAt).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })} {formatTimeBA(order.createdAt)} HS ({getRelativeTime(order.createdAt)})
+                    </p>
+                    <p className="text-[0.5rem] text-on-surface-variant mt-0.5">
+                      Vendedor: {getSellerName(order.sellerId)}
                     </p>
                   </div>
                 </div>

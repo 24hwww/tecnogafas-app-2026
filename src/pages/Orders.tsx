@@ -25,6 +25,18 @@ export default function Orders() {
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
   const perPage = 25;
 
+  // Helper para obtener nombre del vendedor por ID
+  const getSellerName = (sellerId: string) => {
+    const seller = sellers.find(s => s.id === sellerId);
+    return seller?.name || 'Vendedor desconocido';
+  };
+
+  // Helper para extraer número de pedido del título (formato: "Pedido #12345" o similar)
+  const getOrderNumber = (title: string) => {
+    const match = title.match(/#(\d+)/);
+    return match ? `#${match[1]}` : '';
+  };
+
   // New states for actions
   const [actionType, setActionType] = useState<'pdf'|'email'|'status'|'regenerar'|null>(null);
   const [pinModalOpen, setPinModalOpen] = useState(false);
@@ -351,7 +363,14 @@ export default function Orders() {
                   >
                     <div className="p-4 border-b border-outline/10 flex justify-between items-center bg-primary/5">
                       <div className="flex-1 min-w-0 pr-2">
-                        <p className="font-bold text-sm truncate">{order.rawData.post_title}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm truncate">{order.clientName}</p>
+                          {getOrderNumber(order.rawData.post_title) && (
+                            <span className="text-[0.625rem] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-mono font-bold shrink-0">
+                              {getOrderNumber(order.rawData.post_title)}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-[0.625rem] text-on-surface-variant font-mono font-medium uppercase">
                             {new Date(order.createdAt).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })} {formatTimeBA(order.createdAt)} HS – {getRelativeTime(order.createdAt)}
@@ -366,8 +385,8 @@ export default function Orders() {
                     
                     <div className="p-4 space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-on-surface-variant">Cliente</span>
-                        <span className="text-xs font-medium">{order.clientName}</span>
+                        <span className="text-xs text-on-surface-variant">Vendedor</span>
+                        <span className="text-xs font-medium">{getSellerName(order.sellerId)}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-on-surface-variant">Estado</span>

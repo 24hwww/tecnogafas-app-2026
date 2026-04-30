@@ -37,6 +37,7 @@ interface AppContextType {
   appVersionInfo: any | null;
   notifications: any[];
   unreadNotifications: number;
+  setNotifications: (notifications: any[]) => void;
   setPrimaryColor: (color: string) => void;
   setFontSize: (size: string) => void;
   setGlobalPin: (pin: string | null) => void;
@@ -267,8 +268,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setIsOnline(false);
     };
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // App está oculta (background)
+        console.log('App oculta - iniciando polling en SW');
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller && globalPin) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'APP_INACTIVE',
+            pin: globalPin
+          });
+        }
+      } else {
+        // App está visible (foreground)
+        console.log('App visible - deteniendo polling en SW (SSE activo)');
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'APP_ACTIVE'
+          });
+        }
+      }
+    };
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     const handleApiError = (e: any) => {
       const msg = e.detail?.message || 'Error de API';
@@ -294,6 +317,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const savedPin = localStorage.getItem('tecnogafas_pin');
     if (savedPin) {
       setGlobalPin(savedPin);
+      // Iniciar polling en service worker si hay PIN guardado
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'START_POLLING',
+          pin: savedPin
+        });
+      }
     }
 
     // Initialize Native Push Notifications
@@ -341,6 +371,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('api-error', handleApiError);
     };
   }, []);
@@ -445,8 +476,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setGlobalPin(pin);
     if (pin) {
       localStorage.setItem('tecnogafas_pin', pin);
+      // Iniciar polling en service worker para eventos en background
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'START_POLLING',
+          pin: pin
+        });
+      }
+      // Notificar al service worker que la app está activa (SSE maneja esto)
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'APP_ACTIVE'
+        });
+      }
     } else {
       localStorage.removeItem('tecnogafas_pin');
+      // Detener polling en service worker
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'STOP_POLLING'
+        });
+      }
     }
   };
 
@@ -455,26 +505,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let eventSource: EventSource | null = null;
     
     if (globalPin && isOnline) {
+      console.log('🔌 Attempting SSE connection with PIN:', globalPin);
       // Start SSE if pin is available and online
       apiService.loginSeller(globalPin).then(seller => {
          if (seller) {
+            console.log('✅ Login successful, seller:', seller);
             setCurrentSeller(seller);
             
             const lastId = localStorage.getItem('tecnogafas_last_event_id') || '';
             const url = new URL('https://api.tecnogafas.com.ar/events/stream');
             if (lastId) {
               url.searchParams.set('last_id', lastId);
+              console.log('📍 Resuming from last event ID:', lastId);
             }
             
-            console.log(`🔌 Connecting SSE...`);
+            console.log(`🔌 Connecting SSE to:`, url.toString());
             const es = new EventSource(url.toString());
             eventSource = es;
- 
+
             let connectionStableTimer: any;
             
             // 🔹 Handshake
             es.onopen = () => {
-              console.log('✅ SSE Connection established');
+              console.log('✅ SSE Connection established successfully');
               connectionStableTimer = setTimeout(() => {
                 setRetryDelay(2000); // Reset backoff on stable success
               }, 5000);
@@ -489,7 +542,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
               try {
                 const data = JSON.parse(event.data);
-                if (data.message === 'max runtime reached' || data.keepalive === true) return;
+                if (data.message === 'max runtime reached' || data.keepalive === true) {
+                  console.log('💓 SSE keepalive received');
+                  return;
+                }
                 
                 console.log(`🔔 SSE Event [${event.type}]:`, data);
 
@@ -519,7 +575,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 const isNotification = eventType === 'notification' || eventType === 'message';
                 
                 if (isNotification) {
-                  console.log('✨ Refreshing notifications due to SSE event');
+                  console.log('✨ Notification received via SSE');
                   setUnreadNotifications(prev => prev + 1);
                   
                   // Refetch to get actual list after a small delay to allow server DB to sync
@@ -583,23 +639,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 readyState: es.readyState,
                 error: err
               });
-              // if (es.readyState === EventSource.CLOSED) {
-                console.log(`🔄 SSE connection lost. Re-establishing in ${retryDelay/1000}s...`);
-                es.close();
-                setTimeout(() => {
-                  if (globalPin && isOnline) {
-                    setRetrySSE(prev => prev + 1);
-                    setRetryDelay(prev => Math.min(prev * 2, 30000));
-                  }
-                }, retryDelay);
-              // }
+              console.log(`🔄 SSE connection lost. Re-establishing in ${retryDelay/1000}s...`);
+              es.close();
+              setTimeout(() => {
+                if (globalPin && isOnline) {
+                  setRetrySSE(prev => prev + 1);
+                  setRetryDelay(prev => Math.min(prev * 2, 30000));
+                }
+              }, retryDelay);
             };
+         } else {
+            console.error('❌ Login failed, cannot establish SSE connection');
          }
+      }).catch(err => {
+        console.error('❌ Error during login for SSE:', err);
       });
+    } else {
+      console.log('⏸️ SSE not connecting. globalPin:', !!globalPin, 'isOnline:', isOnline);
     }
     
     return () => {
       if (eventSource) {
+        console.log('🔌 Closing SSE connection');
         eventSource.close();
       }
     };
@@ -607,7 +668,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       return (
     <AppContext.Provider value={{
-      products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, setSelectedClient,
+      products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, setNotifications, setSelectedClient,
       addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh, initializePushNotifications
     }}>
       {children}
