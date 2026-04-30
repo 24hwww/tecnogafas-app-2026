@@ -94,6 +94,11 @@
   "note_taking": {
     "new_note_url": "/nueva-nota"
   },
+  "scope_extensions": [
+    {
+      "origin": "*.tecnogafas.com.ar"
+    }
+  ],
   "widgets": [
     {
       "name": "Tecnogafas",

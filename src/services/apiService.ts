@@ -6,25 +6,10 @@ let cachedProducts: Product[] | null = null;
 let cachedProductsTimestamp: number = 0;
 const CACHE_PRODUCTS_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Request deduplication and error tracking
-const pendingRequests = new Map<string, Promise<any>>();
-const failedEndpoints = new Map<string, number>();
-const FAILED_ENDPOINT_COOLDOWN = 30000; // 30 seconds cooldown for failed endpoints
-
-// Helper to generate request key for deduplication
-const getRequestKey = (endpoint: string, params?: string) => `${endpoint}${params || ''}`;
-
-// Check if endpoint is in cooldown (recently failed)
-const isEndpointInCooldown = (endpoint: string): boolean => {
-  const lastFailure = failedEndpoints.get(endpoint);
-  if (!lastFailure) return false;
-  return Date.now() - lastFailure < FAILED_ENDPOINT_COOLDOWN;
-};
-
-// Mark endpoint as failed
-const markEndpointFailed = (endpoint: string) => {
-  failedEndpoints.set(endpoint, Date.now());
-};
+let cachedEvents: any[] | null = null;
+let cachedEventsTimestamp: number = 0;
+const CACHE_EVENTS_TTL = 60 * 1000; // 1 minute
+let hasEventsApiFailed: boolean = false;
 
 const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   try {
@@ -117,12 +102,14 @@ export const apiService = {
     }));
   },
 
-  async getOrders(page: number = 1, perPage: number = 25, sellerId?: number, customerId?: number): Promise<{ orders: Order[], total: number }> {
+  async getOrders(page: number = 1, perPage: number = 25, sellerId?: number | string, customerId?: number | string): Promise<{ orders: Order[], total: number }> {
     let url = `${BASE_URL}/pedidos?page=${page}&per_page=${perPage}`;
     if (sellerId) url += `&seller_id=${sellerId}`;
     if (customerId) url += `&customer_id=${customerId}`;
     
-    const res = await customFetch(url);
+    const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
+    
+    const res = await customFetch(url, { headers });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json();
     const orders = (json.data || []).map((o: ApiOrder) => ({
@@ -192,48 +179,47 @@ export const apiService = {
   },
 
   async getEvents(type?: string, sellerId?: string): Promise<any[]> {
-    const endpoint = '/events/list';
-    const requestKey = getRequestKey(endpoint, `${type}-${sellerId}`);
+    if (hasEventsApiFailed) return [];
     
-    // Return empty if endpoint is in cooldown (recently failed)
-    if (isEndpointInCooldown(endpoint)) {
-      console.log('📛 Skipping events/list request - endpoint in cooldown due to recent failure');
+    if (!type && cachedEvents && (Date.now() - cachedEventsTimestamp < CACHE_EVENTS_TTL)) {
+      return cachedEvents;
+    }
+
+    const url = new URL(`${BASE_URL}/events/list`);
+    
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (sellerId) {
+      headers['Authorization'] = `Bearer ${sellerId}`;
+    }
+    
+    const body: Record<string, any> = { limit: 100 };
+    if (type) body.type = type;
+
+    try {
+      const res = await customFetch(url.toString(), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        if (res.status === 500) {
+          hasEventsApiFailed = true;
+        }
+        return []; // Silent fail for events to avoid crashing UI
+      }
+      const json = await res.json();
+      const events = this.extractEvents(json);
+      
+      if (!type) {
+        cachedEvents = events;
+        cachedEventsTimestamp = Date.now();
+      }
+      
+      return events;
+    } catch (e) {
+      console.error('Error in getEvents:', e);
       return [];
     }
-    
-    // Deduplicate concurrent requests
-    if (pendingRequests.has(requestKey)) {
-      return pendingRequests.get(requestKey);
-    }
-    
-    const url = new URL(`${BASE_URL}${endpoint}`);
-    if (type) url.searchParams.set('type', type);
-    // Auth via Authorization header only - no query params
-    const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
-    
-    const requestPromise = (async () => {
-      try {
-        const res = await customFetch(url.toString(), { headers });
-        if (!res.ok) {
-          if (res.status === 500) {
-            markEndpointFailed(endpoint);
-            console.warn('⚠️ Server error on events/list - cooling down for 30s');
-          }
-          return [];
-        }
-        const json = await res.json();
-        return this.extractEvents(json);
-      } catch (e) {
-        console.error('Error in getEvents:', e);
-        markEndpointFailed(endpoint);
-        return [];
-      } finally {
-        pendingRequests.delete(requestKey);
-      }
-    })();
-    
-    pendingRequests.set(requestKey, requestPromise);
-    return requestPromise;
   },
 
   extractEvents(json: any): any[] {
@@ -267,44 +253,20 @@ export const apiService = {
   },
 
   async getUnreadCount(sellerId?: string): Promise<number> {
-    const endpoint = '/events/unread';
-    const requestKey = getRequestKey(endpoint, sellerId || '');
-    
-    // Return 0 if endpoint is in cooldown
-    if (isEndpointInCooldown(endpoint)) {
+    try {
+      const url = new URL(`${BASE_URL}/events/unread`);
+      if (sellerId) url.searchParams.set('pin', sellerId);
+      
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (sellerId) headers['Authorization'] = `Bearer ${sellerId}`;
+      const res = await customFetch(url.toString(), { method: 'POST', headers });
+      if (!res.ok) return 0;
+      const json = await res.json();
+      return json.unread || json.count || 0;
+    } catch (e) {
+      console.warn('Silent fail for unread count', e);
       return 0;
     }
-    
-    // Deduplicate concurrent requests
-    if (pendingRequests.has(requestKey)) {
-      return pendingRequests.get(requestKey);
-    }
-    
-    const requestPromise = (async () => {
-      try {
-        const url = new URL(`${BASE_URL}${endpoint}`);
-        // Auth via Authorization header only
-        const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
-        const res = await customFetch(url.toString(), { headers });
-        if (!res.ok) {
-          if (res.status === 500) {
-            markEndpointFailed(endpoint);
-          }
-          return 0;
-        }
-        const json = await res.json();
-        return json.unread || json.count || 0;
-      } catch (e) {
-        console.warn('Silent fail for unread count', e);
-        markEndpointFailed(endpoint);
-        return 0;
-      } finally {
-        pendingRequests.delete(requestKey);
-      }
-    })();
-    
-    pendingRequests.set(requestKey, requestPromise);
-    return requestPromise;
   },
 
   async ackEvent(id: number, sellerId?: string): Promise<any> {
@@ -406,8 +368,7 @@ export const apiService = {
   async loginSeller(pin: string): Promise<Seller | null> {
     const res = await customFetch(`${BASE_URL}/login?data=${encodeURIComponent(pin)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: pin })
+      headers: { 'Content-Type': 'application/json' }
     });
     if (!res.ok) {
       console.error('Login failed', res.status, await res.text());
@@ -441,8 +402,13 @@ export const apiService = {
 
   async getLogs(context: string, sellerId: string): Promise<any> {
     try {
-      const res = await customFetch(`${BASE_URL}/logs?context=${encodeURIComponent(context)}`, {
-        headers: { 'Authorization': `Bearer ${sellerId}` }
+      const res = await customFetch(`${BASE_URL}/logs`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${sellerId}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ context })
       });
       return await res.json();
     } catch(e) {
@@ -497,22 +463,10 @@ export const apiService = {
     }
   },
 
-  subscribeToEvents(onMessage: (data: any) => void, onError?: (err: Event) => void) {
+  subscribeToEvents(onMessage: (data: any) => void) {
     const eventSource = new EventSource(`${BASE_URL}/events/stream`);
-    let lastActivity = Date.now();
-    const ACTIVITY_TIMEOUT = 60000; // 1 minute
-    
-    const activityInterval = setInterval(() => {
-      if (Date.now() - lastActivity > ACTIVITY_TIMEOUT) {
-        console.warn('⚠️ SSE connection inactive for 60s, forcing reconnection');
-        eventSource.close();
-        clearInterval(activityInterval);
-        if (onError) onError(new Event('timeout'));
-      }
-    }, 30000);
     
     eventSource.onmessage = (event) => {
-      lastActivity = Date.now();
       try {
         const data = JSON.parse(event.data);
         onMessage(data);
@@ -522,15 +476,10 @@ export const apiService = {
     };
     
     eventSource.onerror = (err) => {
-      clearInterval(activityInterval);
-      console.warn('⚠️ SSE connection error', err);
-      if (onError) onError(err);
+      console.error('SSE error', err);
       // EventSource automatically attempts to reconnect
     };
     
-    return () => {
-      clearInterval(activityInterval);
-      eventSource.close();
-    };
+    return () => eventSource.close();
   }
 };

@@ -9,8 +9,6 @@
     "build": "node fix-gradle.cjs && node prepare-assets.cjs && vite build",
     "android:sync": "npx cap sync android",
     "android:open": "npx cap open android",
-    "android:build:debug": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
-    "android:build:release": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease",
     "assets:generate": "npx @capacitor/assets generate --android",
     "preview": "vite preview",
     "clean": "rm -rf dist",

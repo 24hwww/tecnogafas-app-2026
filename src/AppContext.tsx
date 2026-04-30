@@ -81,14 +81,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [retrySSE, setRetrySSE] = useState(0);
   const [retryDelay, setRetryDelay] = useState(5000);
-  const [sseFailures, setSseFailures] = useState(0);
-  const [ssePaused, setSsePaused] = useState(false);
-  const MAX_SSE_FAILURES = 5;
-  const SSE_PAUSE_DURATION = 60000; // 1 minute pause after max failures
   const [pushToken, setPushToken] = useState<string | null>(null);
 
   const fetchNotifications = useCallback(async () => {
-    if (!globalPin || ssePaused) return;
+    if (!globalPin) return;
     try {
       console.log('📡 Syncing notifications from server...');
       const data = await apiService.getEvents(undefined, globalPin);
@@ -99,7 +95,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // apiService handlers already log warnings, here we just log for context in AppContext
       console.warn('Notification sync paused:', e instanceof Error ? e.message : String(e));
     }
-  }, [globalPin, ssePaused]);
+  }, [globalPin]);
 
   const initializePushNotifications = useCallback(async () => {
     if (Capacitor.getPlatform() === 'web') {
@@ -148,25 +144,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [fetchNotifications]);
 
   const syncAll = useCallback(async () => {
-    if (ssePaused) {
-      console.log('⏸️ SSE sync paused - skipping syncAll');
-      return;
-    }
     console.log('🔄 Performing global sync via SSE trigger...');
-    try {
-      await Promise.all([
-        fetchNotifications(),
-        // We also refresh orders and products to ensure everything is in sync
-        apiService.getOrders(1, 10).then(o => {
-          setOrders(o.orders);
-          setTotalOrders(o.total);
-        }).catch(e => console.warn('Sync orders failed:', e)),
-        apiService.getProducts().then(setProducts).catch(e => console.warn('Sync products failed:', e))
-      ]);
-    } catch (e) {
-      console.warn('Global sync failed:', e);
-    }
-  }, [fetchNotifications, ssePaused]);
+    await Promise.all([
+      fetchNotifications(),
+      // We also refresh orders and products to ensure everything is in sync
+      apiService.getOrders(1, 10, globalPin || undefined).then(o => {
+        setOrders(o.orders);
+        setTotalOrders(o.total);
+      }),
+      apiService.getProducts().then(setProducts)
+    ]);
+  }, [fetchNotifications]);
 
   const setDeployNotification = (event: any) => {
       setDeployEvent(event);
@@ -237,7 +225,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const [p, c, o, s, appVer] = await Promise.all([
         apiService.getProducts(),
         apiService.getClients(),
-        apiService.getOrders(1, 25), // Fetch first page
+        apiService.getOrders(1, 25, globalPin || undefined), // Fetch first page
         apiService.getSellers(),
         apiService.getAppVersion(),
       ]);
@@ -463,16 +451,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
 
-  // Reset SSE pause when pin changes
-  useEffect(() => {
-    setSsePaused(false);
-    setSseFailures(0);
-  }, [globalPin]);
-
   useEffect(() => {
     let eventSource: EventSource | null = null;
     
-    if (globalPin && isOnline && !ssePaused) {
+    if (globalPin && isOnline) {
       // Start SSE if pin is available and online
       apiService.loginSeller(globalPin).then(seller => {
          if (seller) {
@@ -480,23 +462,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
             
             const lastId = localStorage.getItem('tecnogafas_last_event_id') || '';
             const url = new URL('https://api.tecnogafas.com.ar/events/stream');
+            if (lastId) {
+              url.searchParams.set('last_id', lastId);
+            }
             
             console.log(`🔌 Connecting SSE...`);
             const es = new EventSource(url.toString());
             eventSource = es;
  
+            let connectionStableTimer: any;
+            
             // 🔹 Handshake
             es.onopen = () => {
               console.log('✅ SSE Connection established');
-              setRetryDelay(2000); // Reset backoff on success
-              setSseFailures(0); // Reset failure count on success
-              // Only sync if not paused
-              if (!ssePaused) {
-                syncAll();
-              }
+              connectionStableTimer = setTimeout(() => {
+                setRetryDelay(2000); // Reset backoff on stable success
+              }, 5000);
+              syncAll(); 
             };
 
-            const handleSSEEvent = (event: MessageEvent) => {
+            const handleSSEEvent = async (event: MessageEvent) => {
               // Update last event ID if provided
               if (event.lastEventId) {
                 localStorage.setItem('tecnogafas_last_event_id', event.lastEventId);
@@ -524,7 +509,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 // Handle Orders / Syncs
                 if (eventType === 'order' || eventType === 'sync') {
                   console.log('📦 Refreshing orders due to SSE event');
-                  apiService.getOrders(1, 10).then(o => {
+                  apiService.getOrders(1, 10, globalPin || undefined).then(o => {
                     setOrders(o.orders);
                     setTotalOrders(o.total);
                   });
@@ -551,16 +536,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   const body = contentObj?.body || data.body || data.message || 'Nueva notificación';
 
                   if (Capacitor.isNativePlatform()) {
-                    LocalNotifications.schedule({
-                      notifications: [
-                        {
-                          title,
-                          body,
-                          id: Math.floor(Math.random() * 1000000),
-                          schedule: { at: new Date(Date.now() + 100) },
-                        }
-                      ]
-                    });
+                    const status = await LocalNotifications.checkPermissions();
+                    if (status.display === 'granted') {
+                      await LocalNotifications.schedule({
+                        notifications: [
+                          {
+                            title,
+                            body,
+                            id: Math.floor(Math.random() * 1000000),
+                            schedule: { at: new Date(Date.now() + 100) },
+                          }
+                        ]
+                      });
+                    }
                   } else if (Notification.permission === 'granted') {
                     navigator.serviceWorker.ready.then(reg => {
                       reg.showNotification(title, {
@@ -589,41 +577,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
             es.addEventListener('sync', handleSSEEvent);
 
             es.onerror = (err) => {
+              if (connectionStableTimer) clearTimeout(connectionStableTimer);
               console.warn('⚠️ SSE connection error details:', {
                 url: url.toString(),
                 readyState: es.readyState,
                 error: err
               });
-              
-              es.close();
-              
-              // Increment failure count
-              setSseFailures(prev => {
-                const newCount = prev + 1;
-                if (newCount >= MAX_SSE_FAILURES) {
-                  console.warn(`🛑 SSE failed ${MAX_SSE_FAILURES} times. Pausing for ${SSE_PAUSE_DURATION/1000}s...`);
-                  setSsePaused(true);
-                  // Auto-resume after pause duration
-                  setTimeout(() => {
-                    console.log('▶️ Resuming SSE after pause');
-                    setSsePaused(false);
-                    setSseFailures(0);
-                    setRetrySSE(s => s + 1); // Trigger reconnection
-                  }, SSE_PAUSE_DURATION);
-                  return newCount;
-                }
-                return newCount;
-              });
-              
-              const nextDelay = Math.min(retryDelay * 2, 30000);
-              console.log(`🔄 SSE connection lost. Re-establishing in ${nextDelay/1000}s... (failure ${sseFailures + 1}/${MAX_SSE_FAILURES})`);
-              
-              setTimeout(() => {
-                if (globalPin && isOnline && !ssePaused) {
-                  setRetrySSE(prev => prev + 1);
-                  setRetryDelay(nextDelay);
-                }
-              }, retryDelay);
+              // if (es.readyState === EventSource.CLOSED) {
+                console.log(`🔄 SSE connection lost. Re-establishing in ${retryDelay/1000}s...`);
+                es.close();
+                setTimeout(() => {
+                  if (globalPin && isOnline) {
+                    setRetrySSE(prev => prev + 1);
+                    setRetryDelay(prev => Math.min(prev * 2, 30000));
+                  }
+                }, retryDelay);
+              // }
             };
          }
       });
@@ -634,7 +603,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         eventSource.close();
       }
     };
-  }, [globalPin, isOnline, retrySSE, syncAll, ssePaused, sseFailures, retryDelay]);
+  }, [globalPin, isOnline, retrySSE, syncAll]);
 
       return (
     <AppContext.Provider value={{

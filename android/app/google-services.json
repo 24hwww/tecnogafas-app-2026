@@ -34,35 +34,6 @@
           ]
         }
       }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:388810812241:android:9a021517cb0238929fc170",
-        "android_client_info": {
-          "package_name": "com.www24h.whynotapp"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "388810812241-pcfi1usf9gr6l3s9neovicj8j7n4v5hi.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyCK_jix4KhCsqgRqafdjtolhhaRj0O9bjs"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "388810812241-pcfi1usf9gr6l3s9neovicj8j7n4v5hi.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
     }
   ],
   "configuration_version": "1"
