@@ -40,6 +40,7 @@ interface AppContextType {
   appVersionInfo: any | null;
   notifications: any[];
   unreadNotifications: number;
+  theme: 'light' | 'dark';
   setNotifications: (notifications: any[]) => void;
   setPrimaryColor: (color: string) => void;
   setFontSize: (size: string) => void;
@@ -49,6 +50,7 @@ interface AppContextType {
   setTotalOrders: (total: number) => void;
   setDeployNotification: (event: any) => void;
   setUnreadNotifications: (count: number) => void;
+  setTheme: (theme: 'light' | 'dark') => void;
   fetchNotifications: () => Promise<void>;
   sendNotification: (toUserId: number, content: string, type?: 'message' | 'notification') => Promise<boolean>;
   fetchOrders: (page: number, perPage: number, sellerId?: number, customerId?: number) => Promise<void>;
@@ -75,7 +77,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
-  const [primaryColor, setPrimaryColor] = useState('#1662E1');
+  const [primaryColor, setPrimaryColor] = useState('#0A5DFF');
   const [fontSize, setFontSize] = useState('16px');
   const [globalPin, setGlobalPin] = useState<string | null>(null);
   const [currentSeller, setCurrentSeller] = useState<Seller | null>(null);
@@ -88,6 +90,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [hasNewVersion, setHasNewVersion] = useState(false);
   const [currentAppVersion, setCurrentAppVersion] = useState<string | null>(null);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   const { fetchNotifications, sendNotification: sendNotificationBase } = useNotifications(globalPin, setNotifications, setUnreadNotifications);
   
@@ -165,6 +168,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setFontSize(size);
     localStorage.setItem('tecnogafas_fontSize', size);
   };
+
+  // Detectar tema según hora de Buenos Aires (UTC-3)
+  // Light: 6:00 - 18:00, Dark: 18:00 - 6:00
+  const detectBuenosAiresTheme = useCallback(() => {
+    const now = new Date();
+    // Obtener hora de Buenos Aires (UTC-3)
+    const buenosAiresTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+    const hour = buenosAiresTime.getHours();
+    return hour >= 6 && hour < 18 ? 'light' : 'dark';
+  }, []);
+
+  const updateTheme = useCallback((newTheme: 'light' | 'dark') => {
+    setTheme(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('tecnogafas_theme', newTheme);
+  }, []);
 
   const updateGlobalPin = (pin: string | null) => {
     setGlobalPin(pin);
@@ -245,6 +264,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const savedFontSize = localStorage.getItem('tecnogafas_fontSize');
       if (savedFontSize) setFontSize(savedFontSize);
 
+      // Inicializar tema: usar localStorage si existe, o detectar según hora Buenos Aires
+      const savedTheme = localStorage.getItem('tecnogafas_theme') as 'light' | 'dark' | null;
+      if (savedTheme) {
+        updateTheme(savedTheme);
+      } else {
+        const autoTheme = detectBuenosAiresTheme();
+        updateTheme(autoTheme);
+      }
+
       await refreshData(!hasCache);
     };
 
@@ -255,7 +283,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('offline', handleOffline);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [initializePushNotifications, globalPin]);
+  }, [initializePushNotifications, globalPin, updateTheme, detectBuenosAiresTheme]);
 
   useEffect(() => {
     if (globalPin && isOnline) {
@@ -263,6 +291,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       fetchNotifications();
     }
   }, [globalPin, isOnline, fetchNotifications]);
+
+  // Efecto para actualizar tema automáticamente cada minuto según hora Buenos Aires
+  useEffect(() => {
+    const checkTheme = () => {
+      const autoTheme = detectBuenosAiresTheme();
+      const currentTheme = document.documentElement.getAttribute('data-theme') as 'light' | 'dark';
+      if (autoTheme !== currentTheme) {
+        updateTheme(autoTheme);
+      }
+    };
+
+    // Verificar inmediatamente y luego cada minuto
+    checkTheme();
+    const interval = setInterval(checkTheme, 60000);
+
+    return () => clearInterval(interval);
+  }, [detectBuenosAiresTheme, updateTheme]);
 
   const addToCart = (product: Product, quantity: number) => {
     setCart(prev => {
@@ -339,8 +384,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, setNotifications, setSelectedClient,
-      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh, initializePushNotifications, clearAllCaches, hasNewVersion, currentAppVersion
+      products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, theme, setNotifications, setSelectedClient,
+      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, setTheme: updateTheme, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh, initializePushNotifications, clearAllCaches, hasNewVersion, currentAppVersion
     }}>
       {children}
     </AppContext.Provider>
