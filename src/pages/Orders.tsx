@@ -61,28 +61,44 @@ export default function Orders() {
   }, [orders, targetId, selectedOrder]);
   
   // Fetch orders when page changes or filters change
-  const loadPage = async (page: number, sellerId?: string, customerId?: string) => {
-    setCurrentPage(page);
-    await fetchOrders(
-      page, 
-      perPage, 
-      sellerId ? parseInt(sellerId) : undefined, 
-      customerId ? parseInt(customerId) : undefined
-    );
+  // Cargar todos los pedidos sin paginación (límite máximo permitido)
+  const loadOrders = async (sellerId?: string, customerId?: string) => {
+    setIsLoading(true);
+    try {
+      const o = await apiService.getOrders(1, 100, sellerId ? parseInt(sellerId) : undefined, customerId ? parseInt(customerId) : undefined);
+      setOrders(o.orders || []);
+      setTotalOrders(o.total || 0);
+    } catch (error) {
+      console.error('Error al cargar pedidos:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSellerChange = (sellerId: string) => {
     setSelectedSeller(sellerId);
-    loadPage(1, sellerId, selectedCustomer);
+    loadOrders(sellerId, selectedCustomer);
   };
 
   const handleCustomerChange = (customerId: string) => {
     setSelectedCustomer(customerId);
-    loadPage(1, selectedSeller, customerId);
+    loadOrders(selectedSeller, customerId);
   };
     
   // Filter orders by title locally
-  const filteredOrders = orders.filter(order => order.rawData.post_title?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredOrders = orders.filter(order => {
+      if (order.rawData?.post_title?.toLowerCase().includes(searchTerm.toLowerCase())) {
+          return true;
+      }
+      return false;
+  });
+
+  // Debug log
+  useEffect(() => {
+    if (orders.length > 0) {
+      console.log('DEBUG: Primer pedido post_title:', orders[0].rawData?.post_title);
+    }
+  }, [orders]);
 
   const handleActionClick = async (type: 'pdf'|'email'|'status'|'regenerar') => {
     setActionType(type);
@@ -155,12 +171,12 @@ export default function Orders() {
             throw new Error('No hay productos válidos en el pedido');
           }
           const orderData = {
-            iva: selectedOrder.rawData.iva || 21,
-            discount: selectedOrder.rawData.discount || 0,
-            recargo: selectedOrder.rawData.recargo || 0,
-            methodpay: selectedOrder.rawData.methodpay || '',
-            transport: selectedOrder.rawData.transport || '',
-            commit: selectedOrder.rawData.customer_note || '',
+            iva: selectedOrder.rawData?.iva || 21,
+            discount: selectedOrder.rawData?.discount || 0,
+            recargo: selectedOrder.rawData?.recargo || 0,
+            methodpay: selectedOrder.rawData?.methodpay || '',
+            transport: selectedOrder.rawData?.transport || '',
+            commit: selectedOrder.rawData?.customer_note || '',
             otheremail: '',
             total_calc: selectedOrder.total
           };
@@ -365,32 +381,35 @@ export default function Orders() {
                       <div className="flex-1 min-w-0 pr-2">
                         <div className="flex items-center gap-2">
                           <p className="font-bold text-sm truncate">{order.rawData?.post_title || order.clientName}</p>
-                          {order.rawData?.post_title && getOrderNumber(order.rawData.post_title) && (
-                            <span className="text-[0.625rem] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-mono font-bold shrink-0">
-                              {getOrderNumber(order.rawData.post_title)}
-                            </span>
-                          )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-[0.625rem] text-on-surface-variant font-mono font-medium uppercase">
-                            {new Date(order.createdAt).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })} {formatTimeBA(order.createdAt)} HS – {getRelativeTime(order.createdAt)}
+                            {new Date(order.createdAt).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit' })} {formatTimeBA(order.createdAt)} HS
                           </span>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-1 text-[0.625rem] font-bold py-1 px-2 rounded-full bg-primary/10 text-primary shrink-0">
-                        {order.status === 'Pendiente' ? <Clock size={12} /> : <CheckCircle2 size={12} />}
-                        {order.status.toUpperCase()}
                       </div>
                     </div>
                     
                     <div className="p-4 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-on-surface-variant">Pedido</span>
+                        {order.rawData?.post_title && getOrderNumber(order.rawData.post_title) && (
+                            <span className="text-[0.625rem] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-mono font-bold">
+                              {getOrderNumber(order.rawData.post_title)}
+                            </span>
+                        )}
+                      </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-on-surface-variant">Vendedor</span>
                         <span className="text-xs font-medium">{getSellerName(order.sellerId)}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-on-surface-variant">Estado</span>
-                        <span className="text-xs font-medium bg-primary/10 px-2 py-0.5 text-primary">{order.status}</span>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${order.status.toLowerCase().includes('pend') ? 'bg-orange-500/10 text-orange-600' : 'bg-green-500/10 text-green-600'}`}>{order.status}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-on-surface-variant">Items</span>
+                        <span className="text-xs font-medium bg-surface-variant px-2 py-0.5 rounded-full">{order.items?.length || 0}</span>
                       </div>
                       <div className="pt-2 border-t border-outline/5 flex justify-between items-center">
                         <span className="font-bold">Total</span>
@@ -401,35 +420,17 @@ export default function Orders() {
                     <button 
                       id={`orders-view-details-btn-${order.id}`}
                       onClick={() => setSelectedOrder(order)}
-                      className="w-full p-2 bg-surface-variant/50 text-[0.625rem] font-bold text-center flex items-center justify-center gap-1"
+                      className="w-full py-4 font-bold text-sm tracking-widest bg-primary text-on-primary shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform"
                     >
-                      Ver Detalles <ChevronRight size={12} />
+                      <FileText size={20} />
+                      VER DETALLES
                     </button>
                   </motion.div>
                 );
               })
             )}
             
-            {/* Pagination Controls */}
-            {!isLoading && totalOrders > perPage && (
-              <div className="flex justify-center items-center gap-4 pt-4">
-                <button 
-                  disabled={currentPage === 1}
-                  onClick={() => loadPage(currentPage - 1, selectedSeller, selectedCustomer)}
-                  className="m3-button-outlined !py-2 !px-4 disabled:opacity-50"
-                >
-                  Anterior
-                </button>
-                <span className="text-sm font-bold">Página {currentPage} de {Math.max(1, Math.ceil(totalOrders / perPage))}</span>
-                <button 
-                   disabled={currentPage >= Math.ceil(totalOrders / perPage)}
-                   onClick={() => loadPage(currentPage + 1, selectedSeller, selectedCustomer)}
-                   className="m3-button-outlined !py-2 !px-4 disabled:opacity-50"
-                >
-                  Siguiente
-                </button>
-              </div>
-            )}
+            {/* Pagination Controls removed */}
           </div>
         </div>
 
@@ -437,7 +438,7 @@ export default function Orders() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="m3-card !bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4">
             <div className="flex justify-between items-center border-b border-outline/10 pb-4">
-              <h2 id="orders-modal-title" className="text-xl font-bold text-primary">{selectedOrder.rawData.post_title || `Pedido ${selectedOrder.id}`}</h2>
+              <h2 id="orders-modal-title" className="text-xl font-bold text-primary">{selectedOrder.rawData?.post_title || `Pedido ${selectedOrder.id}`}</h2>
               <button id="orders-modal-close-btn" onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-surface-variant rounded-full transition-colors"><X size={20}/></button>
             </div>
 
@@ -458,33 +459,33 @@ export default function Orders() {
 
                  <div>
                    <p className="text-[0.625rem] uppercase font-bold text-outline">Transporte</p>
-                   <p className="font-medium">{selectedOrder.rawData.transport || 'Sin definir'}</p>
+                   <p className="font-medium">{selectedOrder.rawData?.transport || 'Sin definir'}</p>
                  </div>
                  <div>
                    <p className="text-[0.625rem] uppercase font-bold text-outline">Método de Pago</p>
-                   <p className="font-medium">{selectedOrder.rawData.methodpay || 'Sin definir'}</p>
+                   <p className="font-medium">{selectedOrder.rawData?.methodpay || 'Sin definir'}</p>
                  </div>
                </div>
 
                <div className="pt-3 border-t border-outline/10">
                  <p className="text-[0.625rem] uppercase font-bold text-outline mb-1">Observaciones</p>
                  <div className="bg-surface p-3 rounded border border-outline/10 text-sm font-medium italic text-on-surface">
-                   {selectedOrder.rawData.customer_note || "Sin observaciones adicionales."}
+                   {selectedOrder.rawData?.customer_note || "Sin observaciones adicionales."}
                  </div>
                </div>
 
                <div className="pt-3 border-t border-outline/10">
                  <div className="flex justify-between text-xs mb-1">
                    <span className="text-outline">Descuento</span>
-                   <span className="font-medium">{selectedOrder.rawData.discount}%</span>
+                   <span className="font-medium">{selectedOrder.rawData?.discount || 0}%</span>
                  </div>
                  <div className="flex justify-between text-xs mb-1">
                    <span className="text-outline">Recargo</span>
-                   <span className="font-medium">{selectedOrder.rawData.recargo}%</span>
+                   <span className="font-medium">{selectedOrder.rawData?.recargo || 0}%</span>
                  </div>
                  <div className="flex justify-between text-xs">
                    <span className="text-outline">IVA</span>
-                   <span className="font-medium">{selectedOrder.rawData.iva}%</span>
+                   <span className="font-medium">{selectedOrder.rawData?.iva || 21}%</span>
                  </div>
                </div>
             </div>

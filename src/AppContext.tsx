@@ -5,6 +5,9 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
 import { Product, Client, Order, CartItem, DraftOrder, Seller } from './types';
 import { apiService } from './services/apiService';
+import { useNotifications } from './hooks/context/useNotifications';
+import { useDataSync } from './hooks/context/useDataSync';
+import { useCacheManager } from './hooks/context/useCacheManager';
 
 interface AppContextType {
   products: Product[];
@@ -83,66 +86,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [retrySSE, setRetrySSE] = useState(0);
-  const [retryDelay, setRetryDelay] = useState(5000);
-  const [pushToken, setPushToken] = useState<string | null>(null);
   const [hasNewVersion, setHasNewVersion] = useState(false);
   const [currentAppVersion, setCurrentAppVersion] = useState<string | null>(null);
 
-  const fetchNotifications = useCallback(async () => {
-    if (!globalPin) return;
-    try {
-      console.log('📡 Syncing notifications from server...');
-      const data = await apiService.getEvents(undefined, globalPin);
-      setNotifications(data);
-      const unread = await apiService.getUnreadCount(globalPin);
-      setUnreadNotifications(unread);
-    } catch (e) {
-      // apiService handlers already log warnings, here we just log for context in AppContext
-      console.warn('Notification sync paused:', e instanceof Error ? e.message : String(e));
-    }
-  }, [globalPin]);
+  const { fetchNotifications, sendNotification: sendNotificationBase } = useNotifications(globalPin, setNotifications, setUnreadNotifications);
+  
+  const { refreshData } = useDataSync(
+    globalPin, setProducts, setClients, setOrders, setTotalOrders, setGrandTotalOrders, 
+    setDashboardOrders, setSellers, setAppVersionInfo, setCurrentAppVersion, setHasNewVersion, setIsLoading
+  );
+
+  const { forceRefresh: forceRefreshBase, clearAllCaches } = useCacheManager(refreshData);
+
+  const forceRefresh = useCallback(async () => {
+      await forceRefreshBase(setIsLoading);
+  }, [forceRefreshBase]);
+
+  const sendNotification = useCallback(async (toUserId: number, content: string, type: 'message' | 'notification' = 'notification') => {
+    return sendNotificationBase(toUserId, content, type, currentSeller?.id, currentSeller?.name);
+  }, [sendNotificationBase, currentSeller]);
 
   const initializePushNotifications = useCallback(async () => {
-    if (Capacitor.getPlatform() === 'web') {
-      console.log('Push Notifications not supported on web natively via Capacitor, using fallback.');
-      return;
-    }
+    if (Capacitor.getPlatform() === 'web') return;
 
     try {
       await LocalNotifications.requestPermissions();
       let permStatus = await PushNotifications.checkPermissions();
-
-      if (permStatus.receive === 'prompt') {
-        permStatus = await PushNotifications.requestPermissions();
-      }
-
-      if (permStatus.receive !== 'granted') {
-        console.warn('User denied push notification permissions');
-        return;
-      }
+      if (permStatus.receive === 'prompt') permStatus = await PushNotifications.requestPermissions();
+      if (permStatus.receive !== 'granted') return;
 
       await PushNotifications.register();
-
-      // Listeners
-      PushNotifications.addListener('registration', token => {
-        console.log('Push registration success, token: ' + token.value);
-        setPushToken(token.value);
-        // Here you would normally send the token to your server
-      });
-
-      PushNotifications.addListener('registrationError', err => {
-        console.error('Push registration error: ' + err.error);
-      });
-
-      PushNotifications.addListener('pushNotificationReceived', notification => {
-        console.log('Push notification received: ', notification);
+      PushNotifications.addListener('pushNotificationReceived', () => {
         setUnreadNotifications(prev => prev + 1);
         fetchNotifications();
-      });
-
-      PushNotifications.addListener('pushNotificationActionPerformed', action => {
-        console.log('Push notification action performed', action);
       });
     } catch (e) {
       console.error('Error initializing Push Notifications', e);
@@ -153,18 +129,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     console.log('🔄 Performing global sync via SSE trigger...');
     await Promise.all([
       fetchNotifications(),
-      // We also refresh orders and products to ensure everything is in sync
       apiService.getOrders(1, 10, globalPin || undefined).then(o => {
         setOrders(o.orders);
         setTotalOrders(o.total);
       }),
       apiService.getProducts().then(setProducts)
     ]);
-  }, [fetchNotifications]);
+  }, [fetchNotifications, globalPin]);
 
   const setDeployNotification = (event: any) => {
       setDeployEvent(event);
-      setTimeout(() => setDeployEvent(null), 10000); // Autohide
+      setTimeout(() => setDeployEvent(null), 10000);
   }
 
   const fetchOrders = async (page: number = 1, perPage: number = 25, sellerId?: number, customerId?: number) => {
@@ -181,161 +156,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const sendNotification = async (toUserId: number, content: string, type: 'message' | 'notification' = 'notification') => {
-    if (!globalPin) return false;
-    try {
-      await apiService.createEvent({
-        user_id: toUserId,
-        type,
-        from_id: currentSeller?.id ? parseInt(currentSeller.id) : undefined,
-        content: { 
-          title: type === 'message' ? `Mensaje de ${currentSeller?.name || 'Vendedor'}` : 'Notificación de TecnoGafas',
-          body: content 
-        },
-        read: 0
-      }, globalPin);
-      return true;
-    } catch (e) {
-      console.error('Error sending notification', e);
-      return false;
-    }
+  const updatePrimaryColor = (color: string) => {
+    setPrimaryColor(color);
+    localStorage.setItem('tecnogafas_primaryColor', color);
   };
 
-  const forceRefresh = async () => {
-    setIsLoading(true);
-    try {
-      const keysToClear = [
-        'tecnogafas_products', 
-        'tecnogafas_clients', 
-        'tecnogafas_orders', 
-        'tecnogafas_sellers'
-      ];
-      await Promise.all(keysToClear.map(key => del(key)));
-      await refreshData(false);
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for(let registration of registrations) {
-          registration.update();
-        }
-      }
-    } catch (error) {
-      console.error('Force refresh failed', error);
-    } finally {
-      setIsLoading(false);
-    }
+  const updateFontSize = (size: string) => {
+    setFontSize(size);
+    localStorage.setItem('tecnogafas_fontSize', size);
   };
 
-  const clearAllCaches = async () => {
-    try {
-      // Limpiar IndexedDB (idb-keyval)
-      const keysToClear = [
-        'tecnogafas_products', 
-        'tecnogafas_clients', 
-        'tecnogafas_orders', 
-        'tecnogafas_sellers',
-        'tecnogafas_drafts'
-      ];
-      await Promise.all(keysToClear.map(key => del(key)));
-      
-      // Limpiar localStorage
-      localStorage.removeItem('tecnogafas_pin');
-      localStorage.removeItem('tecnogafas_primaryColor');
-      localStorage.removeItem('tecnogafas_fontSize');
-      localStorage.removeItem('tecnogafas_last_event_id');
-      
-      // Enviar mensaje al service worker para limpiar caches
+  const updateGlobalPin = (pin: string | null) => {
+    setGlobalPin(pin);
+    if (pin) {
+      localStorage.setItem('tecnogafas_pin', pin);
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_ALL_CACHES' });
+        navigator.serviceWorker.controller.postMessage({ type: 'START_POLLING', pin: pin });
+        navigator.serviceWorker.controller.postMessage({ type: 'APP_ACTIVE' });
       }
-      
-      // Limpiar IndexedDB directamente
-      await indexedDB.deleteDatabase('tecnogafas-sync');
-      
-      console.log('[App] All caches cleared');
-      
-      // Recargar la página
-      window.location.reload();
-    } catch (error) {
-      console.error('Error clearing caches:', error);
+    } else {
+      localStorage.removeItem('tecnogafas_pin');
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'STOP_POLLING' });
+      }
     }
   };
 
-  const refreshData = useCallback(async (showLoading = true) => {
-    if (showLoading) setIsLoading(true);
-    try {
-      const [p, c, o, s, appVer] = await Promise.all([
-        apiService.getProducts(),
-        apiService.getClients(),
-        apiService.getOrders(1, 25, undefined), // Fetch ALL orders (no seller filter) to get total count
-        apiService.getSellers(),
-        apiService.getAppVersion(),
-      ]);
-      setProducts(p);
-      setClients(c);
-      setOrders(o.orders);
-      setTotalOrders(o.total);
-      setGrandTotalOrders(o.total); // Total of ALL orders from API
-      setDashboardOrders(o.orders.slice(0, 5));
-      setSellers(s);
-      if (appVer) {
-        setAppVersionInfo(appVer);
-        setCurrentAppVersion(appVer.version);
-        
-        // Verificar si hay una nueva versión disponible
-        const storedVersion = localStorage.getItem('tecnogafas_app_version');
-        if (storedVersion && storedVersion !== appVer.version) {
-          console.log('[App] New version detected:', appVer.version, 'vs', storedVersion);
-          setHasNewVersion(true);
-        }
-        localStorage.setItem('tecnogafas_app_version', appVer.version);
-      }
-
-      // Save to cache
-      try {
-        await set('tecnogafas_products', p);
-        await set('tecnogafas_clients', c);
-        // Omit rawData from orders before saving to cache to prevent quota exceeded
-        const cachedOrders = o.orders.map(({ rawData, ...rest }: any) => rest);
-        await set('tecnogafas_orders', cachedOrders);
-        await set('tecnogafas_sellers', s);
-      } catch (cacheError) {
-        console.warn('Failed to save to local storage cache (quota may be exceeded)', cacheError);
-      }
-    } catch (error) {
-      console.error('Failed to fetch data', error);
-    } finally {
-      if (showLoading) setIsLoading(false);
-    }
-  }, [globalPin, fetchNotifications]);
-
+  // Remaining useEffect logic for SSE and initialization
   useEffect(() => {
-    const handleOnline = () => {
-      console.log('En línea');
-      setIsOnline(true);
-    };
-
-    const handleOffline = () => {
-      console.log('Sin conexión');
-      setIsOnline(false);
-    };
-
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // App está oculta (background)
-        console.log('App oculta - iniciando polling en SW');
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller && globalPin) {
-          navigator.serviceWorker.controller.postMessage({
-            type: 'APP_INACTIVE',
-            pin: globalPin
-          });
+          navigator.serviceWorker.controller.postMessage({ type: 'APP_INACTIVE', pin: globalPin });
         }
       } else {
-        // App está visible (foreground)
-        console.log('App visible - deteniendo polling en SW (SSE activo)');
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage({
-            type: 'APP_ACTIVE'
-          });
+          navigator.serviceWorker.controller.postMessage({ type: 'APP_ACTIVE' });
         }
       }
     };
@@ -343,41 +201,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    const handleApiError = (e: any) => {
-      const msg = e.detail?.message || 'Error de API';
-      setApiError(msg);
-      
-      if ('Notification' in window && Notification.permission === 'granted') {
-          navigator.serviceWorker.ready.then(reg => {
-            reg.showNotification('Alerta de Conexión', {
-              body: msg,
-              icon: '/icon.png',
-              badge: '/icon.png'
-            });
-          });
-      }
-
-      setTimeout(() => {
-        setApiError(null);
-      }, 5000);
-    };
-
-    window.addEventListener('api-error', handleApiError);
 
     const savedPin = localStorage.getItem('tecnogafas_pin');
     if (savedPin) {
       setGlobalPin(savedPin);
-      // Iniciar polling en service worker si hay PIN guardado
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'START_POLLING',
-          pin: savedPin
-        });
+        navigator.serviceWorker.controller.postMessage({ type: 'START_POLLING', pin: savedPin });
       }
     }
 
-    // Initialize Native Push Notifications
     initializePushNotifications();
 
     const loadCachedAndRefresh = async () => {
@@ -413,7 +245,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const savedFontSize = localStorage.getItem('tecnogafas_fontSize');
       if (savedFontSize) setFontSize(savedFontSize);
 
-      // Refresh data in the background (or show loading if no cache)
       await refreshData(!hasCache);
     };
 
@@ -423,11 +254,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('api-error', handleApiError);
     };
-  }, []);
+  }, [initializePushNotifications, globalPin]);
 
-  // Dedicated effect for notification syncing when PIN or online state changes
   useEffect(() => {
     if (globalPin && isOnline) {
       apiService.getUnreadCount(globalPin).then(setUnreadNotifications);
@@ -439,60 +268,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
-        return prev.map(item => item.id === product.id 
-          ? { ...item, quantity: item.quantity + quantity }
-          : item
-        );
+        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item);
       }
       return [...prev, { ...product, quantity }];
     });
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(prev => prev.filter(item => item.id !== productId));
-  };
-
+  const removeFromCart = (productId: string) => setCart(prev => prev.filter(item => item.id !== productId));
   const updateCartQuantity = (productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(productId);
-      return;
-    }
+    if (quantity <= 0) { removeFromCart(productId); return; }
     setCart(prev => prev.map(item => item.id === productId ? { ...item, quantity } : item));
   };
 
-  const clearCart = () => {
-    setCart([]);
-    setSelectedClient(null);
-    setCurrentDraftId(null);
-  };
+  const clearCart = () => { setCart([]); setSelectedClient(null); setCurrentDraftId(null); };
 
   const saveDraft = async (details: any) => {
     if (!selectedClient || cart.length === 0) return;
-    
     let updatedDrafts: DraftOrder[];
-    
     if (currentDraftId) {
-      // Update existing draft
-      updatedDrafts = drafts.map(d => d.id === currentDraftId ? {
-        ...d,
-        client: selectedClient,
-        items: [...cart],
-        details,
-        date: new Date().toISOString()
-      } : d);
+      updatedDrafts = drafts.map(d => d.id === currentDraftId ? { ...d, client: selectedClient, items: [...cart], details, date: new Date().toISOString() } : d);
     } else {
-      // Create new draft
-      const newDraft: DraftOrder = {
-        id: `draft_${Date.now()}`,
-        client: selectedClient,
-        items: [...cart],
-        details,
-        status: 'no enviado',
-        date: new Date().toISOString(),
-      };
-      updatedDrafts = [...drafts, newDraft];
+      updatedDrafts = [...drafts, { id: `draft_${Date.now()}`, client: selectedClient, items: [...cart], details, status: 'no enviado', date: new Date().toISOString() }];
     }
-
     setDrafts(updatedDrafts);
     await set('tecnogafas_drafts', updatedDrafts);
     clearCart();
@@ -500,11 +297,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadDraft = (draftId: string) => {
     const draft = drafts.find(d => d.id === draftId);
-    if (draft) {
-      setCart(draft.items);
-      setSelectedClient(draft.client);
-      setCurrentDraftId(draft.id);
-    }
+    if (draft) { setCart(draft.items); setSelectedClient(draft.client); setCurrentDraftId(draft.id); }
   };
 
   const markDraftAsSent = async (draftId: string) => {
@@ -513,211 +306,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await set('tecnogafas_drafts', updatedDrafts);
   };
 
-  const updatePrimaryColor = (color: string) => {
-    setPrimaryColor(color);
-    localStorage.setItem('tecnogafas_primaryColor', color);
-  };
-
-  const updateFontSize = (size: string) => {
-    setFontSize(size);
-    localStorage.setItem('tecnogafas_fontSize', size);
-  };
-
-  const updateGlobalPin = (pin: string | null) => {
-    setGlobalPin(pin);
-    if (pin) {
-      localStorage.setItem('tecnogafas_pin', pin);
-      // Iniciar polling en service worker para eventos en background
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'START_POLLING',
-          pin: pin
-        });
-      }
-      // Notificar al service worker que la app está activa (SSE maneja esto)
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'APP_ACTIVE'
-        });
-      }
-    } else {
-      localStorage.removeItem('tecnogafas_pin');
-      // Detener polling en service worker
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'STOP_POLLING'
-        });
-      }
-    }
-  };
-
-
   useEffect(() => {
     let eventSource: EventSource | null = null;
-    
+    console.log("DEBUG: globalPin en SSE init:", globalPin);
+
     if (globalPin && isOnline) {
-      console.log('🔌 Attempting SSE connection with PIN:', globalPin);
-      // Start SSE if pin is available and online
       apiService.loginSeller(globalPin).then(seller => {
-         if (seller) {
-            console.log('✅ Login successful, seller:', seller);
-            setCurrentSeller(seller);
-            
-            const lastId = localStorage.getItem('tecnogafas_last_event_id') || '';
-            const url = new URL('https://api.tecnogafas.com.ar/events/stream');
-            if (lastId) {
-              url.searchParams.set('last_id', lastId);
-              console.log('📍 Resuming from last event ID:', lastId);
-            }
-            
-            console.log(`🔌 Connecting SSE to:`, url.toString());
-            const es = new EventSource(url.toString());
-            eventSource = es;
-
-            let connectionStableTimer: any;
-            
-            // 🔹 Handshake
-            es.onopen = () => {
-              console.log('✅ SSE Connection established successfully');
-              connectionStableTimer = setTimeout(() => {
-                setRetryDelay(2000); // Reset backoff on stable success
-              }, 5000);
-              syncAll(); 
-            };
-
-            const handleSSEEvent = async (event: MessageEvent) => {
-              // Update last event ID if provided
-              if (event.lastEventId) {
-                localStorage.setItem('tecnogafas_last_event_id', event.lastEventId);
-              }
-
-              try {
+        if (seller) {
+          setCurrentSeller(seller);
+          const lastId = localStorage.getItem('tecnogafas_last_event_id') || '';
+          const url = new URL('https://api.tecnogafas.com.ar/events/stream');
+          if (lastId) url.searchParams.set('last_id', lastId);
+          eventSource = new EventSource(url.toString());
+          eventSource.onopen = () => syncAll();
+          eventSource.onmessage = (event) => {
+             if (event.lastEventId) localStorage.setItem('tecnogafas_last_event_id', event.lastEventId);
+             try {
                 const data = JSON.parse(event.data);
-                if (data.message === 'max runtime reached' || data.keepalive === true) {
-                  console.log('💓 SSE keepalive received');
-                  return;
-                }
-                
-                console.log(`🔔 SSE Event [${event.type}]:`, data);
-
-                // Determine effective type (some systems put type inside json, others in sse event field)
                 const eventType = data.type || event.type;
-
-                // Handle Presence updates
-                if (eventType === 'presence' || data.onlineCount !== undefined || data.count !== undefined) {
-                  setOnlineUsersCount(data.onlineCount ?? data.count);
-                }
-
-                // Handle Deploy
-                if (eventType === 'deploy') {
-                  setDeployEvent(data);
-                }
-
-                // Handle Orders / Syncs
-                if (eventType === 'order' || eventType === 'sync') {
-                  console.log('📦 Refreshing orders due to SSE event');
-                  apiService.getOrders(1, 10, globalPin || undefined).then(o => {
-                    setOrders(o.orders);
-                    setTotalOrders(o.total);
-                  });
-                }
-
-                // Handle Notifications/Messages
-                const isNotification = eventType === 'notification' || eventType === 'message';
-                
-                if (isNotification) {
-                  console.log('✨ Notification received via SSE');
+                if (eventType === 'order' || eventType === 'sync') syncAll();
+                if (eventType === 'notification' || eventType === 'message') {
                   setUnreadNotifications(prev => prev + 1);
-                  
-                  // Refetch to get actual list after a small delay to allow server DB to sync
-                  setTimeout(() => fetchNotifications(), 500);
-
-                  let contentObj: any = {};
-                  try {
-                    contentObj = typeof data.content === 'string' ? JSON.parse(data.content || '{}') : data.content;
-                  } catch (err) {
-                    contentObj = { body: data.content };
-                  }
-
-                  const title = contentObj?.title || data.title || 'Tecnogafas';
-                  const body = contentObj?.body || data.body || data.message || 'Nueva notificación';
-
-                  if (Capacitor.isNativePlatform()) {
-                    const status = await LocalNotifications.checkPermissions();
-                    if (status.display === 'granted') {
-                      await LocalNotifications.schedule({
-                        notifications: [
-                          {
-                            title,
-                            body,
-                            id: Math.floor(Math.random() * 1000000),
-                            schedule: { at: new Date(Date.now() + 100) },
-                          }
-                        ]
-                      });
-                    }
-                  } else if (Notification.permission === 'granted') {
-                    navigator.serviceWorker.ready.then(reg => {
-                      reg.showNotification(title, {
-                        body,
-                        icon: '/icon-192x192.png',
-                        badge: '/icon-192x192.png',
-                        tag: 'tecnogafas-notif',
-                        vibrate: [200, 100, 200]
-                      } as any);
-                    });
-                  }
+                  setTimeout(fetchNotifications, 500);
                 }
-              } catch (err) {
-                console.warn('⚠️ SSE parse error or unexpected message format', err);
-              }
-            };
-
-            es.onmessage = handleSSEEvent;
-            es.addEventListener('message', handleSSEEvent);
-            es.addEventListener('message_received', handleSSEEvent);
-            es.addEventListener('notification', handleSSEEvent);
-            es.addEventListener('deploy', handleSSEEvent);
-            es.addEventListener('presence', handleSSEEvent);
-            es.addEventListener('ping', handleSSEEvent);
-            es.addEventListener('order', handleSSEEvent);
-            es.addEventListener('sync', handleSSEEvent);
-
-            es.onerror = (err) => {
-              if (connectionStableTimer) clearTimeout(connectionStableTimer);
-              console.warn('⚠️ SSE connection error details:', {
-                url: url.toString(),
-                readyState: es.readyState,
-                error: err
-              });
-              console.log(`🔄 SSE connection lost. Re-establishing in ${retryDelay/1000}s...`);
-              es.close();
-              setTimeout(() => {
-                if (globalPin && isOnline) {
-                  setRetrySSE(prev => prev + 1);
-                  setRetryDelay(prev => Math.min(prev * 2, 30000));
-                }
-              }, retryDelay);
-            };
-         } else {
-            console.error('❌ Login failed, cannot establish SSE connection');
-         }
-      }).catch(err => {
-        console.error('❌ Error during login for SSE:', err);
+             } catch (e) {}
+          };
+        }
       });
-    } else {
-      console.log('⏸️ SSE not connecting. globalPin:', !!globalPin, 'isOnline:', isOnline);
     }
-    
-    return () => {
-      if (eventSource) {
-        console.log('🔌 Closing SSE connection');
-        eventSource.close();
-      }
-    };
-  }, [globalPin, isOnline, retrySSE, syncAll]);
+    return () => eventSource?.close();
+  }, [globalPin, isOnline, syncAll, fetchNotifications]);
 
-      return (
+  return (
     <AppContext.Provider value={{
       products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, setNotifications, setSelectedClient,
       addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh, initializePushNotifications, clearAllCaches, hasNewVersion, currentAppVersion

@@ -88,7 +88,7 @@
   "scope_extensions": [
     {
       "origin": "*.tecnogafas.com.ar",
-      "type": "navigation"
+      "types": ["navigation"]
     }
   ],
   "widgets": [

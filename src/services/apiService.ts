@@ -1,6 +1,11 @@
 import { ApiProduct, ApiClient, ApiOrder, Product, Client, Order, Seller } from '../types';
 
-const BASE_URL = 'https://api.tecnogafas.com.ar';
+import { Capacitor } from '@capacitor/core';
+
+const REAL_API_URL = 'https://api.tecnogafas.com.ar';
+const PROXY_API_URL = '/api';
+
+const BASE_URL = Capacitor.isNativePlatform() ? REAL_API_URL : PROXY_API_URL;
 
 let cachedProducts: Product[] | null = null;
 let cachedProductsTimestamp: number = 0;
@@ -145,7 +150,7 @@ export const apiService = {
     try {
       const res = await customFetch(`${BASE_URL}/producto/verificar`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ products })
       });
       return await res.json();
@@ -186,9 +191,9 @@ export const apiService = {
       return cachedEvents;
     }
 
-    const url = new URL(`${BASE_URL}/events/list`);
+    const url = new URL(`${BASE_URL}/events/list`, window.location.origin);
     
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
     if (sellerId) {
       headers['Authorization'] = `Bearer ${sellerId}`;
     }
@@ -248,23 +253,29 @@ export const apiService = {
 
   async createEvent(data: { user_id: number; type: 'message' | 'notification' | string; from_id?: number; content: any; read?: number }, sellerId?: string): Promise<any> {
     const headers = { 
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json', 'Accept': 'application/json',
       ...(sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {})
     };
+    
+    const body = JSON.stringify(data);
+    console.log('API_DEBUG: URL:', `${BASE_URL}/event`, 'Payload:', body);
+
     const res = await customFetch(`${BASE_URL}/event`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(data)
+      body
     });
     return res.json();
   },
 
   async getUnreadCount(sellerId?: string): Promise<number> {
     try {
-      const url = new URL(`${BASE_URL}/events/unread`);
+      // BASE_URL puede ser '/api', por lo que new URL necesita un base absoluto
+      const url = new URL(`${BASE_URL}/events/unread`, window.location.origin);
       if (sellerId) url.searchParams.set('pin', sellerId);
+
       
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
       if (sellerId) headers['Authorization'] = `Bearer ${sellerId}`;
       const res = await customFetch(url.toString(), { method: 'POST', headers });
       if (!res.ok) return 0;
@@ -278,7 +289,7 @@ export const apiService = {
 
   async ackEvent(id: number, sellerId?: string): Promise<any> {
     const headers = { 
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json', 'Accept': 'application/json',
       ...(sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {})
     };
     const res = await customFetch(`${BASE_URL}/ack`, {
@@ -292,7 +303,7 @@ export const apiService = {
   async createOrder(clientId: string, items: any[], details: any, sellerId: string): Promise<{success: boolean, message: string, orderId?: string}> {
     const url = `${BASE_URL}/pedido`;
     const headers = { 
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json', 'Accept': 'application/json',
       'Authorization': `Bearer ${sellerId}`
     };
     const bodyObj = {
@@ -316,10 +327,31 @@ export const apiService = {
       }).filter(p => p !== null)
     };
     const body = JSON.stringify(bodyObj);
-    console.log("DEBUG: Sending order body:", body);
 
     if (!navigator.onLine) {
-      return { success: false, message: 'Estás sin conexión. Guardaremos esto como un borrador para que lo envíes luego.' };
+      // Guardar en IndexedDB para sincronización offline
+      try {
+        const dbRequest = indexedDB.open('tecnogafas-sync', 2);
+        dbRequest.onsuccess = (e: any) => {
+          const db = e.target.result;
+          const tx = db.transaction('pending-orders', 'readwrite');
+          tx.objectStore('pending-orders').put({
+            id: Date.now().toString(),
+            url,
+            headers,
+            body
+          });
+          // Solicitar sync al Service Worker si es posible
+          if ('serviceWorker' in navigator && (navigator as any).serviceWorker.controller) {
+            (navigator as any).serviceWorker.ready.then((reg: any) => {
+              if (reg.sync) reg.sync.register('sync-orders');
+            });
+          }
+        };
+        return { success: false, message: 'Estás sin conexión. El pedido se enviará automáticamente al recuperar red.' };
+      } catch (err) {
+        return { success: false, message: 'Error al guardar pedido offline.' };
+      }
     }
 
     try {
@@ -360,7 +392,7 @@ export const apiService = {
 
     const res = await customFetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({
         email: client.email || '',
         first_name: firstName,
@@ -413,7 +445,7 @@ export const apiService = {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${sellerId}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json', 'Accept': 'application/json'
         },
         body: JSON.stringify({ context })
       });
@@ -458,7 +490,7 @@ export const apiService = {
         method: 'PUT',
         headers: { 
           'Authorization': `Bearer ${sellerId}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json', 'Accept': 'application/json'
         },
         body: JSON.stringify({ status })
       });
@@ -476,6 +508,17 @@ export const apiService = {
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        
+        // Lógica de orquestación centralizada
+        if (data.type === 'order') {
+          console.log('🔄 Evento de orden recibido, invalidando caché y refrescando pedidos...');
+          // Invalidamos caché de productos globalmente para forzar recarga de stock
+          cachedProducts = null;
+          cachedProductsTimestamp = 0;
+          // Disparamos evento para que la App refresque estados si es necesario
+          window.dispatchEvent(new CustomEvent('refresh-orders'));
+        }
+        
         onMessage(data);
       } catch (e) {
         console.error('Error parsing SSE data', e);
@@ -484,7 +527,6 @@ export const apiService = {
     
     eventSource.onerror = (err) => {
       console.error('SSE error', err);
-      // EventSource automatically attempts to reconnect
     };
     
     return () => eventSource.close();

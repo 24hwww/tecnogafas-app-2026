@@ -3,7 +3,7 @@ import { useApp } from '../AppContext';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency, formatTimeBA, formatDateBA } from '../lib/utils';
 import { apiService } from '../services/apiService';
-import { Check, X, ArrowLeft, Download, FileText } from 'lucide-react';
+import { Check, X, ArrowLeft, Download, FileText, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 
@@ -86,7 +86,7 @@ export default function Checkout() {
            verifyRes.results.forEach((r: any) => {
              if (r.status !== 'ok') {
                // Find original item in cart
-               let originalItem = cart.find(c => {
+               const originalItem = cart.find(c => {
                  const baseId = r.product_id != null ? r.product_id.toString() : '';
                  const varId = r.variation_id != null ? r.variation_id.toString() : '';
                  return baseId ? c.id.startsWith(baseId) && (!varId || c.vid === varId) : false;
@@ -518,17 +518,16 @@ export default function Checkout() {
       <AnimatePresence>
         {isSendingOrder && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-surface p-8 shadow-2xl text-center space-y-4 border border-primary/20 flex flex-col items-center"
             >
-              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <RefreshCw className="w-12 h-12 text-primary animate-spin" />
               <h3 className="text-lg font-bold tracking-widest uppercase">Enviando pedido...</h3>
               <p className="text-sm text-on-surface-variant">Por favor espere mientras procesamos su solicitud.</p>
-            </motion.div>
-          </div>
+            </motion.div>          </div>
         )}
       </AnimatePresence>
 
@@ -561,17 +560,16 @@ export default function Checkout() {
               <div className="flex flex-col gap-3">
                 {orderFeedback.type === 'success' ? (
                   <>
-                    <button 
+                    <button
                       onClick={() => {
                         setOrderFeedback(null);
                         navigate('/pedidos', { state: { highlightOrderId: orderFeedback.orderId } });
                       }}
-                      className="w-full py-4 font-bold text-sm tracking-widest bg-green-600 text-white shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-transform"
+                      className="w-full py-4 font-bold text-sm tracking-widest bg-primary text-on-primary shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-transform"
                     >
                       <FileText size={20} />
                       VER DETALLES DEL PEDIDO
-                    </button>
-                    
+                    </button>                    
                     <button 
                       onClick={() => {
                         setOrderFeedback(null);

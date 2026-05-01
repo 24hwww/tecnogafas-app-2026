@@ -1,13 +1,24 @@
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { get } from 'idb-keyval';
 import { useApp } from '../AppContext';
 import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity, Zap, Download, Smartphone } from 'lucide-react';
 import { formatCurrency, getRelativeTime, formatTimeBA } from '../lib/utils';
 import { Skeleton } from '../components/Skeleton';
 
 export default function Dashboard() {
-  const { products, clients, grandTotalOrders, dashboardOrders, sellers, refreshData, forceRefresh, isLoading, appVersionInfo } = useApp();
+  const { products, clients, grandTotalOrders, dashboardOrders, sellers, refreshData, forceRefresh, clearAllCaches, isLoading, appVersionInfo } = useApp();
   const navigate = useNavigate();
-  
+  const [hasCache, setHasCache] = useState(false);
+
+  useEffect(() => {
+    const checkCache = async () => {
+      const cached = await get('tecnogafas_products');
+      setHasCache(!!cached);
+    };
+    checkCache();
+  }, []);
+
   const stats = [
     { label: 'Vendedores', value: sellers.length, icon: Users, color: 'text-green-600' },
     { label: 'Clientes', value: clients.length, icon: TrendingUp, color: 'text-blue-600' },
@@ -41,16 +52,18 @@ export default function Dashboard() {
           >
             <RefreshCw size={20} className="text-primary" />
           </button>
-          <button 
+          <button
             id="dashboard-force-refresh-btn"
-            onClick={() => forceRefresh()} 
+            onClick={async () => {
+              await clearAllCaches();
+              setHasCache(false);
+            }}
             disabled={isLoading}
-            className={`p-2 m3-button !rounded-full shadow-lg ${isLoading ? 'animate-pulse' : ''}`}
-            title="Limpiar Caché y Forzar Recarga"
+            className={`p-2 !rounded-full shadow-lg transition-colors ${isLoading ? 'animate-pulse' : ''} ${hasCache ? 'bg-orange-500' : 'bg-primary'}`}
+            title={hasCache ? "Limpiar Caché" : "Caché vacía"}
           >
-            <Zap size={20} className="text-on-primary" />
-          </button>
-        </div>
+            <Zap size={20} className="text-white" />
+          </button>        </div>
       </div>
       
       <div className="grid grid-cols-2 gap-4">

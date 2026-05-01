@@ -57,14 +57,13 @@ export default function Clients() {
       <div className="space-y-4 min-h-[50vh]">
         <div className="flex items-center justify-between">
           <h2 id="clients-title" className="text-2xl font-bold">Clientes</h2>
-          <button 
+          <button
             id="clients-add-btn"
             onClick={() => { setEditingClient({ name: '', email: '', phone: '', address: '' }); setIsModalOpen(true); }}
-            className="m3-button-tonal !p-2"
+            className="p-2 text-primary hover:bg-surface-variant transition-colors rounded-full"
           >
             <UserPlus size={24} />
-          </button>
-        </div>
+          </button>        </div>
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" size={20} />

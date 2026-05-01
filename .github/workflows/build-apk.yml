@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
 
     steps:
@@ -19,7 +18,7 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      # 🟢 Node
+      # 🟢 Node (Forzamos la versión 22 para Capacitor)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -34,38 +33,19 @@ jobs:
           java-version: 21
           cache: gradle
 
-      # ⚡ Cache adicional Gradle
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: |
-            gradle-${{ runner.os }}
-
       # 📦 Dependencias
       - name: Install dependencies
         run: npm ci
 
-      # 📦 Cache Assets
-      - name: Cache generated assets
-        uses: actions/cache@v4
-        id: assets-cache
-        with:
-          path: |
-            public/
-            assets/
-          key: assets-${{ hashFiles('download-images.js') }}
-
-      - name: Download assets if needed
-        if: steps.assets-cache.outputs.cache-hit != 'true'
-        run: node download-images.js
-
-      # 🏗️ Build Vite
+      # 🏗️ Build Web App (Necesario antes del sync)
       - name: Build Web App
         run: npm run build
+
+      # 🔄 Reconstrucción Forzada de Capacitor
+      - name: Sync Capacitor
+        run: |
+          npx cap add android || true
+          npx cap sync android
 
       # 🎨 Assets Capacitor
       - name: Generate Native Assets
@@ -74,10 +54,6 @@ jobs:
           cp public/icon-512.png assets/icon.png || true
           npx @capacitor/assets generate --android
 
-      # 🔄 Sync Capacitor
-      - name: Sync Capacitor
-        run: npx cap sync android
-
       # 🆙 Update Version
       - name: Bump Version Code
         working-directory: ./android/app
@@ -85,7 +61,7 @@ jobs:
           sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/" build.gradle
           sed -i -E "s/versionName \"[^\"]+\"/versionName \"1.0.${{ github.run_number }}\"/" build.gradle
 
-      # 🛠️ Build Debug Error
+      # 🛠️ Build Debug
       - name: Build Debug APK
         working-directory: ./android
         run: |
@@ -99,13 +75,13 @@ jobs:
           name: tecnogafas-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
-      # 🔐 Crear keystore desde secrets (condicional)
+      # 🔐 Crear keystore desde secrets
       - name: Decode Keystore
         if: env.HAS_KEYSTORE == 'true'
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
 
-      # 🚀 Build firmado (condicional)
+      # 🚀 Build Release
       - name: Build Release APK & AAB
         if: env.HAS_KEYSTORE == 'true'
         working-directory: ./android
@@ -117,7 +93,7 @@ jobs:
           ./gradlew assembleRelease
           ./gradlew bundleRelease
 
-      # 📦 Subir APK firmado (condicional)
+      # 📦 Subir Release
       - name: Upload Release APK
         if: env.HAS_KEYSTORE == 'true'
         uses: actions/upload-artifact@v4
@@ -125,7 +101,6 @@ jobs:
           name: tecnogafas-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
 
-      # 📦 Subir AAB firmado (Play Store) (condicional)
       - name: Upload AAB
         if: env.HAS_KEYSTORE == 'true'
         uses: actions/upload-artifact@v4

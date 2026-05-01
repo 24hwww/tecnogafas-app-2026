@@ -10,10 +10,10 @@ import { ThemeWrapper } from './components/ThemeWrapper';
 import { Layout } from './components/Layout';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { DeployNotification } from './components/DeployNotification';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useAndroidBack } from './hooks/useAndroidBack';
 import { kodular } from './lib/kodularBridge';
-import { useEffect } from 'react';
+import { Skeleton } from './components/Skeleton';
 
 // Lazy load pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -31,11 +31,22 @@ function AppInner() {
 
   useEffect(() => {
     kodular.init();
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        navigator.serviceWorker.controller?.postMessage({ type: 'APP_INACTIVE' });
+      } else {
+        navigator.serviceWorker.controller?.postMessage({ type: 'APP_ACTIVE' });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
   return (
     <Layout>
-      <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Cargando...</div>}>
+      <Suspense fallback={<div className="p-4 space-y-4"><Skeleton className="h-64 w-full" /><Skeleton className="h-20 w-full" /></div>}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/productos" element={<Products />} />

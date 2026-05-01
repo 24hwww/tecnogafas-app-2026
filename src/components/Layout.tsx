@@ -52,47 +52,8 @@ export function Layout({ children }: { children: ReactNode }) {
     window.addEventListener('popstate', handlePopState);
 
     const fetchVersions = async () => {
-      let apiVersion = '1.0.0';
-      let appVersion = '1.0.0';
-
-      // GitHub Commits
-      try {
-        const repoNames = ['tecnogafas-app-2026', 'tecnogafas-ventas-pwa', 'tecnogafas-pwa', 'tecno-app'];
-        for (const repo of repoNames) {
-           const res = await fetch(`https://api.github.com/repos/24hwww/${repo}/commits?per_page=1`);
-           if (res.ok) {
-              const linkHeader = res.headers.get('link');
-              if (linkHeader) {
-                 const match = linkHeader.match(/&page=(\d+)>; rel="last"/);
-                 if (match) {
-                    appVersion = `1.2.${match[1]}`;
-                    break;
-                 }
-              }
-           }
-        }
-      } catch (e) {}
-
-      // Swagger API Version
-      try {
-        const urls = [
-          'https://api.tecnogafas.com.ar/swagger.json',
-          'https://api.tecnogafas.com.ar/docs/swagger.json',
-          'https://api.tecnogafas.com.ar/api/swagger'
-        ];
-        for (const url of urls) {
-           const res = await fetch(url);
-           if (res.ok) {
-             const data = await res.json();
-             if (data?.info?.version) {
-                 apiVersion = data.info.version;
-                 break;
-             }
-           }
-        }
-      } catch (e) {}
-
-      setVersions({ app: `v${appVersion}`, api: `v${apiVersion}` });
+      // Valor por defecto en caso de no poder consultar GitHub
+      setVersions({ app: `v1.2.0`, api: `v1.0.0` });
     };
 
     fetchVersions();
