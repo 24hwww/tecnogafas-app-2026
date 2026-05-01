@@ -1,4 +1,4 @@
-import { ApiProduct, ApiClient, ApiOrder, Product, Client, Order, Seller } from '../types';
+import { ApiClient, ApiOrder, Product, Client, Order, Seller } from '../types';
 
 import { Capacitor } from '@capacitor/core';
 
@@ -6,22 +6,51 @@ const REAL_API_URL = 'https://api.tecnogafas.com.ar';
 const PROXY_API_URL = '/api';
 
 const BASE_URL = Capacitor.isNativePlatform() ? REAL_API_URL : PROXY_API_URL;
+const FETCH_TIMEOUT = 30000; // 30 seconds
 
 let cachedProducts: Product[] | null = null;
 let cachedProductsTimestamp: number = 0;
 const CACHE_PRODUCTS_TTL = 5 * 60 * 1000; // 5 minutes
 
-let cachedEvents: any[] | null = null;
+interface ApiEvent {
+  id?: number | string;
+  ID?: number | string;
+  event_id?: number | string;
+  read?: boolean | number | string;
+  status?: string;
+  readed?: number;
+  type?: string;
+  content?: string;
+  user_id?: number;
+  from_id?: number;
+  created_at?: string;
+  [key: string]: unknown;
+}
+
+let cachedEvents: ApiEvent[] | null = null;
 let cachedEventsTimestamp: number = 0;
 const CACHE_EVENTS_TTL = 60 * 1000; // 1 minute
-let hasEventsApiFailed: boolean = false;
+let hasEventsApiFailed = false;
 
-const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+interface FetchError extends Error {
+  name: string;
+  message: string;
+}
+
+const customFetch = async (input: RequestInfo | URL, init?: RequestInit & { timeout?: number }): Promise<Response> => {
+  const { timeout = FETCH_TIMEOUT, ...fetchInit } = init || {};
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
   try {
     const res = await fetch(input, {
-      cache: 'no-store', // Always fetch latest data
-      ...init
+      cache: 'no-store',
+      signal: controller.signal,
+      ...fetchInit
     });
+    clearTimeout(timeoutId);
+    
     if (!res.ok) {
       console.warn(`⚠️ API call to ${input} returned status ${res.status}`);
       if (res.status >= 500) {
@@ -29,10 +58,17 @@ const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       }
     }
     return res;
-  } catch (err: any) {
-    console.error(`❌ Fetch error for ${input}:`, err);
-    window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'No se pudo conectar con la API (caída o sin red)' } }));
-    throw err;
+  } catch (err: unknown) {
+    clearTimeout(timeoutId);
+    const error = err as FetchError;
+    if (error.name === 'AbortError') {
+      console.error(`⏱️ Timeout for ${input}`);
+      window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'Tiempo de espera agotado' } }));
+    } else {
+      console.error(`❌ Fetch error for ${input}:`, error);
+      window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'No se pudo conectar con la API (caída o sin red)' } }));
+    }
+    throw error;
   }
 };
 
@@ -45,8 +81,14 @@ export const apiService = {
 
     const res = await customFetch(`${BASE_URL}/productos`);
     if (!res.ok) throw new Error(`API error: ${res.status}`);
-    const json = await res.json();
-    cachedProducts = (json.data || []).map((p: any) => {
+    const json = await res.json() as { data?: Array<{
+      product_id?: number;
+      pid?: number;
+      nombre_producto?: string;
+      variaciones?: string;
+      filtros?: string;
+    }> };
+    cachedProducts = (json.data || []).map((p) => {
       // Parse variations e.g. "variation_id:23726|Título:5508 - C1 - BLACK|Stock:6|Precio:58000;..."
       const variations = (p.variaciones || '').split(';').filter((v: string) => v.trim() !== '').map((v: string) => {
         let vid = '';
@@ -97,8 +139,8 @@ export const apiService = {
   async getClients(): Promise<Client[]> {
     const res = await customFetch(`${BASE_URL}/clientes`);
     if (!res.ok) throw new Error(`API error: ${res.status}`);
-    const json = await res.json();
-    return (json.data || []).map((c: ApiClient) => ({
+    const json = await res.json() as { data?: ApiClient[] };
+    return (json.data || []).map((c) => ({
       id: c.ID?.toString() || Math.random().toString(),
       name: c.display_name || '',
       email: c.user_email || '',
@@ -116,8 +158,8 @@ export const apiService = {
     
     const res = await customFetch(url, { headers });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
-    const json = await res.json();
-    const orders = (json.data || []).map((o: ApiOrder) => ({
+    const json = await res.json() as { data?: ApiOrder[]; total?: number };
+    const orders = (json.data || []).map((o) => ({
       id: o.ID?.toString() || Math.random().toString(),
       clientId: o.customer_id?.toString() || '',
       clientName: o.customer ? `${o.customer.first_name || ''} ${o.customer.last_name || ''}`.trim() : 'Sin cliente',
@@ -128,15 +170,15 @@ export const apiService = {
         price: i.price || 0,
       })),
       total: o.order_total ? parseFloat(o.order_total.toString()) : 0,
-      status: o.post_status === 'unattended' ? 'Pendiente' : 'Completado',
+      status: (o.post_status === 'unattended' ? 'Pendiente' : 'Completado') as Order['status'],
       createdAt: o.post_date || '',
       sellerId: o.post_author?.toString() || '',
       rawData: {
         ...o,
-        customer_note: o.observaciones || o.customer_note || (o as any).notes || '', // Handle different possible field names
+        customer_note: o.observaciones || o.customer_note || (o as ApiOrder & { notes?: string }).notes || '',
       },
     }));
-    return { orders, total: parseInt(json.total) || orders.length };
+    return { orders, total: json.total || orders.length };
   },
 
   async verifyProducts(products: {product_id: number, variation_id?: number, price: number, stock: number}[]): Promise<{
@@ -145,7 +187,16 @@ export const apiService = {
     total?: number;
     verified?: number;
     failed?: number;
-    results?: any[];
+    results?: Array<{
+      product_id: number;
+      variation_id?: number;
+      product_name?: string;
+      variation_name?: string;
+      status: 'ok' | 'not_found' | 'out_of_stock' | 'insufficient_stock' | 'stock_changed' | 'both_changed';
+      error?: string;
+      current_stock?: number;
+      current_price?: number;
+    }>;
   }> {
     try {
       const res = await customFetch(`${BASE_URL}/producto/verificar`, {
@@ -163,27 +214,27 @@ export const apiService = {
   async getSellers(): Promise<Seller[]> {
     const res = await customFetch(`${BASE_URL}/usuarios`);
     if (!res.ok) throw new Error(`API error: ${res.status}`);
-    const json = await res.json();
-    return (json.data || []).map((s: any) => ({
+    const json = await res.json() as { data?: Array<{ ID?: number; display_name?: string }> };
+    return (json.data || []).map((s) => ({
       id: s.ID?.toString() || Math.random().toString(),
       name: s.display_name || 'Sin nombre',
     }));
   },
 
-  async getAppVersion(): Promise<any> {
+  async getAppVersion(): Promise<{ version?: string; apk_url?: string; release_notes?: string } | null> {
     try {
       const res = await customFetch(`${BASE_URL}/app/version`);
       if (res.ok) {
-        return await res.json();
+        return await res.json() as { version?: string; apk_url?: string; release_notes?: string };
       }
       return null;
-    } catch (e) {
-      console.error('Error fetching app version', e);
+    } catch (_e) {
+      console.error('Error fetching app version', _e);
       return null;
     }
   },
 
-  async getEvents(type?: string, sellerId?: string): Promise<any[]> {
+  async getEvents(type?: string, sellerId?: string): Promise<ApiEvent[]> {
     if (hasEventsApiFailed) return [];
     
     if (!type && cachedEvents && (Date.now() - cachedEventsTimestamp < CACHE_EVENTS_TTL)) {
@@ -198,7 +249,7 @@ export const apiService = {
       headers['Authorization'] = `Bearer ${sellerId}`;
     }
     
-    const body: Record<string, any> = { limit: 100 };
+    const body: Record<string, string | number> = { limit: 100 };
     if (type) body.type = type;
 
     console.log('📡 Fetching events:', { url: url.toString(), hasSeller: !!sellerId, type });
@@ -234,24 +285,25 @@ export const apiService = {
     }
   },
 
-  extractEvents(json: any): any[] {
+  extractEvents(json: Record<string, unknown>): ApiEvent[] {
     // Robust extraction: handle { events: [] }, { data: [] }, { data: { events: [] } }, etc.
-    let list = json.events || json.notifications || json.data || [];
+    let list: unknown = json.events || json.notifications || json.data || [];
     if (!Array.isArray(list) && list !== null && typeof list === 'object') {
-      list = list.events || list.notifications || list.data || [];
+      const objList = list as Record<string, unknown>;
+      list = objList.events || objList.notifications || objList.data || [];
     }
     
     if (!Array.isArray(list)) return [];
     
     // Normalize events: ensure 'id' exists and 'read' is boolean
-    return list.map((n: any) => ({
+    return list.map((n: ApiEvent) => ({
       ...n,
       id: n.id || n.ID || n.event_id,
       read: n.read === 1 || n.read === true || n.status === 'read' || n.readed === 1
     }));
   },
 
-  async createEvent(data: { user_id: number; type: 'message' | 'notification' | string; from_id?: number; content: any; read?: number }, sellerId?: string): Promise<any> {
+  async createEvent(data: { user_id: number; type: 'message' | 'notification' | string; from_id?: number; content: string | Record<string, unknown>; read?: number }, sellerId?: string): Promise<ApiEvent | { error: string }> {
     const headers = { 
       'Content-Type': 'application/json', 'Accept': 'application/json',
       ...(sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {})
@@ -281,13 +333,13 @@ export const apiService = {
       if (!res.ok) return 0;
       const json = await res.json();
       return json.unread || json.count || 0;
-    } catch (e) {
-      console.warn('Silent fail for unread count', e);
+    } catch (_e) {
+      console.warn('Silent fail for unread count', _e);
       return 0;
     }
   },
 
-  async ackEvent(id: number, sellerId?: string): Promise<any> {
+  async ackEvent(id: number, sellerId?: string): Promise<ApiEvent | { error: string }> {
     const headers = { 
       'Content-Type': 'application/json', 'Accept': 'application/json',
       ...(sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {})
@@ -300,7 +352,15 @@ export const apiService = {
     return res.json();
   },
 
-  async createOrder(clientId: string, items: any[], details: any, sellerId: string): Promise<{success: boolean, message: string, orderId?: string}> {
+  async createOrder(clientId: string, items: Array<{ id: string; vid?: string; price: number; quantity: number }>, details: {
+    commit?: string;
+    discount?: number | string;
+    recargo?: number | string;
+    transport?: string;
+    methodpay?: string;
+    otheremail?: string;
+    iva?: number | string;
+  }, sellerId: string): Promise<{success: boolean, message: string, orderId?: string}> {
     const url = `${BASE_URL}/pedido`;
     const headers = { 
       'Content-Type': 'application/json', 'Accept': 'application/json',
@@ -314,7 +374,7 @@ export const apiService = {
       transport: details.transport || "",
       methodpay: details.methodpay || "",
       oemail: details.otheremail || "",
-      iva: details.iva ? parseInt(details.iva) : 0,
+      iva: details.iva ? parseInt(String(details.iva)) : 0,
       products: items.map(i => {
         const parsedId = parseInt(i.id.toString().split('-')[0]);
         if (isNaN(parsedId)) return null;
@@ -332,8 +392,13 @@ export const apiService = {
       // Guardar en IndexedDB para sincronización offline
       try {
         const dbRequest = indexedDB.open('tecnogafas-sync', 2);
-        dbRequest.onsuccess = (e: any) => {
-          const db = e.target.result;
+        
+        dbRequest.onerror = () => {
+          console.error('Failed to open IndexedDB for offline order');
+        };
+        
+        dbRequest.onsuccess = (e: Event) => {
+          const db = (e.target as IDBOpenDBRequest).result;
           const tx = db.transaction('pending-orders', 'readwrite');
           tx.objectStore('pending-orders').put({
             id: Date.now().toString(),
@@ -342,14 +407,14 @@ export const apiService = {
             body
           });
           // Solicitar sync al Service Worker si es posible
-          if ('serviceWorker' in navigator && (navigator as any).serviceWorker.controller) {
-            (navigator as any).serviceWorker.ready.then((reg: any) => {
+          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then((reg: ServiceWorkerRegistration & { sync?: { register: (tag: string) => Promise<void> } }) => {
               if (reg.sync) reg.sync.register('sync-orders');
             });
           }
         };
         return { success: false, message: 'Estás sin conexión. El pedido se enviará automáticamente al recuperar red.' };
-      } catch (err) {
+      } catch {
         return { success: false, message: 'Error al guardar pedido offline.' };
       }
     }
@@ -364,7 +429,7 @@ export const apiService = {
       let data;
       try {
         data = await res.json();
-      } catch (e) {
+      } catch {
         data = {};
       }
       
@@ -377,8 +442,9 @@ export const apiService = {
         message: msg,
         orderId: data?.order_id || data?.data?.order_id
       };
-    } catch (error: any) {
-      return { success: false, message: error?.message || 'Error de conexión con el servidor.' };
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error de conexión con el servidor.';
+      return { success: false, message: msg };
     }
   },
 
@@ -439,7 +505,7 @@ export const apiService = {
     }
   },
 
-  async getLogs(context: string, sellerId: string): Promise<any> {
+  async getLogs(context: string, sellerId: string): Promise<{ success: boolean; message: string; logs?: unknown[] }> {
     try {
       const res = await customFetch(`${BASE_URL}/logs`, {
         method: 'POST',
@@ -449,9 +515,9 @@ export const apiService = {
         },
         body: JSON.stringify({ context })
       });
-      return await res.json();
-    } catch(e) {
-      console.error('Error fetching logs', e);
+      return await res.json() as { success: boolean; message: string; logs?: unknown[] };
+    } catch {
+      console.error('Error fetching logs');
       return { success: false, message: 'Error de conexión' };
     }
   },
@@ -467,7 +533,7 @@ export const apiService = {
       const text = await res.text();
       try {
         data = JSON.parse(text);
-      } catch (e) {
+      } catch {
         data = { message: text || 'Error desconocido' };
       }
       
@@ -479,7 +545,7 @@ export const apiService = {
       }
       
       return { success: true, message: msg };
-    } catch (e: any) {
+    } catch {
       return { success: false, message: 'Error de conexión' };
     }
   },
@@ -497,12 +563,12 @@ export const apiService = {
       const data = await res.json();
       if (!res.ok) return { success: false, message: data.message || 'Error al actualizar estado' };
       return { success: true, message: data.message || 'Estado actualizado' };
-    } catch (e: any) {
+    } catch {
       return { success: false, message: 'Error de conexión' };
     }
   },
 
-  subscribeToEvents(onMessage: (data: any) => void) {
+  subscribeToEvents(onMessage: (data: ApiEvent) => void) {
     const eventSource = new EventSource(`${BASE_URL}/events/stream`);
     
     eventSource.onmessage = (event) => {
@@ -520,8 +586,8 @@ export const apiService = {
         }
         
         onMessage(data);
-      } catch (e) {
-        console.error('Error parsing SSE data', e);
+      } catch (_e) {
+        console.error('Error parsing SSE data', _e);
       }
     };
     

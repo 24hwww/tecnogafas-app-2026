@@ -10,6 +10,7 @@ import { ThemeWrapper } from './components/ThemeWrapper';
 import { Layout } from './components/Layout';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { DeployNotification } from './components/DeployNotification';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { lazy, Suspense, useEffect } from 'react';
 import { useAndroidBack } from './hooks/useAndroidBack';
 import { kodular } from './lib/kodularBridge';
@@ -65,15 +66,17 @@ function AppInner() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <ThemeWrapper>
-        <Router>
-          <AppInner />
-        </Router>
-        <UpdatePrompt />
-        <DeployNotification />
-      </ThemeWrapper>
-      <Analytics />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <ThemeWrapper>
+          <Router>
+            <AppInner />
+          </Router>
+          <UpdatePrompt />
+          <DeployNotification />
+        </ThemeWrapper>
+        <Analytics />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }

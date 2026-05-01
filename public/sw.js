@@ -113,8 +113,6 @@ async function startPolling() {
     } catch (e) { console.error('Polling error', e); }
   }, 60000);
 }
-  }, 60000);
-}
 
 function stopPolling() {
   if (pollingInterval) {

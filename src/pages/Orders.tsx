@@ -61,18 +61,9 @@ export default function Orders() {
   }, [orders, targetId, selectedOrder]);
   
   // Fetch orders when page changes or filters change
-  // Cargar todos los pedidos sin paginación (límite máximo permitido)
+  // Usar fetchOrders del contexto que ya maneja loading y estado global
   const loadOrders = async (sellerId?: string, customerId?: string) => {
-    setIsLoading(true);
-    try {
-      const o = await apiService.getOrders(1, 100, sellerId ? parseInt(sellerId) : undefined, customerId ? parseInt(customerId) : undefined);
-      setOrders(o.orders || []);
-      setTotalOrders(o.total || 0);
-    } catch (error) {
-      console.error('Error al cargar pedidos:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    await fetchOrders(1, 100, sellerId ? parseInt(sellerId) : undefined, customerId ? parseInt(customerId) : undefined);
   };
 
   const handleSellerChange = (sellerId: string) => {
