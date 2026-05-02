@@ -27,19 +27,24 @@ export function useDataSync(
         apiService.getSellers(),
       ]);
 
+      // Sort orders by createdAt (post_date) descending - most recent first
+      const sortedOrders = [...o.orders].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
       setProducts(p);
       setClients(c);
-      setOrders(o.orders);
+      setOrders(sortedOrders);
       setTotalOrders(o.total);
       setGrandTotalOrders(o.total);
-      setDashboardOrders(o.orders.slice(0, 5));
+      setDashboardOrders(sortedOrders.slice(0, 5));
       setSellers(s);
 
 
       try {
         await set('tecnogafas_products', p);
         await set('tecnogafas_clients', c);
-        const cachedOrders = o.orders.map(({ rawData, ...rest }: any) => rest);
+        const cachedOrders = sortedOrders.map(({ rawData, ...rest }: any) => rest);
         await set('tecnogafas_orders', cachedOrders);
         await set('tecnogafas_sellers', s);
       } catch (cacheError) {
