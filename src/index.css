@@ -13,45 +13,62 @@
 :root {
   --color-primary: #0A5DFF;
   --color-on-primary: #FFFFFF;
-  --color-primary-container: #EEF0F1;
-  --color-on-primary-container: #202020;
-  --color-secondary: #FAFAFA;
-  --color-on-secondary: #202020;
-  --color-secondary-container: #EEF0F1;
-  --color-on-secondary-container: #202020;
-  --color-surface: #FFFFFF;
-  --color-on-surface: #202020;
-  --color-surface-variant: #FAFAFA;
-  --color-on-surface-variant: #202020;
-  --color-outline: #EEF0F1;
-  --color-background: #FFFFFF;
-  --color-background-secondary: #FAFAFA;
-  --color-background-tertiary: #EEF0F1;
-  --color-text-primary: #202020;
-  --color-text-secondary: #202020;
-  --radius-xl: 0px;
+  --color-primary-container: #D7E2FF;
+  --color-on-primary-container: #001A41;
+  
+  --color-secondary: #565E71;
+  --color-on-secondary: #FFFFFF;
+  --color-secondary-container: #DAE2F9;
+  --color-on-secondary-container: #131C2C;
+  
+  --color-surface: #FDFBFF;
+  --color-on-surface: #1A1C1E;
+  --color-surface-variant: #E1E2EC;
+  --color-on-surface-variant: #44474F;
+  
+  --color-outline: #74777F;
+  --color-background: #FDFBFF;
+  --color-background-secondary: #F1F0F4;
+  --color-background-tertiary: #E1E2EC;
+  
+  --color-text-primary: #1A1C1E;
+  --color-text-secondary: #44474E;
+  --color-text-tertiary: #74777F;
+
+  --color-success: #2E6C00;
+  --color-error: #BA1A1A;
+  
+  --radius-xl: 12px;
 }
 
 /* Dark theme */
 [data-theme="dark"] {
-  --color-primary: #0A5DFF;
-  --color-on-primary: #FFFFFF;
-  --color-primary-container: #202020;
-  --color-on-primary-container: #FAFAFA;
-  --color-secondary: #202020;
-  --color-on-secondary: #FAFAFA;
-  --color-secondary-container: #202020;
-  --color-on-secondary-container: #FAFAFA;
-  --color-surface: #202020;
-  --color-on-surface: #FAFAFA;
-  --color-surface-variant: #202020;
-  --color-on-surface-variant: #FAFAFA;
-  --color-outline: #202020;
-  --color-background: #202020;
-  --color-background-secondary: #202020;
-  --color-background-tertiary: #202020;
-  --color-text-primary: #FAFAFA;
-  --color-text-secondary: #FAFAFA;
+  --color-primary: #ADC6FF;
+  --color-on-primary: #002E69;
+  --color-primary-container: #004494;
+  --color-on-primary-container: #D7E2FF;
+  
+  --color-secondary: #BFC6DC;
+  --color-on-secondary: #283041;
+  --color-secondary-container: #3E4759;
+  --color-on-secondary-container: #DAE2F9;
+  
+  --color-surface: #1A1C1E;
+  --color-on-surface: #E2E2E6;
+  --color-surface-variant: #44474F;
+  --color-on-surface-variant: #C4C6D0;
+  
+  --color-outline: #8E9099;
+  --color-background: #111318;
+  --color-background-secondary: #1A1C1E;
+  --color-background-tertiary: #2F3033;
+  
+  --color-text-primary: #E2E2E6;
+  --color-text-secondary: #C4C6D0;
+  --color-text-tertiary: #8E9099;
+
+  --color-success: #84D945;
+  --color-error: #FFB4AB;
 }
 
 @theme {
@@ -68,46 +85,78 @@
   --color-surface-variant: var(--color-surface-variant);
   --color-on-surface-variant: var(--color-on-surface-variant);
   --color-outline: var(--color-outline);
+  --color-background: var(--color-background);
+  --color-success: var(--color-success);
+  --color-error: var(--color-error);
   
-  --radius-xl: 0px;
+  --radius-xl: var(--radius-xl);
 }
 
 @layer base {
   body {
-    @apply bg-surface text-on-surface font-sans;
+    @apply bg-background text-on-surface font-sans antialiased;
     -webkit-tap-highlight-color: transparent;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
   * {
-    @apply rounded-none!;
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
   }
 }
 
+/* Typography Improvements */
+@layer components {
+  .text-h1 {
+    @apply text-3xl font-bold tracking-tight text-on-surface;
+  }
+  .text-h2 {
+    @apply text-2xl font-semibold tracking-tight text-on-surface;
+  }
+  .text-h3 {
+    @apply text-xl font-semibold text-on-surface;
+  }
+  .text-body-lg {
+    @apply text-lg text-on-surface;
+  }
+  .text-body {
+    @apply text-base text-on-surface;
+  }
+  .text-body-sm {
+    @apply text-sm text-on-surface-variant;
+  }
+  .text-label {
+    @apply text-xs font-medium uppercase tracking-wider text-on-surface-variant;
+  }
+}
+
 .m3-card {
-  @apply bg-surface-variant p-5 shadow-lg border border-white/5 transition-all;
+  @apply bg-surface border border-outline/10 rounded-2xl p-4 shadow-sm transition-all hover:shadow-md;
+}
+
+.m3-input {
+  @apply bg-surface-variant/30 border border-outline/20 rounded-xl px-4 py-3 text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/50;
 }
 
 .m3-button-filled {
-  @apply bg-primary text-on-primary px-6 py-3 font-black text-sm tracking-wide transition-all shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 disabled:grayscale disabled:opacity-50 shrink-0;
+  @apply bg-primary text-on-primary px-6 py-2.5 rounded-full font-semibold text-sm tracking-wide transition-all shadow-md hover:shadow-lg hover:brightness-110 active:scale-[0.98] disabled:grayscale disabled:opacity-50 shrink-0 flex items-center justify-center gap-2;
 }
 
 .m3-button-tonal {
-  @apply bg-secondary-container text-on-secondary-container px-6 py-3 font-black text-sm tracking-wide transition-all hover:bg-secondary-container/80 active:scale-95 shrink-0;
+  @apply bg-secondary-container text-on-secondary-container px-6 py-2.5 rounded-full font-semibold text-sm tracking-wide transition-all hover:brightness-95 active:scale-[0.98] shrink-0 flex items-center justify-center gap-2;
 }
 
 .m3-button-outlined {
-  @apply border border-outline/20 text-on-surface px-6 py-3 font-black text-sm tracking-wide transition-all hover:bg-surface-variant active:scale-95 shrink-0;
+  @apply border border-outline text-primary px-6 py-2.5 rounded-full font-semibold text-sm tracking-wide transition-all hover:bg-primary/5 active:scale-[0.98] shrink-0 flex items-center justify-center gap-2;
 }
 
 .m3-nav-item {
-  @apply flex flex-col items-center justify-center p-2 text-on-surface-variant transition-colors;
+  @apply flex flex-col items-center justify-center p-2 text-on-surface-variant transition-colors flex-1;
 }
 
 .m3-nav-item-active {
-  @apply text-primary;
+  @apply text-primary font-bold;
 }
 
 .m3-nav-item-active .icon-container {
-  @apply bg-primary-container text-on-primary-container px-5 py-1 rounded-full;
+  @apply bg-primary-container text-on-primary-container px-5 py-1.5 rounded-full transition-all;
 }
+

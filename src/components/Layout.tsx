@@ -62,7 +62,7 @@ export function Layout({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="flex h-screen max-w-md mx-auto bg-surface overflow-hidden shadow-2xl relative text-on-surface">
+    <div className="flex h-screen max-w-md mx-auto bg-background overflow-hidden shadow-2xl relative text-on-surface">
       {/* Loading Overlay */}
       <AnimatePresence>
         {isLoading && (
@@ -70,7 +70,7 @@ export function Layout({ children }: { children: ReactNode }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-surface/80 z-[100] flex flex-col items-center justify-center backdrop-blur-sm"
+            className="absolute inset-0 bg-surface/80 z-[100] flex flex-col items-center justify-center backdrop-blur-md"
           >
             <RefreshCw className="w-12 h-12 text-primary animate-spin mb-4" />
             <p className="text-sm font-bold text-primary animate-pulse tracking-widest uppercase">Sincronizando...</p>
@@ -86,26 +86,26 @@ export function Layout({ children }: { children: ReactNode }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={closeSidebar}
-              className="fixed inset-0 bg-black/60 z-40"
+              className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
             />
             <motion.aside
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 h-full w-64 bg-surface-variant text-on-surface-variant z-50 flex flex-col shadow-2xl"
+              className="fixed left-0 top-0 h-full w-72 bg-surface text-on-surface z-50 flex flex-col shadow-2xl border-r border-outline/10"
             >
-              <div className="p-6 flex items-center justify-between border-b border-white/5">
+              <div className="p-6 flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary flex items-center justify-center text-on-primary font-bold text-lg">T</div>
-                  <span className="font-bold tracking-tight text-on-surface">Tecnogafas</span>
+                  <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-on-primary font-bold text-xl shadow-lg shadow-primary/20">T</div>
+                  <span className="text-xl font-bold tracking-tight text-on-surface">Tecnogafas</span>
                 </div>
-                <button onClick={closeSidebar} className="p-1 hover:bg-white/10">
+                <button onClick={closeSidebar} className="p-2 hover:bg-surface-variant rounded-full transition-colors text-on-surface-variant">
                   <X size={20} />
                 </button>
               </div>
 
-              <nav className="flex-1 px-3 py-4 space-y-1">
+              <nav className="flex-1 px-3 py-2 space-y-1">
                 {navItems.map((item) => (
                   <NavLink
                     key={item.path}
@@ -113,22 +113,22 @@ export function Layout({ children }: { children: ReactNode }) {
                     onClick={closeSidebar}
                     className={({ isActive }) =>
                       cn(
-                        "flex items-center space-x-3 p-3 text-sm font-medium transition-colors",
+                        "flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
                         isActive 
-                          ? "bg-primary-container text-on-primary-container shadow-inner" 
-                          : "text-on-surface-variant hover:bg-white/5 hover:text-on-surface"
+                          ? "bg-primary-container text-on-primary-container font-semibold" 
+                          : "text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
                       )
                     }
                   >
-                    <item.icon size={18} />
+                    <item.icon size={20} className={cn("transition-colors", location.pathname === item.path ? "text-primary" : "text-on-surface-variant")} />
                     <span>{item.label}</span>
                     {item.label === 'Carrito' && cart.length > 0 && (
-                      <span className="ml-auto bg-primary text-on-primary text-[0.625rem] px-1.5 py-0.5 font-bold">
+                      <span className="ml-auto bg-primary text-on-primary text-[0.7rem] px-2 py-0.5 font-bold rounded-full">
                         {cart.reduce((a, b) => a + b.quantity, 0)}
                       </span>
                     )}
                     {item.label === 'Notificaciones' && unreadNotifications > 0 && (
-                      <span className="ml-auto bg-error text-white text-[0.625rem] px-1.5 py-0.5 font-bold rounded-full">
+                      <span className="ml-auto bg-error text-white text-[0.7rem] px-2 py-0.5 font-bold rounded-full">
                         {unreadNotifications > 99 ? '99+' : unreadNotifications}
                       </span>
                     )}
@@ -136,12 +136,14 @@ export function Layout({ children }: { children: ReactNode }) {
                 ))}
               </nav>
 
-              <div className="p-4 border-t border-white/5">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary-container text-on-primary-container flex items-center justify-center text-xs font-bold">V</div>
-                  <div className="text-xs">
-                    <p className="font-semibold text-on-surface">Vendedor</p>
-                    <p className="text-outline">App {versions.app} • API {versions.api}</p>
+              <div className="p-6 border-t border-outline/10">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 bg-secondary-container text-on-secondary-container rounded-full flex items-center justify-center text-sm font-bold">
+                    <Users size={18} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-on-surface truncate">Sesión de Vendedor</p>
+                    <p className="text-[0.7rem] text-on-surface-variant font-medium">App {versions.app} • API {versions.api}</p>
                   </div>
                 </div>
               </div>
@@ -152,29 +154,29 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="p-4 flex items-center justify-between bg-surface sticky top-0 z-30 border-b border-surface-variant/50">
+        <header className="px-4 py-3 flex items-center justify-between bg-surface/80 backdrop-blur-md sticky top-0 z-30 border-b border-outline/5">
           <div className="flex items-center gap-2">
             <h1 
               onClick={() => navigate('/')} 
-              className="text-xl font-bold text-primary tracking-tight cursor-pointer hover:opacity-80 transition-opacity"
+              className="text-xl font-black text-primary tracking-tighter cursor-pointer hover:opacity-80 transition-opacity"
             >
-              Tecnogafas
+              TECNOGAFAS
             </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
             {onlineUsersCount !== null && (
-              <div title="Vendedores activos" className="flex items-center gap-1 px-2 py-1 bg-green-500/10 text-green-700 font-bold text-[0.625rem] rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+              <div title="Vendedores activos" className="flex items-center gap-1.5 px-3 py-1 bg-success/10 text-success font-bold text-[0.65rem] rounded-full mr-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span>
                 <span>{onlineUsersCount}</span>
               </div>
             )}
             <button 
               onClick={() => navigate('/carrito')}
-              className="relative p-2 hover:bg-surface-variant text-on-surface-variant transition-colors"
+              className="relative p-2.5 hover:bg-surface-variant rounded-full text-on-surface-variant transition-colors"
             >
-              <ShoppingCart size={24} />
+              <ShoppingCart size={22} />
               {cart.reduce((a, b) => a + b.quantity, 0) > 0 && (
-                <span className="absolute top-1 right-1 bg-primary text-on-primary text-[0.625rem] w-4 h-4 flex items-center justify-center font-bold">
+                <span className="absolute top-1 right-1 bg-primary text-on-primary text-[0.65rem] w-5 h-5 flex items-center justify-center font-bold rounded-full border-2 border-surface">
                   {cart.reduce((a, b) => a + b.quantity, 0)}
                 </span>
               )}
@@ -182,33 +184,34 @@ export function Layout({ children }: { children: ReactNode }) {
             <button 
               id="toolbar-notifications-btn"
               onClick={() => navigate('/notificaciones')}
-              className="relative p-2 hover:bg-surface-variant text-on-surface-variant transition-all active:scale-95"
+              className="relative p-2.5 hover:bg-surface-variant rounded-full text-on-surface-variant transition-all active:scale-95"
             >
-              <Bell size={24} className={showNotificationBullet ? 'text-primary scale-110' : ''} />
+              <Bell size={22} className={showNotificationBullet ? 'text-primary scale-110' : ''} />
               {showNotificationBullet && (
-                <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-orange-400 rounded-full border-2 border-surface animate-pulse" />
+                <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-error rounded-full border-2 border-surface animate-pulse" />
               )}
             </button>
-            <button onClick={toggleSidebar} className="p-2 hover:bg-surface-variant text-on-surface-variant transition-colors">
-              <Menu size={24} />
+            <button onClick={toggleSidebar} className="p-2.5 hover:bg-surface-variant rounded-full text-on-surface-variant transition-colors">
+              <Menu size={22} />
             </button>
           </div>
         </header>
 
         {apiError && (
-          <div className="bg-red-500 text-white text-xs font-bold p-2 text-center shadow flex items-center justify-center gap-2">
-            <RefreshCw size={14} className="animate-spin-slow" />
+          <div className="bg-error text-white text-[0.7rem] font-bold py-2 px-4 text-center shadow-lg flex items-center justify-center gap-2">
+            <RefreshCw size={14} className="animate-spin" />
             {apiError}
           </div>
         )}
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-4 bg-surface">
-          <div key={location.pathname}>
+        <main className="flex-1 overflow-y-auto bg-background">
+          <div className="p-4 min-h-full" key={location.pathname}>
             {children}
           </div>
         </main>
       </div>
     </div>
+
   );
 }
