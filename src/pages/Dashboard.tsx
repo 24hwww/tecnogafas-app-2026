@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { get } from 'idb-keyval';
 import { useApp } from '../AppContext';
 import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity, Zap, Download, Smartphone } from 'lucide-react';
-import { formatCurrency, getRelativeTime, formatTimeBA } from '../lib/utils';
+import { formatCurrency, getRelativeTime, formatTimeBA, cn } from '../lib/utils';
 import { Skeleton } from '../components/Skeleton';
 
 export default function Dashboard() {
