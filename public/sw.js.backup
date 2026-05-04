@@ -2,7 +2,7 @@
 // Optimizado para React + Vite PWA (2026)
 
 // Placeholder para inyección de manifest de precache por vite-plugin-pwa
-self.__WB_MANIFEST;
+const __WB_MANIFEST = self.__WB_MANIFEST;
 
 const CACHE_NAME = 'tecnogafas-v3';
 const STATIC_CACHE = [

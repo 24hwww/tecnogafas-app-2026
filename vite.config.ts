@@ -11,17 +11,14 @@ export default defineConfig(({mode}) => {
       react(), 
       tailwindcss(),
       VitePWA({
-        strategies: 'injectManifest',
-        srcDir: 'public',
-        filename: 'sw.js',
-        buildBase: 'https://app.tecnogafas.com.ar/',
-        devOptions: {
-          enabled: false,
-          type: 'module',
+        registerType: 'autoUpdate',
+        strategies: 'generateSW',
+        workbox: {
           navigateFallback: 'index.html',
+          globPatterns: ['**/*.{js,css,html,ico,png,svg}']
         },
-        injectManifest: {
-          // Habilita la inyección automática del manifest de precache
+        devOptions: {
+          enabled: false
         }
       })
     ],
