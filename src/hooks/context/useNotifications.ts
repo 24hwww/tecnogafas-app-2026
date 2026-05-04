@@ -5,9 +5,8 @@ import { Seller } from '../../types';
 
 // Events/notificaciones desactivadas temporalmente junto con SSE
 export function useNotifications(_globalPin: string | null, _currentSeller: Seller | null, setNotifications: (n: any[]) => void, setUnreadNotifications: (c: number) => void) {
-  // Desactivado temporalmente
+  // Desactivado temporalmente - retorna silenciosamente para evitar spam en consola
   const fetchNotifications = useCallback(async () => {
-    console.log('🔕 fetchNotifications desactivado (events API)');
     setNotifications([]);
     setUnreadNotifications(0);
     return;
@@ -38,9 +37,8 @@ export function useNotifications(_globalPin: string | null, _currentSeller: Sell
     */
   }, [setNotifications, setUnreadNotifications]);
 
-  // Desactivado temporalmente
+  // Desactivado temporalmente - retorna silenciosamente
   const sendNotification = useCallback(async (_toUserId: number, _content: string, _type: 'message' | 'notification' = 'notification', _currentSellerId?: string, _currentSellerName?: string) => {
-    console.log('🔕 sendNotification desactivado (events API)');
     return false;
     /* Código comentado temporalmente:
     if (!globalPin || !currentSellerId) {

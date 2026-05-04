@@ -27,13 +27,13 @@ export default function Notifications() {
     if (success) {
       setMessageContent('');
       setShowSendForm(false);
-      fetchNotifications();
+      // fetchNotifications(); // Desactivado (Events API)
     }
   };
 
   useEffect(() => {
     if (globalPin) {
-      fetchNotifications();
+      // fetchNotifications(); // Desactivado (Events API)
       // Mark all as read when entering the notifications page
       if (unreadNotifications > 0) {
         markAllNotificationsAsRead();
@@ -50,7 +50,7 @@ export default function Notifications() {
         onClose={() => setIsPinModalOpen(false)}
         onSuccess={(seller, pin) => {
           setGlobalPin(pin);
-          fetchNotifications();
+          // fetchNotifications(); // Desactivado (Events API)
         }}
       />
 

@@ -131,9 +131,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       )
     );
     
-    // Refresh notifications to get updated read status
-    await fetchNotifications();
-  }, [globalPin, currentSeller, notifications, fetchNotifications]);
+    // Refresh notifications desactivado (Events API)
+    // await fetchNotifications();
+  }, [globalPin, currentSeller, notifications]);
 
   const MAX_SHOWN_NOTIFICATIONS = 100; // Limitar para evitar memory leak
 
@@ -185,24 +185,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         
         setUnreadNotifications(prev => prev + 1);
-        fetchNotifications();
+        // fetchNotifications(); // Desactivado (Events API)
       });
     } catch (e) {
       console.error('Error initializing Push Notifications', e);
     }
-  }, [fetchNotifications, hasNotificationBeenShown, markNotificationAsShown]);
+  }, [hasNotificationBeenShown, markNotificationAsShown]);
 
   const syncAll = useCallback(async () => {
-    console.log('🔄 Performing global sync via SSE trigger...');
+    console.log('🔄 Performing global sync...');
     await Promise.all([
-      fetchNotifications(),
+      // fetchNotifications(), // Desactivado (Events API)
       apiService.getOrders(1, 10, globalPin || undefined).then(o => {
         setOrders(o.orders);
         setTotalOrders(o.total);
       }),
       apiService.getProducts().then(setProducts)
     ]);
-  }, [fetchNotifications, globalPin]);
+  }, [globalPin]);
 
   const setDeployNotification = (event: any) => {
       setDeployEvent(event);
@@ -384,7 +384,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Events API desactivada temporalmente junto con SSE
   useEffect(() => {
-    console.log('🔕 Events API calls desactivadas (getUnreadCount, fetchNotifications)');
     setUnreadNotifications(0);
     setNotifications([]);
     return;
