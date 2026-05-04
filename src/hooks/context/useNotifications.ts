@@ -7,7 +7,10 @@ export function useNotifications(globalPin: string | null, setNotifications: (n:
     try {
       console.log('📡 Syncing notifications from server...');
       const data = await apiService.getEvents(undefined, globalPin);
-      setNotifications(data);
+      // Filter: only show events for current user (0 = broadcast to all)
+      const currentUserId = parseInt(globalPin, 10);
+      const filtered = data.filter((n: any) => n.user_id === 0 || n.user_id === currentUserId);
+      setNotifications(filtered);
       const unread = await apiService.getUnreadCount(globalPin);
       setUnreadNotifications(unread);
     } catch (e) {

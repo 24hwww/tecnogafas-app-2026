@@ -187,6 +187,28 @@ export default function Checkout() {
             console.error("Error sending email:", emailErr);
             emailMessage = 'El pedido se creó pero hubo un error al enviar el comprobante por correo.';
           }
+
+          // Step 3: Broadcast event to all users about the new order
+          try {
+            console.log("📢 Broadcasting order event to all users...");
+            await apiService.createEvent({
+              user_id: 0, // 0 = broadcast to all users
+              type: 'order',
+              from_id: parseInt(sellerId, 10),
+              content: {
+                title: 'Nuevo pedido creado',
+                body: `Pedido #${result.orderId} por ${seller?.name || 'Vendedor'} - Cliente: ${selectedClient?.name || 'N/A'}`,
+                order_id: result.orderId,
+                client_name: selectedClient?.name,
+                seller_name: seller?.name,
+                total: finalTotal
+              },
+              read: 0
+            }, sellerId);
+          } catch (eventErr) {
+            console.error("Error broadcasting order event:", eventErr);
+            // Non-critical: don't fail the order if event creation fails
+          }
         }
 
         setLastOrder({ 

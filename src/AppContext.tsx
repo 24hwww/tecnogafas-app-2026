@@ -369,8 +369,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
              try {
                 const data = JSON.parse(event.data);
                 const eventType = data.type || event.type;
-                if (eventType === 'order' || eventType === 'sync') syncAll();
-                if (eventType === 'notification' || eventType === 'message') {
+                const eventUserId = data.user_id;
+                const currentUserId = seller ? parseInt(seller.id, 10) : null;
+
+                // Filter: only process events for current user (0 = broadcast to all)
+                const isForCurrentUser = eventUserId === 0 || eventUserId === currentUserId;
+
+                if ((eventType === 'order' || eventType === 'sync') && isForCurrentUser) syncAll();
+                if ((eventType === 'notification' || eventType === 'message') && isForCurrentUser) {
                   setUnreadNotifications(prev => prev + 1);
                   setTimeout(fetchNotifications, 500);
                 }
