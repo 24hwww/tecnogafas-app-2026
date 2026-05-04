@@ -205,8 +205,26 @@ export default function Products() {
             filteredProducts.map((product) => {
               const cartItem = getInCart(product.id);
               const hasVariations = product.variations && product.variations.length > 0;
+              const isAdded = addedProductId === product.id || addedProductId?.startsWith(`${product.id}-`);
               return (
-                <div key={product.id} className="m3-card flex gap-4 animate-in fade-in slide-in-from-bottom-2">
+                <div key={product.id} className={`m3-card flex gap-4 animate-in fade-in slide-in-from-bottom-2 relative overflow-hidden ${isAdded ? 'ring-2 ring-green-500' : ''}`}>
+                  {isAdded && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-green-500/20 backdrop-blur-[1px] z-10 flex items-center justify-center"
+                    >
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                        className="bg-green-500 text-white rounded-full p-3 shadow-lg shadow-green-500/30"
+                      >
+                        <Check size={28} strokeWidth={3} />
+                      </motion.div>
+                    </motion.div>
+                  )}
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
                       <h4 className="font-semibold text-sm leading-tight mb-1">{product.name}</h4>
@@ -232,10 +250,10 @@ export default function Products() {
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={() => handleOpenVariationModal(product)}
-                          className={`m3-button-filled w-full !py-2 text-xs flex items-center justify-center gap-2 font-bold ${addedProductId === product.id ? '!bg-green-600' : ''}`}
+                          className={`m3-button-filled w-full !py-2 text-xs flex items-center justify-center gap-2 font-bold ${isAdded ? '!bg-green-600' : ''}`}
                         >
-                         {addedProductId === product.id ? <Check size={14} /> : <ShoppingCart size={14} />}
-                          {addedProductId === product.id ? 'Agregado' : (hasVariations ? 'Seleccionar...' : 'Agregar')}
+                         {isAdded ? <Check size={14} /> : <ShoppingCart size={14} />}
+                          {isAdded ? 'Agregado' : (hasVariations ? 'Seleccionar...' : 'Agregar')}
                         </motion.button>
                       )}
                     </div>
