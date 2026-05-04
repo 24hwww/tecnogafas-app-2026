@@ -146,6 +146,9 @@ export const apiService = {
       email: c.user_email || '',
       phone: c.billing_phone || '',
       address: c.billing_address_1 || '',
+      billing_city: c.billing_city || '',
+      billing_state: c.billing_state || '',
+      cuit: c.info_fiscal || '',
     }));
   },
 
@@ -464,7 +467,10 @@ export const apiService = {
         first_name: firstName,
         last_name: lastName,
         billing_phone: client.phone || '',
-        billing_address: client.address || ''
+        billing_address: client.address || '',
+        billing_city: client.billing_city || '',
+        billing_state: client.billing_state || '',
+        cuit: client.cuit || ''
       })
     });
     return res.ok;

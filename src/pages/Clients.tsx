@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../AppContext';
-import { UserPlus, Phone, MapPin, Check, Search, Edit2, X, RefreshCw } from 'lucide-react';
+import { UserPlus, Phone, MapPin, Check, Search, Edit2, X, RefreshCw, Building2, MapPinned, IdCard } from 'lucide-react';
 import { Client } from '../types';
 import { apiService } from '../services/apiService';
 import { motion, AnimatePresence } from 'motion/react';
@@ -59,7 +59,7 @@ export default function Clients() {
           <h2 id="clients-title" className="text-2xl font-bold">Clientes</h2>
           <button
             id="clients-add-btn"
-            onClick={() => { setEditingClient({ name: '', email: '', phone: '', address: '' }); setIsModalOpen(true); }}
+            onClick={() => { setEditingClient({ name: '', email: '', phone: '', address: '', billing_city: '', billing_state: '', cuit: '' }); setIsModalOpen(true); }}
             className="p-2 text-primary hover:bg-surface-variant transition-colors rounded-full"
           >
             <UserPlus size={24} />
@@ -207,6 +207,65 @@ export default function Clients() {
                         onChange={e => setEditingClient(prev => ({ ...prev, address: e.target.value }))}
                       />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[0.625rem] font-bold uppercase text-outline flex items-center gap-1">
+                        <Building2 size={12} /> Localidad
+                      </label>
+                      <input 
+                        className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none"
+                        value={editingClient?.billing_city || ''}
+                        onChange={e => setEditingClient(prev => ({ ...prev, billing_city: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[0.625rem] font-bold uppercase text-outline flex items-center gap-1">
+                        <MapPinned size={12} /> Provincia
+                      </label>
+                      <select 
+                        className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none appearance-none"
+                        value={editingClient?.billing_state || ''}
+                        onChange={e => setEditingClient(prev => ({ ...prev, billing_state: e.target.value }))}
+                      >
+                        <option value="">Seleccionar provincia</option>
+                        <option value="Buenos Aires">Buenos Aires</option>
+                        <option value="Ciudad Autónoma de Buenos Aires">Ciudad Autónoma de Buenos Aires</option>
+                        <option value="Catamarca">Catamarca</option>
+                        <option value="Chaco">Chaco</option>
+                        <option value="Chubut">Chubut</option>
+                        <option value="Córdoba">Córdoba</option>
+                        <option value="Corrientes">Corrientes</option>
+                        <option value="Entre Ríos">Entre Ríos</option>
+                        <option value="Formosa">Formosa</option>
+                        <option value="Jujuy">Jujuy</option>
+                        <option value="La Pampa">La Pampa</option>
+                        <option value="La Rioja">La Rioja</option>
+                        <option value="Mendoza">Mendoza</option>
+                        <option value="Misiones">Misiones</option>
+                        <option value="Neuquén">Neuquén</option>
+                        <option value="Río Negro">Río Negro</option>
+                        <option value="Salta">Salta</option>
+                        <option value="San Juan">San Juan</option>
+                        <option value="San Luis">San Luis</option>
+                        <option value="Santa Cruz">Santa Cruz</option>
+                        <option value="Santa Fe">Santa Fe</option>
+                        <option value="Santiago del Estero">Santiago del Estero</option>
+                        <option value="Tierra del Fuego, Antártida e Islas del Atlántico Sur">Tierra del Fuego</option>
+                        <option value="Tucumán">Tucumán</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[0.625rem] font-bold uppercase text-outline flex items-center gap-1">
+                      <IdCard size={12} /> CUIT
+                    </label>
+                    <input 
+                      className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none"
+                      value={editingClient?.cuit || ''}
+                      onChange={e => setEditingClient(prev => ({ ...prev, cuit: e.target.value }))}
+                      placeholder="XX-XXXXXXXX-X"
+                    />
                   </div>
                   <button 
                     type="submit" 

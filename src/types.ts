@@ -12,6 +12,9 @@ export interface ApiClient {
   user_email: string;
   billing_phone: string | null;
   billing_address_1: string | null;
+  billing_city?: string | null;
+  billing_state?: string | null;
+  info_fiscal?: string | null;
 }
 
 export interface ApiOrder {
@@ -80,6 +83,9 @@ export interface Client {
   phone: string;
   address: string;
   prescription?: string;
+  billing_city?: string;
+  billing_state?: string;
+  cuit?: string;
 }
 
 export interface OrderItem {
