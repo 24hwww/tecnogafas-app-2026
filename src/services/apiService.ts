@@ -467,10 +467,10 @@ export const apiService = {
         first_name: firstName,
         last_name: lastName,
         billing_phone: client.phone || '',
-        billing_address: client.address || '',
+        billing_address_1: client.address || '',
         billing_city: client.billing_city || '',
         billing_state: client.billing_state || '',
-        cuit: client.cuit || ''
+        info_fiscal: client.cuit || ''
       })
     });
     return res.ok;
