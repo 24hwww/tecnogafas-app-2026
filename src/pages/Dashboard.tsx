@@ -160,7 +160,7 @@ export default function Dashboard() {
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-bold text-sm text-primary">{formatCurrency(order.total || 0)}</p>
-                  <p className="text-[0.6rem] font-bold uppercase tracking-wider text-success">Confirmado</p>
+                  <p className="text-[0.6rem] font-bold uppercase tracking-wider text-success">Guardado</p>
                 </div>
               </div>
             ))
