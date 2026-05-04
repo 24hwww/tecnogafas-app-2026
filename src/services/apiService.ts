@@ -288,6 +288,50 @@ export const apiService = {
     }
   },
 
+  // Nuevo endpoint combinado: eventos + unread count en una sola llamada
+  async syncEvents(sellerId: string, lastId?: number, type?: string): Promise<{ events: ApiEvent[]; unread: number; lastId: number } | null> {
+    const url = new URL(`${BASE_URL}/events/sync`, window.location.origin);
+    
+    const headers: Record<string, string> = { 
+      'Content-Type': 'application/json', 
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${sellerId}`
+    };
+    
+    const body: Record<string, string | number> = { limit: 50 };
+    if (lastId !== undefined) body.last_id = lastId;
+    if (type) body.type = type;
+
+    console.log('📡 Syncing events (combined):', { lastId, type });
+
+    try {
+      const res = await customFetch(url.toString(), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+      });
+      
+      if (!res.ok) {
+        console.warn('⚠️ Events sync error:', res.status);
+        return null;
+      }
+      
+      const json = await res.json();
+      if (!json.success) return null;
+      
+      console.log('📡 Synced events:', { count: json.events?.length, unread: json.unread, lastId: json.last_id });
+      
+      return {
+        events: json.events || [],
+        unread: json.unread || 0,
+        lastId: json.last_id || lastId || 0
+      };
+    } catch (e) {
+      console.error('❌ Error in syncEvents:', e);
+      return null;
+    }
+  },
+
   extractEvents(json: Record<string, unknown>): ApiEvent[] {
     // Robust extraction: handle { events: [] }, { data: [] }, { data: { events: [] } }, etc.
     let list: unknown = json.events || json.notifications || json.data || [];

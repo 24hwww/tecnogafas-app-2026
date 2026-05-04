@@ -135,9 +135,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await fetchNotifications();
   }, [globalPin, currentSeller, notifications, fetchNotifications]);
 
-  // Track shown notification IDs to prevent duplicates
+  const MAX_SHOWN_NOTIFICATIONS = 100; // Limitar para evitar memory leak
+
+  // Track shown notification IDs to prevent duplicates (FIFO - solo mantiene últimos 100)
   const markNotificationAsShown = useCallback((id: number) => {
-    setShownNotificationIds(prev => new Set(prev).add(id));
+    setShownNotificationIds(prev => {
+      const newSet = new Set(prev);
+      newSet.add(id);
+      // Si excede el límite, eliminar los más antiguos (FIFO)
+      if (newSet.size > MAX_SHOWN_NOTIFICATIONS) {
+        const iterator = newSet.values();
+        const toDelete = [];
+        for (let i = 0; i < newSet.size - MAX_SHOWN_NOTIFICATIONS; i++) {
+          const value = iterator.next().value;
+          if (value !== undefined) toDelete.push(value);
+        }
+        toDelete.forEach(v => newSet.delete(v));
+      }
+      return newSet;
+    });
   }, []);
 
   const hasNotificationBeenShown = useCallback((id: number) => {
@@ -416,37 +432,75 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const lastId = localStorage.getItem('tecnogafas_last_event_id') || '';
           const url = new URL('https://api.tecnogafas.com.ar/events/stream');
           if (lastId) url.searchParams.set('last_id', lastId);
-          eventSource = new EventSource(url.toString());
-          eventSource.onopen = () => syncAll();
-          eventSource.onmessage = (event) => {
-             if (event.lastEventId) localStorage.setItem('tecnogafas_last_event_id', event.lastEventId);
-             try {
-                const data = JSON.parse(event.data);
-                const eventType = data.type || event.type;
-                const eventUserId = data.user_id;
-                const currentUserId = seller ? parseInt(seller.id, 10) : null;
-
-                // Filter: only process events for current user (0 = broadcast to all)
-                const isForCurrentUser = eventUserId === 0 || eventUserId === currentUserId;
-
-                if ((eventType === 'order' || eventType === 'sync') && isForCurrentUser) syncAll();
-                if ((eventType === 'notification' || eventType === 'message') && isForCurrentUser) {
-                  const eventId = data.id;
-                  // Skip if already shown
-                  if (eventId && hasNotificationBeenShown(eventId)) {
-                    console.log('🔕 SSE event already shown, skipping:', eventId);
-                  } else {
-                    if (eventId) markNotificationAsShown(eventId);
-                    setUnreadNotifications(prev => prev + 1);
-                    setTimeout(fetchNotifications, 500);
+          
+          // Crear EventSource con headers personalizados usando fetch API
+          const connectSSE = () => {
+            const headers: Record<string, string> = {};
+            if (seller?.id) {
+              headers['Authorization'] = `Bearer ${seller.id}`;
+            }
+            if (lastId) {
+              headers['Last-Event-ID'] = lastId;
+            }
+            
+            // Usar EventSource nativo (no soporta headers custom)
+            // Pero enviamos seller_id como query param para filtrado server-side
+            url.searchParams.set('seller_id', seller.id);
+            
+            eventSource = new EventSource(url.toString());
+            
+            eventSource.onopen = () => {
+              console.log('✅ SSE connected');
+              syncAll();
+            };
+            
+            eventSource.onmessage = (event) => {
+               if (event.lastEventId) {
+                 localStorage.setItem('tecnogafas_last_event_id', event.lastEventId);
+               }
+               try {
+                  const data = JSON.parse(event.data);
+                  const eventType = data.type || event.type;
+                  
+                  // Server now filters by user_id, no need for client-side filtering
+                  if (eventType === 'order' || eventType === 'sync') {
+                    syncAll();
                   }
+                  if (eventType === 'notification' || eventType === 'message') {
+                    const eventId = data.id;
+                    // Skip if already shown (deduplication)
+                    if (eventId && hasNotificationBeenShown(eventId)) {
+                      console.log('🔕 SSE event already shown, skipping:', eventId);
+                    } else {
+                      if (eventId) markNotificationAsShown(eventId);
+                      setUnreadNotifications(prev => prev + 1);
+                      // Delay fetch to batch multiple rapid events
+                      setTimeout(fetchNotifications, 300);
+                    }
+                  }
+               } catch (e) {
+                 console.error('Error parsing SSE data:', e);
+               }
+            };
+            
+            eventSource.onerror = (err) => {
+              console.error('❌ SSE error:', err);
+              // Reconectar con backoff exponencial
+              setTimeout(() => {
+                if (globalPin && isOnline) {
+                  connectSSE();
                 }
-             } catch (e) {}
+              }, 5000);
+            };
           };
+          
+          connectSSE();
         }
       });
     }
-    return () => eventSource?.close();
+    return () => {
+      eventSource?.close();
+    };
   }, [globalPin, isOnline, syncAll, fetchNotifications, hasNotificationBeenShown, markNotificationAsShown]);
 
   return (

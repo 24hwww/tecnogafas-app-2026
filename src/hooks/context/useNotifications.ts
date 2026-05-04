@@ -8,13 +8,23 @@ export function useNotifications(globalPin: string | null, currentSeller: Seller
     if (!globalPin || !currentSeller) return;
     try {
       console.log('📡 Syncing notifications from server...');
-      const data = await apiService.getEvents(undefined, globalPin);
-      // Filter: only show events for current user (0 = broadcast to all)
-      const currentUserId = parseInt(currentSeller.id, 10);
-      const filtered = data.filter((n: any) => n.user_id === 0 || n.user_id === currentUserId);
-      setNotifications(filtered);
-      const unread = await apiService.getUnreadCount(globalPin);
-      setUnreadNotifications(unread);
+      
+      // Usar endpoint combinado: eventos + unread en una sola llamada
+      const result = await apiService.syncEvents(globalPin);
+      
+      if (result) {
+        // Server already filters by user_id (broadcast + personal)
+        setNotifications(result.events);
+        setUnreadNotifications(result.unread);
+      } else {
+        // Fallback a método antiguo si el nuevo falla
+        const data = await apiService.getEvents(undefined, globalPin);
+        const currentUserId = parseInt(currentSeller.id, 10);
+        const filtered = data.filter((n: any) => n.user_id === 0 || n.user_id === currentUserId);
+        setNotifications(filtered);
+        const unread = await apiService.getUnreadCount(globalPin);
+        setUnreadNotifications(unread);
+      }
     } catch (e) {
       console.warn('Notification sync paused:', e instanceof Error ? e.message : String(e));
     }
