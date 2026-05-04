@@ -1,6 +1,6 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { House, Package, Users, ClipboardList, ShoppingCart, Menu, X, Bell, Settings, Loader2, RefreshCw } from 'lucide-react';
+import { House, Package, Users, ClipboardList, ShoppingCart, Menu, X, Bell, Settings, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useApp } from '../AppContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -20,28 +20,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showNotificationBullet, setShowNotificationBullet] = useState(false);
-
-  // Trigger temporary bullet for 1 second when unreadNotifications changes
-  useEffect(() => {
-    if (unreadNotifications > 0) {
-      setShowNotificationBullet(true);
-      const timer = setTimeout(() => setShowNotificationBullet(false), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [unreadNotifications]);
-
-  // Reset bullet when entering notifications page
-  useEffect(() => {
-    if (location.pathname === '/notificaciones') {
-      setShowNotificationBullet(false);
-    }
-  }, [location.pathname]);
-
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
-
-  const isHome = location.pathname === '/';
 
   const [versions, setVersions] = useState({ app: 'Cargando...', api: 'Cargando...' });
 
@@ -197,16 +177,6 @@ export function Layout({ children }: { children: ReactNode }) {
                 <span className="absolute top-1 right-1 bg-primary text-on-primary text-[0.65rem] w-5 h-5 flex items-center justify-center font-bold rounded-full border-2 border-surface">
                   {cart.reduce((a, b) => a + b.quantity, 0)}
                 </span>
-              )}
-            </button>
-            <button 
-              id="toolbar-notifications-btn"
-              onClick={() => navigate('/notificaciones')}
-              className="relative p-2.5 hover:bg-surface-variant rounded-full text-on-surface-variant transition-all active:scale-95"
-            >
-              <Bell size={22} className={showNotificationBullet ? 'text-primary scale-110' : ''} />
-              {showNotificationBullet && (
-                <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-error rounded-full border-2 border-surface animate-pulse" />
               )}
             </button>
             <button onClick={toggleSidebar} className="p-2.5 hover:bg-surface-variant rounded-full text-on-surface-variant transition-colors">
