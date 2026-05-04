@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { get } from 'idb-keyval';
 import { useApp } from '../AppContext';
-import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity, Zap, Download, Smartphone } from 'lucide-react';
+import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity, Zap, Download, Smartphone, AlertTriangle, Mail, Trash2 } from 'lucide-react';
 import { formatCurrency, getRelativeTime, formatTimeBA, cn } from '../lib/utils';
 import { Skeleton } from '../components/Skeleton';
 
 export default function Dashboard() {
-  const { products, clients, grandTotalOrders, dashboardOrders, sellers, refreshData, forceRefresh, clearAllCaches, isLoading, appVersionInfo } = useApp();
+  const { products, clients, grandTotalOrders, dashboardOrders, sellers, refreshData, forceRefresh, clearAllCaches, isLoading, appVersionInfo, drafts } = useApp();
   const navigate = useNavigate();
   const [hasCache, setHasCache] = useState(false);
+  const [showDraftsModal, setShowDraftsModal] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   useEffect(() => {
     const checkCache = async () => {
@@ -55,6 +57,12 @@ export default function Dashboard() {
           <button
             id="dashboard-force-refresh-btn"
             onClick={async () => {
+              // Verificar si hay borradores pendientes
+              const pendingDrafts = drafts.filter(d => d.status === 'no enviado');
+              if (pendingDrafts.length > 0) {
+                setShowDraftsModal(true);
+                return;
+              }
               await clearAllCaches();
               setHasCache(false);
             }}
@@ -177,6 +185,64 @@ export default function Dashboard() {
                 <Download size={16} />
                 Descargar APK
               </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para borradores */}
+      {showDraftsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="m3-card max-w-md w-full animate-in fade-in zoom-in duration-200">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mx-auto">
+                <AlertTriangle size={32} className="text-error" />
+              </div>
+              
+              <h3 className="text-xl font-bold text-on-surface">
+                Pedidos en Borrador
+              </h3>
+              
+              <p className="text-body text-on-surface-variant">
+                Tienes <strong>{drafts.filter(d => d.status === 'no enviado').length} pedido(s)</strong> en borrador que aún no han sido enviados.
+              </p>
+              
+              <p className="text-sm text-on-surface-variant/70">
+                Si limpias el caché, estos pedidos se perderán permanentemente.
+              </p>
+
+              <div className="flex flex-col gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    setShowDraftsModal(false);
+                    navigate('/pedidos', { state: { highlightDrafts: true } });
+                  }}
+                  className="m3-button-filled w-full flex items-center justify-center gap-2"
+                >
+                  <Mail size={18} />
+                  Ir a Pedidos para Enviar
+                </button>
+                
+                <button
+                  onClick={async () => {
+                    setShowDraftsModal(false);
+                    await clearAllCaches();
+                    setHasCache(false);
+                  }}
+                  disabled={isSendingEmail}
+                  className="m3-button-outlined w-full flex items-center justify-center gap-2 text-error border-error/30 hover:bg-error/5"
+                >
+                  <Trash2 size={18} />
+                  Limpiar de Todos Modos
+                </button>
+                
+                <button
+                  onClick={() => setShowDraftsModal(false)}
+                  className="text-sm font-medium text-on-surface-variant hover:text-on-surface py-2"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           </div>
         </div>

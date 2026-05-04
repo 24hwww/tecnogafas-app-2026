@@ -212,7 +212,7 @@ export default function Products() {
                       <h4 className="font-semibold text-sm leading-tight mb-1">{product.name}</h4>
                       <div className="flex flex-col gap-0.5 mb-2">
                         <span className="text-[0.625rem] text-yellow-500 font-bold">Stock: {product.stock}</span>
-                        <span className="font-bold text-lg text-black">{formatCurrency(product.price)}</span>
+                        <span className="font-bold text-lg text-on-surface">{formatCurrency(product.price)}</span>
                       </div>
                     </div>
                     <div className="mt-1">
