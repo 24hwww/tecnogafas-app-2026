@@ -188,7 +188,9 @@ export default function Checkout() {
             emailMessage = 'El pedido se creó pero hubo un error al enviar el comprobante por correo.';
           }
 
-          // Step 3: Broadcast event to all users about the new order
+          // Step 3: Broadcast event to all users about the new order (DISABLED)
+          // Notificaciones al crear pedido desactivadas para reducir spam
+          /*
           try {
             console.log("📢 Broadcasting order event to all users...");
             await apiService.createEvent({
@@ -209,6 +211,7 @@ export default function Checkout() {
             console.error("Error broadcasting order event:", eventErr);
             // Non-critical: don't fail the order if event creation fails
           }
+          */
         }
 
         setLastOrder({ 
