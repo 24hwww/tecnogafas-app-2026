@@ -1,0 +1,44 @@
+# Configuración para Netlify (usado como fallback, despliegue principal en Vercel)
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+# SPA redirect - fallback a index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Excluir archivos estáticos del redirect
+[[redirects]]
+  from = "/manifest.json"
+  to = "/manifest.json"
+  status = 200
+
+[[redirects]]
+  from = "/sw.js"
+  to = "/sw.js"
+  status = 200
+
+[[redirects]]
+  from = "/assets/*"
+  to = "/assets/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/icon-*"
+  to = "/icon-512.png"
+  status = 200
+
+# Headers para archivos específicos
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Content-Type = "application/json"
+    Access-Control-Allow-Origin = "*"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+    Service-Worker-Allowed = "/"

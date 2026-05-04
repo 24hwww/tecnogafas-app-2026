@@ -1,1 +1,10 @@
-/*    /index.html   200
+# Archivos estáticos - servir directamente
+/manifest.json    /manifest.json   200
+/manifest.webmanifest    /manifest.webmanifest   200
+/sw.js            /sw.js           200
+/offline.html     /offline.html    200
+/icon-*.png       /icon-512.png    200
+/assets/*         /assets/:splat   200
+
+# SPA catch-all - debe ir al final
+/*                /index.html      200

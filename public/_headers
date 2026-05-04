@@ -1,0 +1,21 @@
+# Headers para archivos específicos
+/manifest.json
+  Content-Type: application/json
+  Access-Control-Allow-Origin: *
+
+/manifest.webmanifest
+  Content-Type: application/manifest+json
+  Access-Control-Allow-Origin: *
+
+/sw.js
+  Content-Type: application/javascript
+  Service-Worker-Allowed: /
+
+# Headers globales para assets estáticos
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Seguridad básica
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
