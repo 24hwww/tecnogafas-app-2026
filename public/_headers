@@ -1,3 +1,9 @@
+# Headers para proxy API (CORS)
+/api/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+  Access-Control-Allow-Headers: Authorization, Content-Type, Accept
+
 # Headers para archivos específicos
 /manifest.json
   Content-Type: application/json

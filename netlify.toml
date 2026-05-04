@@ -3,13 +3,14 @@
   publish = "dist"
   command = "npm run build"
 
-# SPA redirect - fallback a index.html
+# Proxy API - debe ir PRIMERO (más específico)
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/api/*"
+  to = "https://api.tecnogafas.com.ar/:splat"
   status = 200
+  force = true
 
-# Excluir archivos estáticos del redirect
+# Excluir archivos estáticos del redirect SPA
 [[redirects]]
   from = "/manifest.json"
   to = "/manifest.json"
@@ -29,6 +30,20 @@
   from = "/icon-*"
   to = "/icon-512.png"
   status = 200
+
+# SPA catch-all - debe ir al FINAL
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers para proxy API (CORS)
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Authorization, Content-Type, Accept"
 
 # Headers para archivos específicos
 [[headers]]

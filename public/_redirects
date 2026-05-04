@@ -1,3 +1,6 @@
+# Proxy API con CORS headers
+/api/*            https://api.tecnogafas.com.ar/:splat   200  Access-Control-Allow-Origin=* Access-Control-Allow-Methods=GET,POST,PUT,DELETE,OPTIONS Access-Control-Allow-Headers=Authorization,Content-Type,Accept
+
 # Archivos estáticos - servir directamente
 /manifest.json    /manifest.json   200
 /manifest.webmanifest    /manifest.webmanifest   200
