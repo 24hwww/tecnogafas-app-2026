@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useApp } from '../AppContext';
-import { Package, Clock, CheckCircle2, ChevronRight, Save, Send, X, FileText, Mail, Share2, Loader2, RotateCcw } from 'lucide-react';
+import { Package, Clock, CheckCircle2, ChevronRight, Save, Send, X, FileText, Mail, Share2, Loader2, RotateCcw, RefreshCw } from 'lucide-react';
 import { formatCurrency, formatTimeBA, getRelativeTime, formatDateTimeBA } from '../lib/utils';
 import { OrderSkeleton } from '../components/Skeleton';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -313,6 +313,15 @@ export default function Orders() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 id="orders-title" className="text-2xl font-bold">Pedidos</h2>
+            <button
+              id="orders-sync-btn"
+              onClick={() => fetchOrders(1, 100, selectedSeller ? parseInt(selectedSeller) : undefined, selectedCustomer ? parseInt(selectedCustomer) : undefined)}
+              disabled={isLoading}
+              className={`p-2.5 hover:bg-surface-variant rounded-full transition-all ${isLoading ? 'animate-spin' : ''}`}
+              title="Sincronizar pedidos"
+            >
+              <RefreshCw size={20} className="text-primary" />
+            </button>
           </div>
           
           <div className="flex flex-col gap-3">

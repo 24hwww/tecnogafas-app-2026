@@ -3,15 +3,22 @@ import { apiService } from '../../services/apiService';
 
 import { Seller } from '../../types';
 
-export function useNotifications(globalPin: string | null, currentSeller: Seller | null, setNotifications: (n: any[]) => void, setUnreadNotifications: (c: number) => void) {
+// Events/notificaciones desactivadas temporalmente junto con SSE
+export function useNotifications(_globalPin: string | null, _currentSeller: Seller | null, setNotifications: (n: any[]) => void, setUnreadNotifications: (c: number) => void) {
+  // Desactivado temporalmente
   const fetchNotifications = useCallback(async () => {
+    console.log('🔕 fetchNotifications desactivado (events API)');
+    setNotifications([]);
+    setUnreadNotifications(0);
+    return;
+    /* Código comentado temporalmente:
     if (!globalPin || !currentSeller) return;
     try {
       console.log('📡 Syncing notifications from server...');
-      
+
       // Usar endpoint combinado: eventos + unread en una sola llamada
       const result = await apiService.syncEvents(globalPin);
-      
+
       if (result) {
         // Server already filters by user_id (broadcast + personal)
         setNotifications(result.events);
@@ -28,9 +35,14 @@ export function useNotifications(globalPin: string | null, currentSeller: Seller
     } catch (e) {
       console.warn('Notification sync paused:', e instanceof Error ? e.message : String(e));
     }
-  }, [globalPin, currentSeller, setNotifications, setUnreadNotifications]);
+    */
+  }, [setNotifications, setUnreadNotifications]);
 
-  const sendNotification = useCallback(async (toUserId: number, content: string, type: 'message' | 'notification' = 'notification', currentSellerId?: string, currentSellerName?: string) => {
+  // Desactivado temporalmente
+  const sendNotification = useCallback(async (_toUserId: number, _content: string, _type: 'message' | 'notification' = 'notification', _currentSellerId?: string, _currentSellerName?: string) => {
+    console.log('🔕 sendNotification desactivado (events API)');
+    return false;
+    /* Código comentado temporalmente:
     if (!globalPin || !currentSellerId) {
         console.error('Missing globalPin or currentSellerId');
         return false;
@@ -48,9 +60,9 @@ export function useNotifications(globalPin: string | null, currentSeller: Seller
       user_id: userId === 0 ? senderId : userId,
       type: type,
       from_id: senderId,
-      content: { 
-        title: type === 'message' ? `Mensaje de ${currentSellerName || 'Vendedor'}` : 'Notificación de TecnoGafas',
-        body: content 
+      content: {
+        title: type === 'message' ? `Mensaje de ${currentSellerName || 'Vendedor'}` : 'Notificacón de TecnoGafas',
+        body: content
       },
       read: 0
     };
@@ -62,7 +74,8 @@ export function useNotifications(globalPin: string | null, currentSeller: Seller
       console.error('Error sending notification', e);
       return false;
     }
-  }, [globalPin]);
+    */
+  }, []);
 
   return { fetchNotifications, sendNotification };
 }

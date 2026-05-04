@@ -243,11 +243,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return hour >= 6 && hour < 18 ? 'light' : 'dark';
   }, []);
 
-  const updateTheme = useCallback((newTheme: 'light' | 'dark') => {
+  const updateTheme = useCallback((newTheme: 'light' | 'dark', isManual = true) => {
     setTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('tecnogafas_theme', newTheme);
+    // Si es cambio manual, marcar para desactivar auto-theme
+    if (isManual) {
+      localStorage.setItem('tecnogafas_theme_manual', 'true');
+    }
   }, []);
+
+  // Función para volver al modo automático (opcional, para futuro toggle)
+  const resetThemeToAuto = useCallback(() => {
+    localStorage.removeItem('tecnogafas_theme_manual');
+    const autoTheme = detectBuenosAiresTheme();
+    setTheme(autoTheme);
+    document.documentElement.setAttribute('data-theme', autoTheme);
+    // No guardamos en localStorage para que la próxima vez detecte automáticamente
+  }, [detectBuenosAiresTheme]);
 
   const updateGlobalPin = (pin: string | null) => {
     setGlobalPin(pin);
@@ -334,13 +347,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const savedFontSize = localStorage.getItem('tecnogafas_fontSize');
       if (savedFontSize) setFontSize(savedFontSize);
 
-      // Inicializar tema: usar localStorage si existe, o detectar según hora Buenos Aires
+      // Inicializar tema: verificar si fue seteado manualmente
       const savedTheme = localStorage.getItem('tecnogafas_theme') as 'light' | 'dark' | null;
-      if (savedTheme) {
-        updateTheme(savedTheme);
-      } else {
+      const isManual = localStorage.getItem('tecnogafas_theme_manual') === 'true';
+      
+      if (savedTheme && isManual) {
+        // Usuario eligió manualmente - respetar su elección
+        setTheme(savedTheme);
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } else if (savedTheme && !isManual) {
+        // Había un tema guardado pero no fue manual (vieja lógica)
+        // Detectar automáticamente y actualizar
         const autoTheme = detectBuenosAiresTheme();
-        updateTheme(autoTheme);
+        setTheme(autoTheme);
+        document.documentElement.setAttribute('data-theme', autoTheme);
+        localStorage.setItem('tecnogafas_theme', autoTheme);
+      } else {
+        // Primera vez - detectar automáticamente
+        const autoTheme = detectBuenosAiresTheme();
+        setTheme(autoTheme);
+        document.documentElement.setAttribute('data-theme', autoTheme);
+        localStorage.setItem('tecnogafas_theme', autoTheme);
       }
 
       await refreshData(!hasCache);
@@ -355,20 +382,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [initializePushNotifications, globalPin, updateTheme, detectBuenosAiresTheme]);
 
+  // Events API desactivada temporalmente junto con SSE
   useEffect(() => {
+    console.log('🔕 Events API calls desactivadas (getUnreadCount, fetchNotifications)');
+    setUnreadNotifications(0);
+    setNotifications([]);
+    return;
+    /* Código comentado temporalmente:
     if (globalPin && isOnline) {
       apiService.getUnreadCount(globalPin).then(setUnreadNotifications);
       fetchNotifications();
     }
+    */
   }, [globalPin, isOnline, fetchNotifications]);
 
-  // Efecto para actualizar tema automáticamente cada minuto según hora Buenos Aires
+  // Efecto para actualizar tema automáticamente SOLO si no fue manual
   useEffect(() => {
+    // Verificar si el tema fue seteado manualmente
+    const isManual = localStorage.getItem('tecnogafas_theme_manual') === 'true';
+    if (isManual) {
+      // No actualizar automáticamente si el usuario eligió manualmente
+      return;
+    }
+
     const checkTheme = () => {
       const autoTheme = detectBuenosAiresTheme();
       const currentTheme = document.documentElement.getAttribute('data-theme') as 'light' | 'dark';
       if (autoTheme !== currentTheme) {
-        updateTheme(autoTheme);
+        setTheme(autoTheme);
+        document.documentElement.setAttribute('data-theme', autoTheme);
+        localStorage.setItem('tecnogafas_theme', autoTheme);
       }
     };
 
@@ -377,7 +420,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const interval = setInterval(checkTheme, 60000);
 
     return () => clearInterval(interval);
-  }, [detectBuenosAiresTheme, updateTheme]);
+  }, [detectBuenosAiresTheme]);
 
   const addToCart = (product: Product, quantity: number) => {
     setCart(prev => {
