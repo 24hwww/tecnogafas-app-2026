@@ -15,7 +15,7 @@ export function useCacheManager(refreshData: (showLoading?: boolean) => Promise<
       await refreshData(false);
       if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations();
-        for (let registration of registrations) {
+        for (const registration of registrations) {
           registration.update();
         }
       }
@@ -28,25 +28,43 @@ export function useCacheManager(refreshData: (showLoading?: boolean) => Promise<
 
   const clearAllCaches = useCallback(async () => {
     try {
+      // 1. Limpiar IndexedDB (idb-keyval)
       const keysToClear = [
-        'tecnogafas_products', 
-        'tecnogafas_clients', 
-        'tecnogafas_orders', 
+        'tecnogafas_products',
+        'tecnogafas_clients',
+        'tecnogafas_orders',
         'tecnogafas_sellers',
         'tecnogafas_drafts'
       ];
       await Promise.all(keysToClear.map(key => del(key)));
-      
-      localStorage.removeItem('tecnogafas_pin');
-      localStorage.removeItem('tecnogafas_primaryColor');
-      localStorage.removeItem('tecnogafas_fontSize');
-      localStorage.removeItem('tecnogafas_last_event_id');
-      
+
+      // 2. Limpiar TODO el localStorage de la app
+      localStorage.clear();
+
+      // 3. Limpiar sessionStorage
+      sessionStorage.clear();
+
+      // 4. Limpiar cachés del service worker
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_ALL_CACHES' });
       }
-      
+
+      // 5. Limpiar todas las bases de datos de IndexedDB
       await indexedDB.deleteDatabase('tecnogafas-sync');
+      await indexedDB.deleteDatabase('keyval-store'); // idb-keyval default store
+
+      // 6. Limpiar Cache API del navegador
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+      }
+
+      // 7. Unregister service workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(reg => reg.unregister()));
+      }
+
       window.location.reload();
     } catch (error) {
       console.error('Error clearing caches:', error);
