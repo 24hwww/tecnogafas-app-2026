@@ -421,7 +421,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await set('tecnogafas_drafts', updatedDrafts);
   };
 
+  // SSE desactivado temporalmente por problemas de conexión
   useEffect(() => {
+    console.log('🔕 SSE desactivado');
+    return;
+    // Código SSE comentado temporalmente:
+    /*
     let eventSource: EventSource | null = null;
     console.log("DEBUG: globalPin en SSE init:", globalPin);
 
@@ -501,6 +506,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       eventSource?.close();
     };
+    */
   }, [globalPin, isOnline, syncAll, fetchNotifications, hasNotificationBeenShown, markNotificationAsShown]);
 
   return (
