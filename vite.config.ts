@@ -21,7 +21,7 @@ export default defineConfig(({mode}) => {
           navigateFallback: 'index.html',
         },
         injectManifest: {
-          injectionPoint: undefined
+          // Habilita la inyección automática del manifest de precache
         }
       })
     ],

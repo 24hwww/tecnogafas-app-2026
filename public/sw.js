@@ -1,129 +1,361 @@
-// Public Service Worker
-importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
+// Tecnogafas Service Worker
+// Optimizado para React + Vite PWA (2026)
 
-const CACHE_NAME = 'tecnogafas-v2';
-const CACHE = "pwabuilder-page";
+// Placeholder para inyección de manifest de precache por vite-plugin-pwa
+self.__WB_MANIFEST;
+
+const CACHE_NAME = 'tecnogafas-v3';
+const STATIC_CACHE = [
+  '/',
+  '/offline.html',
+  '/icon-512.png'
+];
+
 const DB_NAME = 'tecnogafas-sync';
-const offlineFallbackPage = "offline.html";
+const API_URL = 'https://api.tecnogafas.com.ar';
+
+// ======================
+// INSTALL
+// ======================
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(STATIC_CACHE);
+    })
+  );
+});
+
+// ======================
+// ACTIVATE
+// ======================
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      // Eliminar caches viejos
+      const cacheNames = await caches.keys();
+
+      await Promise.all(
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME) {
+            return caches.delete(cache);
+          }
+        })
+      );
+
+      await self.clients.claim();
+    })()
+  );
+});
+
+// ======================
+// FETCH
+// ======================
+
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+
+  // Solo GET
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+
+  // No cachear API
+  if (url.origin.includes('api.tecnogafas.com.ar')) {
+    return;
+  }
+
+  // No cachear Vite chunks dinámicamente
+  const isViteAsset =
+    url.pathname.includes('/assets/') ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css');
+
+  if (isViteAsset) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  // Imágenes y recursos estáticos
+  const isStaticAsset =
+    url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.jpg') ||
+    url.pathname.endsWith('.jpeg') ||
+    url.pathname.endsWith('.svg') ||
+    url.pathname.endsWith('.webp') ||
+    url.pathname.endsWith('.woff2');
+
+  if (isStaticAsset) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+
+  // Navegación HTML
+  if (request.mode === 'navigate') {
+    event.respondWith(pageNetworkFirst(request));
+    return;
+  }
+});
+
+// ======================
+// STRATEGIES
+// ======================
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(request);
+
+    if (response.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+
+    return response;
+  } catch (error) {
+    return caches.match('/offline.html');
+  }
+}
+
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+
+    return response;
+  } catch (error) {
+    const cached = await caches.match(request);
+
+    if (cached) return cached;
+
+    throw error;
+  }
+}
+
+async function pageNetworkFirst(request) {
+  try {
+    const response = await fetch(request);
+
+    // Guardar HTML actualizado
+    const cache = await caches.open(CACHE_NAME);
+    cache.put(request, response.clone());
+
+    return response;
+  } catch (error) {
+    const cached = await caches.match(request);
+
+    return cached || caches.match('/offline.html');
+  }
+}
+
+// ======================
+// INDEXED DB
+// ======================
 
 function getDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 2);
+
     request.onupgradeneeded = (e) => {
       const db = e.target.result;
+
       if (!db.objectStoreNames.contains('pending-orders')) {
-        db.createObjectStore('pending-orders', { keyPath: 'id' });
+        db.createObjectStore('pending-orders', {
+          keyPath: 'id'
+        });
       }
+
       if (!db.objectStoreNames.contains('config')) {
-        db.createObjectStore('config', { keyPath: 'key' });
+        db.createObjectStore('config', {
+          keyPath: 'key'
+        });
       }
     };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => reject(e.target.error);
+
+    request.onsuccess = () => resolve(request.result);
+
+    request.onerror = () => reject(request.error);
   });
 }
 
+// ======================
+// CONFIG
+// ======================
+
 async function savePin(pin) {
   const db = await getDB();
+
   const tx = db.transaction('config', 'readwrite');
-  tx.objectStore('config').put({ key: 'pin', value: pin });
+
+  tx.objectStore('config').put({
+    key: 'pin',
+    value: pin
+  });
 }
 
 async function getPin() {
   const db = await getDB();
-  return new Promise(resolve => {
-    const req = db.transaction('config', 'readonly').objectStore('config').get('pin');
-    req.onsuccess = () => resolve(req.result ? req.result.value : null);
+
+  return new Promise((resolve) => {
+    const req = db
+      .transaction('config', 'readonly')
+      .objectStore('config')
+      .get('pin');
+
+    req.onsuccess = () => {
+      resolve(req.result ? req.result.value : null);
+    };
+
+    req.onerror = () => resolve(null);
   });
 }
 
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  } else if (event.data && event.data.type === "CLEAR_ALL_CACHES") {
-    event.waitUntil(
-      caches.keys().then((cacheNames) => Promise.all(cacheNames.map(c => caches.delete(c))))
-        .then(() => indexedDB.deleteDatabase(DB_NAME))
-    );
-  } else if (event.data && event.data.type === 'START_POLLING') {
-    if (event.data.pin) savePin(event.data.pin);
-    startPolling();
-  } else if (event.data && event.data.type === 'APP_ACTIVE') {
-    stopPolling();
-  } else if (event.data && event.data.type === 'APP_INACTIVE') {
-    startPolling();
-  }
-});
+// ======================
+// OFFLINE SYNC
+// ======================
 
 async function syncOrders() {
   const db = await getDB();
+
   const tx = db.transaction('pending-orders', 'readwrite');
+
   const store = tx.objectStore('pending-orders');
-  
-  const pendingRequests = await new Promise((resolve) => {
+
+  const pendingOrders = await new Promise((resolve) => {
     const req = store.getAll();
-    req.onsuccess = () => resolve(req.result);
+
+    req.onsuccess = () => resolve(req.result || []);
   });
 
-  for (const req of pendingRequests) {
+  for (const order of pendingOrders) {
     try {
-      const response = await fetch(req.url, {
+      const response = await fetch(order.url, {
         method: 'POST',
-        headers: req.headers,
-        body: req.body
+        headers: order.headers,
+        body: order.body
       });
-      
+
       if (response.ok) {
-        store.delete(req.id);
+        store.delete(order.id);
       } else if (response.status >= 400 && response.status < 500) {
-        console.error('Client error, dropping request:', req.id);
-        store.delete(req.id);
+        // Error definitivo
+        store.delete(order.id);
       }
     } catch (error) {
-      console.error('Network error during sync, will retry:', req.id);
+      console.error('Sync failed:', error);
     }
   }
 }
 
-let pollingInterval = null;
+// ======================
+// BACKGROUND SYNC
+// ======================
 
-async function startPolling() {
-  if (pollingInterval) return;
-  const pin = await getPin();
-  if (!pin) return;
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-orders') {
+    event.waitUntil(syncOrders());
+  }
+});
 
-  pollingInterval = setInterval(async () => {
-    try {
-      const response = await fetch('https://api.tecnogafas.com.ar/events/unread', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pin}` }
-      });
+// ======================
+// PUSH NOTIFICATIONS
+// ======================
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.unread > 0) {
-          self.registration.showNotification('Tecnogafas', {
-            body: `Tienes ${data.unread} notificación(es) pendiente(s)`,
-            icon: '/icon.png',
-            tag: 'tecnogafas-events', // Tag único para sobrescribir
-            renotify: true
-          });
+self.addEventListener('push', (event) => {
+  let data = {};
+
+  try {
+    data = event.data.json();
+  } catch {
+    data = {
+      title: 'Tecnogafas',
+      body: event.data?.text() || 'Nueva notificación'
+    };
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(
+      data.title || 'Tecnogafas',
+      {
+        body: data.body,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag: data.tag || 'tecnogafas-notification',
+        renotify: true,
+        data: data.url || '/'
+      }
+    )
+  );
+});
+
+// ======================
+// NOTIFICATION CLICK
+// ======================
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const targetUrl = event.notification.data || '/';
+
+  event.waitUntil(
+    clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.navigate(targetUrl);
+          return client.focus();
         }
       }
-    } catch (e) { console.error('Polling error', e); }
-  }, 60000);
-}
 
-function stopPolling() {
-  if (pollingInterval) {
-    clearInterval(pollingInterval);
-    pollingInterval = null;
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
+// ======================
+// MESSAGES FROM APP
+// ======================
+
+self.addEventListener('message', (event) => {
+  const data = event.data;
+
+  if (!data) return;
+
+  switch (data.type) {
+    case 'SKIP_WAITING':
+      self.skipWaiting();
+      break;
+
+    case 'CLEAR_ALL_CACHES':
+      event.waitUntil(
+        (async () => {
+          const cacheNames = await caches.keys();
+
+          await Promise.all(
+            cacheNames.map((cache) => caches.delete(cache))
+          );
+
+          indexedDB.deleteDatabase(DB_NAME);
+        })()
+      );
+      break;
+
+    case 'SAVE_PIN':
+      if (data.pin) {
+        savePin(data.pin);
+      }
+      break;
+
+    default:
+      break;
   }
-}
-
-// Re-register existing listeners...
-self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE_NAME).then(c => c.add('/'))));
-self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
-self.addEventListener('sync', (e) => { if (e.tag === 'sync-orders') e.waitUntil(syncOrders()); });
-
-
+});
