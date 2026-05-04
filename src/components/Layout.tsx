@@ -16,7 +16,7 @@ const navItems = [
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { cart, unreadNotifications, isLoading, apiError, onlineUsersCount } = useApp();
+  const { cart, unreadNotifications, isLoading, apiError, onlineUsersCount, connectionStatus } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -164,6 +164,24 @@ export function Layout({ children }: { children: ReactNode }) {
             </h1>
           </div>
           <div className="flex items-center gap-1">
+            {/* Connection Status Indicator */}
+            {connectionStatus !== 'online' && (
+              <div 
+                title={connectionStatus === 'offline' ? 'Sin conexión - Datos en caché' : connectionStatus === 'error' ? 'Error de API - Usando caché' : 'Sincronizando...'}
+                className={`flex items-center gap-1.5 px-2 py-1 font-bold text-[0.65rem] rounded-full mr-2 ${
+                  connectionStatus === 'offline' ? 'bg-error/10 text-error' : 
+                  connectionStatus === 'error' ? 'bg-warning/10 text-warning' : 
+                  'bg-primary/10 text-primary'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  connectionStatus === 'offline' ? 'bg-error' : 
+                  connectionStatus === 'error' ? 'bg-warning' : 
+                  'bg-primary animate-pulse'
+                }`}></span>
+                <span>{connectionStatus === 'offline' ? 'Offline' : connectionStatus === 'error' ? 'Cache' : 'Sync'}</span>
+              </div>
+            )}
             {onlineUsersCount !== null && (
               <div title="Vendedores activos" className="flex items-center gap-1.5 px-3 py-1 bg-success/10 text-success font-bold text-[0.65rem] rounded-full mr-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span>

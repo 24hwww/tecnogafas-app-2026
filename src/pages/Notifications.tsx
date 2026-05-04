@@ -7,7 +7,7 @@ import { PinModal } from '../components/PinModal';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Notifications() {
-  const { globalPin, setGlobalPin, sellers, currentSeller, notifications, setNotifications, unreadNotifications, setUnreadNotifications, fetchNotifications, sendNotification } = useApp();
+  const { globalPin, setGlobalPin, sellers, currentSeller, notifications, setNotifications, unreadNotifications, setUnreadNotifications, fetchNotifications, sendNotification, markAllNotificationsAsRead } = useApp();
   
   const [showSendForm, setShowSendForm] = useState(false);
   const [targetUser, setTargetUser] = useState('');
@@ -34,13 +34,14 @@ export default function Notifications() {
   useEffect(() => {
     if (globalPin) {
       fetchNotifications();
+      // Mark all as read when entering the notifications page
       if (unreadNotifications > 0) {
-        setUnreadNotifications(0);
+        markAllNotificationsAsRead();
       }
     } else {
       setIsPinModalOpen(true);
     }
-  }, [globalPin, fetchNotifications, unreadNotifications, setUnreadNotifications]);
+  }, [globalPin, fetchNotifications, unreadNotifications, setUnreadNotifications, markAllNotificationsAsRead]);
 
   return (
     <div className="space-y-4 pb-20">

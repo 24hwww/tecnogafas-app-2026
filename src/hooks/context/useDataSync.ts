@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { apiService } from '../../services/apiService';
-import { set } from 'idb-keyval';
+import { set, get } from 'idb-keyval';
 import { Product, Client, Order, Seller } from '../../types';
 
 export function useDataSync(
@@ -15,10 +15,13 @@ export function useDataSync(
   setAppVersionInfo: (v: any) => void,
   setCurrentAppVersion: (v: string | null) => void,
   setHasNewVersion: (h: boolean) => void,
-  setIsLoading: (l: boolean) => void
+  setIsLoading: (l: boolean) => void,
+  setConnectionStatus?: (status: 'online' | 'offline' | 'syncing' | 'error') => void
 ) {
   const refreshData = useCallback(async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
+    setConnectionStatus?.('syncing');
+    
     try {
       const [p, c, o, s] = await Promise.all([
         apiService.getProducts(),
@@ -40,7 +43,7 @@ export function useDataSync(
       setDashboardOrders(sortedOrders.slice(0, 5));
       setSellers(s);
 
-
+      // Save to IndexedDB cache
       try {
         await set('tecnogafas_products', p);
         await set('tecnogafas_clients', c);
@@ -50,12 +53,37 @@ export function useDataSync(
       } catch (cacheError) {
         console.warn('Failed to save to local storage cache', cacheError);
       }
+      
+      setConnectionStatus?.('online');
     } catch (error) {
-      console.error('Failed to fetch data', error);
+      console.error('Failed to fetch data, using cached data if available', error);
+      setConnectionStatus?.('error');
+      
+      // Load from cache if API fails
+      try {
+        const cachedProducts = await get<Product[]>('tecnogafas_products');
+        const cachedClients = await get<Client[]>('tecnogafas_clients');
+        const cachedOrders = await get<Order[]>('tecnogafas_orders');
+        const cachedSellers = await get<Seller[]>('tecnogafas_sellers');
+        
+        if (cachedProducts) setProducts(cachedProducts);
+        if (cachedClients) setClients(cachedClients);
+        if (cachedOrders) {
+          setOrders(cachedOrders);
+          setTotalOrders(cachedOrders.length);
+          setGrandTotalOrders(cachedOrders.length);
+          setDashboardOrders(cachedOrders.slice(0, 5));
+        }
+        if (cachedSellers) setSellers(cachedSellers);
+        
+        console.log('📦 Loaded data from cache after API error');
+      } catch (cacheError) {
+        console.error('Failed to load from cache', cacheError);
+      }
     } finally {
       if (showLoading) setIsLoading(false);
     }
-  }, [globalPin, setProducts, setClients, setOrders, setTotalOrders, setGrandTotalOrders, setDashboardOrders, setSellers, setAppVersionInfo, setCurrentAppVersion, setHasNewVersion, setIsLoading]);
+  }, [globalPin, setProducts, setClients, setOrders, setTotalOrders, setGrandTotalOrders, setDashboardOrders, setSellers, setAppVersionInfo, setCurrentAppVersion, setHasNewVersion, setIsLoading, setConnectionStatus]);
 
   return { refreshData };
 }

@@ -48,11 +48,16 @@ interface AppContextType {
   setApiError: (error: string | null) => void;
   setOnlineUsersCount: (count: number | null) => void;
   setTotalOrders: (total: number) => void;
+  isOnline: boolean;
+  connectionStatus: 'online' | 'offline' | 'syncing' | 'error';
   setDeployNotification: (event: any) => void;
   setUnreadNotifications: (count: number) => void;
   setTheme: (theme: 'light' | 'dark') => void;
   fetchNotifications: () => Promise<void>;
   sendNotification: (toUserId: number, content: string, type?: 'message' | 'notification') => Promise<boolean>;
+  markAllNotificationsAsRead: () => Promise<void>;
+  markNotificationAsShown: (id: number) => void;
+  hasNotificationBeenShown: (id: number) => boolean;
   fetchOrders: (page: number, perPage: number, sellerId?: number, customerId?: number) => Promise<void>;
   refreshData: (showLoading?: boolean) => Promise<void>;
   forceRefresh: () => Promise<void>;
@@ -91,12 +96,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [hasNewVersion, setHasNewVersion] = useState(false);
   const [currentAppVersion, setCurrentAppVersion] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'syncing' | 'error'>('online');
+  const [shownNotificationIds, setShownNotificationIds] = useState<Set<number>>(new Set());
 
   const { fetchNotifications, sendNotification: sendNotificationBase } = useNotifications(globalPin, currentSeller, setNotifications, setUnreadNotifications);
   
   const { refreshData } = useDataSync(
     globalPin, setProducts, setClients, setOrders, setTotalOrders, setGrandTotalOrders, 
-    setDashboardOrders, setSellers, setAppVersionInfo, setCurrentAppVersion, setHasNewVersion, setIsLoading
+    setDashboardOrders, setSellers, setAppVersionInfo, setCurrentAppVersion, setHasNewVersion, setIsLoading,
+    setConnectionStatus
   );
 
   const { forceRefresh: forceRefreshBase, clearAllCaches } = useCacheManager(refreshData);
@@ -109,6 +117,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return sendNotificationBase(toUserId, content, type, currentSeller?.id, currentSeller?.name);
   }, [sendNotificationBase, currentSeller]);
 
+  // Mark all notifications as read
+  const markAllNotificationsAsRead = useCallback(async () => {
+    if (!globalPin || !currentSeller || notifications.length === 0) return;
+    
+    const unreadNotifications = notifications.filter(n => !n.read);
+    if (unreadNotifications.length === 0) return;
+    
+    // Mark each as read in parallel
+    await Promise.all(
+      unreadNotifications.map(n => 
+        apiService.ackEvent(n.id, globalPin).catch(() => null)
+      )
+    );
+    
+    // Refresh notifications to get updated read status
+    await fetchNotifications();
+  }, [globalPin, currentSeller, notifications, fetchNotifications]);
+
+  // Track shown notification IDs to prevent duplicates
+  const markNotificationAsShown = useCallback((id: number) => {
+    setShownNotificationIds(prev => new Set(prev).add(id));
+  }, []);
+
+  const hasNotificationBeenShown = useCallback((id: number) => {
+    return shownNotificationIds.has(id);
+  }, [shownNotificationIds]);
+
   const initializePushNotifications = useCallback(async () => {
     if (Capacitor.getPlatform() === 'web') return;
 
@@ -119,14 +154,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (permStatus.receive !== 'granted') return;
 
       await PushNotifications.register();
-      PushNotifications.addListener('pushNotificationReceived', () => {
+      PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        const eventId = notification?.data?.event_id || notification?.data?.id;
+        
+        // Check if this notification was already shown locally
+        if (eventId && hasNotificationBeenShown(eventId)) {
+          console.log('🔕 Push notification already shown, skipping:', eventId);
+          return;
+        }
+        
+        // Mark as shown to prevent duplicates
+        if (eventId) {
+          markNotificationAsShown(eventId);
+        }
+        
         setUnreadNotifications(prev => prev + 1);
         fetchNotifications();
       });
     } catch (e) {
       console.error('Error initializing Push Notifications', e);
     }
-  }, [fetchNotifications]);
+  }, [fetchNotifications, hasNotificationBeenShown, markNotificationAsShown]);
 
   const syncAll = useCallback(async () => {
     console.log('🔄 Performing global sync via SSE trigger...');
@@ -203,8 +251,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Remaining useEffect logic for SSE and initialization
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => {
+      setIsOnline(true);
+      setConnectionStatus('online');
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setConnectionStatus('offline');
+    };
     const handleVisibilityChange = () => {
       if (document.hidden) {
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller && globalPin) {
@@ -377,8 +431,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
                 if ((eventType === 'order' || eventType === 'sync') && isForCurrentUser) syncAll();
                 if ((eventType === 'notification' || eventType === 'message') && isForCurrentUser) {
-                  setUnreadNotifications(prev => prev + 1);
-                  setTimeout(fetchNotifications, 500);
+                  const eventId = data.id;
+                  // Skip if already shown
+                  if (eventId && hasNotificationBeenShown(eventId)) {
+                    console.log('🔕 SSE event already shown, skipping:', eventId);
+                  } else {
+                    if (eventId) markNotificationAsShown(eventId);
+                    setUnreadNotifications(prev => prev + 1);
+                    setTimeout(fetchNotifications, 500);
+                  }
                 }
              } catch (e) {}
           };
@@ -386,12 +447,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     }
     return () => eventSource?.close();
-  }, [globalPin, isOnline, syncAll, fetchNotifications]);
+  }, [globalPin, isOnline, syncAll, fetchNotifications, hasNotificationBeenShown, markNotificationAsShown]);
 
   return (
     <AppContext.Provider value={{
-      products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, theme, setNotifications, setSelectedClient,
-      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, setTheme: updateTheme, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh, initializePushNotifications, clearAllCaches, hasNewVersion, currentAppVersion
+      products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, theme, isOnline, connectionStatus, setNotifications, setSelectedClient,
+      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, setTheme: updateTheme, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh, initializePushNotifications, clearAllCaches, hasNewVersion, currentAppVersion,
+      markAllNotificationsAsRead, markNotificationAsShown, hasNotificationBeenShown
     }}>
       {children}
     </AppContext.Provider>
