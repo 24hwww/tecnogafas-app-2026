@@ -92,7 +92,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentAppVersion, setCurrentAppVersion] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  const { fetchNotifications, sendNotification: sendNotificationBase } = useNotifications(globalPin, setNotifications, setUnreadNotifications);
+  const { fetchNotifications, sendNotification: sendNotificationBase } = useNotifications(globalPin, currentSeller, setNotifications, setUnreadNotifications);
   
   const { refreshData } = useDataSync(
     globalPin, setProducts, setClients, setOrders, setTotalOrders, setGrandTotalOrders, 

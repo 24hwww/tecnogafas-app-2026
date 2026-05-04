@@ -1,14 +1,16 @@
 import { useCallback } from 'react';
 import { apiService } from '../../services/apiService';
 
-export function useNotifications(globalPin: string | null, setNotifications: (n: any[]) => void, setUnreadNotifications: (c: number) => void) {
+import { Seller } from '../../types';
+
+export function useNotifications(globalPin: string | null, currentSeller: Seller | null, setNotifications: (n: any[]) => void, setUnreadNotifications: (c: number) => void) {
   const fetchNotifications = useCallback(async () => {
-    if (!globalPin) return;
+    if (!globalPin || !currentSeller) return;
     try {
       console.log('📡 Syncing notifications from server...');
       const data = await apiService.getEvents(undefined, globalPin);
       // Filter: only show events for current user (0 = broadcast to all)
-      const currentUserId = parseInt(globalPin, 10);
+      const currentUserId = parseInt(currentSeller.id, 10);
       const filtered = data.filter((n: any) => n.user_id === 0 || n.user_id === currentUserId);
       setNotifications(filtered);
       const unread = await apiService.getUnreadCount(globalPin);
@@ -16,7 +18,7 @@ export function useNotifications(globalPin: string | null, setNotifications: (n:
     } catch (e) {
       console.warn('Notification sync paused:', e instanceof Error ? e.message : String(e));
     }
-  }, [globalPin, setNotifications, setUnreadNotifications]);
+  }, [globalPin, currentSeller, setNotifications, setUnreadNotifications]);
 
   const sendNotification = useCallback(async (toUserId: number, content: string, type: 'message' | 'notification' = 'notification', currentSellerId?: string, currentSellerName?: string) => {
     if (!globalPin || !currentSellerId) {
