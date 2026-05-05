@@ -40,12 +40,6 @@ export function ChatLayout({ className = '' }: ChatLayoutProps) {
       <div className={`flex flex-col h-dvh bg-background ${className}`}>
         {/* Header compacto estilo chat */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-outline/10 bg-surface shrink-0">
-          <button 
-            onClick={() => setActiveConversation(null)}
-            className="p-2 -ml-2 hover:bg-surface-variant rounded-full transition-colors"
-          >
-            <ArrowLeft size={20} className="text-primary" />
-          </button>
           <h2 className="text-lg font-semibold flex-1 truncate">{activeConversation.name}</h2>
           <button
             onClick={handleRefresh}
@@ -76,7 +70,7 @@ export function ChatLayout({ className = '' }: ChatLayoutProps) {
       <div className={`space-y-8 min-h-[50vh] ${className}`}>
         {/* Header estilo Orders */}
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Conversaciones</h2>
+          <h2 className="text-2xl font-bold">Chat</h2>
           <button
             onClick={handleRefresh}
             disabled={isLoading}
@@ -87,14 +81,6 @@ export function ChatLayout({ className = '' }: ChatLayoutProps) {
           </button>
         </div>
 
-        {/* Buscador estilo Orders */}
-        <input 
-          type="text" 
-          placeholder="Buscar conversación..." 
-          className="w-full p-3 m3-input rounded-lg border border-outline/20"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
 
         {/* Lista estilo Orders cards */}
         <div className="flex-1 overflow-hidden">
