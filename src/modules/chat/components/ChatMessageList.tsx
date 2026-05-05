@@ -1,0 +1,85 @@
+// ============================================================================
+// CHAT MESSAGE LIST - Lista de mensajes con virtualización básica
+// ============================================================================
+
+import React, { useRef, useEffect, useCallback } from 'react';
+import { useChat } from '../providers/ChatProvider';
+import { MessageBubble } from './MessageBubble';
+import { Loader2 } from 'lucide-react';
+
+export function ChatMessageList() {
+  const { messages, isLoading, hasMore, loadMore, currentUser } = useChat();
+  const listRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Scroll al fondo cuando hay nuevos mensajes
+  useEffect(() => {
+    if (bottomRef.current && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      // Solo auto-scroll si el mensaje es del usuario actual o es muy reciente
+      if (lastMessage.user_id === currentUser?.id || 
+          new Date().getTime() - new Date(lastMessage.created_at).getTime() < 5000) {
+        bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [messages, currentUser?.id]);
+
+  // Infinite scroll (load more)
+  const handleScroll = useCallback(() => {
+    if (!listRef.current || !hasMore || isLoading) return;
+    
+    const { scrollTop } = listRef.current;
+    if (scrollTop < 100) {
+      loadMore();
+    }
+  }, [hasMore, isLoading, loadMore]);
+
+  if (isLoading && messages.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={listRef}
+      onScroll={handleScroll}
+      className="flex-1 overflow-y-auto p-4 space-y-4"
+    >
+      {/* Load More Trigger */}
+      {hasMore && (
+        <div className="flex justify-center py-2">
+          <button
+            onClick={loadMore}
+            disabled={isLoading}
+            className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          >
+            {isLoading ? 'Cargando...' : 'Cargar más mensajes'}
+          </button>
+        </div>
+      )}
+
+      {/* Messages */}
+      {messages.map((message, index) => {
+        const prevMessage = index > 0 ? messages[index - 1] : null;
+        const isConsecutive = prevMessage?.user_id === message.user_id;
+        const showAvatar = !isConsecutive || message.user_id !== currentUser?.id;
+
+        return (
+          <MessageBubble
+            key={message.id}
+            message={message}
+            isCurrentUser={message.user_id === currentUser?.id}
+            showAvatar={showAvatar}
+            isConsecutive={isConsecutive}
+          />
+        );
+      })}
+
+      {/* Bottom Anchor */}
+      <div ref={bottomRef} />
+    </div>
+  );
+}
