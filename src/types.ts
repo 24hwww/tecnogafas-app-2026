@@ -125,3 +125,14 @@ export interface DraftOrder {
   status: 'no enviado' | 'enviado';
   date: string;
 }
+
+export interface SharedCart {
+  id: string;
+  code: string;
+  client?: Client;
+  items: CartItem[];
+  total: number;
+  createdAt: string;
+  expiresAt: string;
+  isActive: boolean;
+}

@@ -107,7 +107,7 @@ export function Layout({ children }: { children: ReactNode }) {
                         {cart.reduce((a, b) => a + b.quantity, 0)}
                       </span>
                     )}
-                    {item.label === 'Chat' && unreadNotifications > 0 && (
+                    {item.label === 'Chat' && unreadNotifications > 0 && location.pathname !== '/chat' && (
                       <span className="ml-auto bg-error text-white text-[0.7rem] px-2 py-0.5 font-bold rounded-full">
                         {unreadNotifications > 99 ? '99+' : unreadNotifications}
                       </span>

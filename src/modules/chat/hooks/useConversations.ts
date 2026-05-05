@@ -71,8 +71,10 @@ export function useConversations(currentUserId: string | null): UseConversations
 
       if (serverError) throw serverError;
 
-      if (serverConvs) {
-        const formatted: ConversationWithDetails[] = (serverConvs as unknown as Array<{
+      let formatted: ConversationWithDetails[] = [];
+
+      if (serverConvs && serverConvs.length > 0) {
+        formatted = (serverConvs as unknown as Array<{
           conversation: Conversation;
           unread_count: number;
           last_read_at: string;
@@ -88,8 +90,78 @@ export function useConversations(currentUserId: string | null): UseConversations
           is_muted: cm.is_muted,
           is_pinned: cm.is_pinned,
         }));
+      }
 
-        // Guardar en cache
+      // 3. SIEMPRE asegurar canal #notificaciones público
+      const hasNotif = formatted.some((c) => c.slug === 'notificaciones');
+      if (!hasNotif) {
+        try {
+          const { data: notifConv } = await supabase
+            .from('conversations')
+            .select('id')
+            .eq('slug', 'notificaciones')
+            .maybeSingle();
+
+          if (notifConv) {
+            await supabase.from('conversation_members').insert([{
+              conversation_id: (notifConv as { id: string }).id,
+              user_id: currentUserId,
+            }] as unknown as never[]);
+          } else {
+            const { data: newConv } = await supabase
+              .from('conversations')
+              .insert([{
+                type: 'channel',
+                name: 'Notificaciones',
+                slug: 'notificaciones',
+                description: 'Canal de notificaciones del sistema',
+                is_private: false,
+                created_by: currentUserId,
+              }] as unknown as never[])
+              .select()
+              .single();
+
+            if (newConv) {
+              await supabase.from('conversation_members').insert([{
+                conversation_id: (newConv as { id: string }).id,
+                user_id: currentUserId,
+                role: 'owner' as MemberRole,
+              }] as unknown as never[]);
+            }
+          }
+
+          // Recargar conversaciones tras unirse/crear
+          const { data: reloaded } = await supabase
+            .from('conversation_members')
+            .select(`*, conversation:conversations(*)`)
+            .eq('user_id', currentUserId)
+            .order('updated_at', { foreignTable: 'conversations', ascending: false });
+
+          if (reloaded && reloaded.length > 0) {
+            formatted = (reloaded as unknown as Array<{
+              conversation: Conversation;
+              unread_count: number;
+              last_read_at: string;
+              role: ConversationMember['role'];
+              is_muted: boolean;
+              is_pinned: boolean;
+            }>).map((cm) => ({
+              ...cm.conversation,
+              member: cm as unknown as ConversationMember,
+              unread_count: cm.unread_count,
+              last_read_at: cm.last_read_at,
+              user_role: cm.role,
+              is_muted: cm.is_muted,
+              is_pinned: cm.is_pinned,
+            }));
+          }
+        } catch (ensureErr) {
+          console.error('Error ensuring notifications channel:', ensureErr);
+        }
+      }
+
+      // Guardar en cache y actualizar UI
+      if (formatted.length > 0) {
         await saveConversations(formatted as CachedConversation[]);
         setConversations(formatted);
       }
@@ -333,40 +405,43 @@ export function useConversations(currentUserId: string | null): UseConversations
     const channelName = 'conversations';
     const channel = channelManager.getChannel(channelName);
 
-    // Escuchar cambios en conversaciones
-    channel
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'conversations',
-        },
-        async (payload: RealtimePostgresChangesPayload<Conversation>) => {
-          if (payload.eventType === 'UPDATE') {
-            const updated = payload.new;
-            setConversations((prev) =>
-              prev.map((c) =>
-                c.id === updated.id ? { ...c, ...updated } : c
-              )
-            );
-            await updateConversation(updated.id, updated);
+    // Escuchar cambios en conversaciones, con guardas de seguridad
+    // @ts-ignore
+    if (channel.state === 'closed' || channel.state === 'errored') {
+      channel
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'conversations',
+          },
+          async (payload: RealtimePostgresChangesPayload<Conversation>) => {
+            if (payload.eventType === 'UPDATE') {
+              const updated = payload.new;
+              setConversations((prev) =>
+                prev.map((c) =>
+                  c.id === updated.id ? { ...c, ...updated } : c
+                )
+              );
+              await updateConversation(updated.id, updated);
+            }
           }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'conversation_members',
-          filter: `user_id=eq.${currentUserId}`,
-        },
-        async () => {
-          // Recargar cuando cambie mi membresía
-          await loadConversations();
-        }
-      );
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'conversation_members',
+            filter: `user_id=eq.${currentUserId}`,
+          },
+          async () => {
+            // Recargar cuando cambie mi membresía
+            await loadConversations();
+          }
+        );
+    }
 
     channelManager.subscribe(channelName, {
       onError: (err) => {

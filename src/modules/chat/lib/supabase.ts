@@ -50,7 +50,15 @@ const REALTIME_CONFIG = {
 export const supabase: SupabaseClient<Database> = createClient<Database>(
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
-  REALTIME_CONFIG
+  {
+    ...REALTIME_CONFIG,
+    global: {
+      headers: {
+        'Accept': 'application/json',
+        'Prefer': 'return=representation',
+      },
+    },
+  }
 );
 
 // ============================================================================
@@ -59,22 +67,48 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(
 
 class RealtimeChannelManager {
   private channels: Map<string, RealtimeChannel> = new Map();
+  private subscribedChannels: Set<string> = new Set();
   private reconnectAttempts: Map<string, number> = new Map();
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000; // ms base delay
 
   /**
    * Obtener o crear un canal
+   * Siempre crea un canal nuevo si el existente ya está suscrito, para evitar errores
    */
   getChannel(channelName: string): RealtimeChannel {
-    if (this.channels.has(channelName)) {
-      return this.channels.get(channelName)!;
+    // 1. Verificar nuestro propio mapa
+    let existing = this.channels.get(channelName);
+
+    // 2. Si no está en nuestro mapa, buscar en Supabase directamente
+    // Útil para recuperar canales de efectos anteriores que no terminaron de limpiar
+    if (!existing) {
+      const allChannels = supabase.getChannels();
+      // En Supabase el topic suele ser el nombre del canal
+      existing = allChannels.find((ch) => ch.topic === channelName);
+    }
+
+    if (existing) {
+      // @ts-ignore - Accediendo a propiedad interna para verificar estado real
+      const state = existing.state;
+      const isSubscribed = state === 'joined' || state === 'joining';
+
+      if (isSubscribed || this.subscribedChannels.has(channelName)) {
+        // Eliminar el canal anterior de Supabase para poder crear uno limpio
+        supabase.removeChannel(existing).catch(() => {});
+        this.channels.delete(channelName);
+        this.subscribedChannels.delete(channelName);
+      } else {
+        // Canal existe pero no está activo, podemos reusarlo
+        this.channels.set(channelName, existing);
+        return existing;
+      }
     }
 
     const channel = supabase.channel(channelName, {
       config: {
         broadcast: {
-          self: false, // No recibir mis propios mensajes
+          self: false,
         },
         presence: {
           key: '',
@@ -97,6 +131,11 @@ class RealtimeChannelManager {
       onClose?: () => void;
     } = {}
   ): Promise<RealtimeChannel> {
+    // Si ya está suscrito, no hacer nada
+    if (this.subscribedChannels.has(channelName)) {
+      return this.channels.get(channelName)!;
+    }
+
     const channel = this.getChannel(channelName);
 
     return new Promise((resolve, reject) => {
@@ -109,16 +148,21 @@ class RealtimeChannelManager {
         })
         .subscribe((status, err) => {
           if (status === 'SUBSCRIBED') {
+            this.subscribedChannels.add(channelName);
             callbacks.onSubscribe?.();
             resolve(channel);
           } else if (status === 'CHANNEL_ERROR') {
+            this.subscribedChannels.delete(channelName);
             this.handleReconnect(channelName, callbacks);
             callbacks.onError?.(err || new Error('Channel error'));
             reject(err);
           } else if (status === 'CLOSED') {
+            this.subscribedChannels.delete(channelName);
             callbacks.onClose?.();
             this.channels.delete(channelName);
+            supabase.removeChannel(channel).catch(() => {});
           } else if (status === 'TIMED_OUT') {
+            this.subscribedChannels.delete(channelName);
             this.handleReconnect(channelName, callbacks);
             reject(new Error('Subscription timed out'));
           }
@@ -156,11 +200,31 @@ class RealtimeChannelManager {
     console.log(`[Realtime] Reconnecting ${channelName} in ${delay}ms (attempt ${attempts + 1})`);
 
     setTimeout(() => {
-      this.channels.delete(channelName);
+      // Limpiar canal anterior antes de reintentar
+      const oldChannel = this.channels.get(channelName);
+      if (oldChannel) {
+        supabase.removeChannel(oldChannel).catch(() => {});
+        this.channels.delete(channelName);
+      }
+
       this.subscribe(channelName, callbacks).catch(() => {
         // Error manejado en el reject
       });
     }, delay);
+  }
+
+  /**
+   * Desuscribirse y eliminar un canal por su objeto
+   */
+  async removeChannel(channel: RealtimeChannel): Promise<void> {
+    for (const [name, ch] of this.channels.entries()) {
+      if (ch === channel) {
+        await this.unsubscribe(name);
+        return;
+      }
+    }
+    // Fallback: unsubscribe directly if not in our map
+    await channel.unsubscribe();
   }
 
   /**
@@ -169,9 +233,18 @@ class RealtimeChannelManager {
   async unsubscribe(channelName: string): Promise<void> {
     const channel = this.channels.get(channelName);
     if (channel) {
-      await channel.unsubscribe();
+      // Primero limpiar estado local de forma síncrona para evitar colisiones
       this.channels.delete(channelName);
+      this.subscribedChannels.delete(channelName);
       this.reconnectAttempts.delete(channelName);
+
+      // Luego realizar cleanup asíncrono en Supabase
+      try {
+        await channel.unsubscribe();
+        await supabase.removeChannel(channel);
+      } catch (err) {
+        console.warn(`[Realtime] Error unsubscribing ${channelName}:`, err);
+      }
     }
   }
 
@@ -184,6 +257,7 @@ class RealtimeChannelManager {
     );
     await Promise.all(promises);
     this.channels.clear();
+    this.subscribedChannels.clear();
     this.reconnectAttempts.clear();
   }
 
@@ -191,10 +265,7 @@ class RealtimeChannelManager {
    * Verificar si un canal está activo
    */
   isSubscribed(channelName: string): boolean {
-    const channel = this.channels.get(channelName);
-    if (!channel) return false;
-    
-    return (channel as unknown as { subscribed?: boolean }).subscribed === true;
+    return this.subscribedChannels.has(channelName);
   }
 
   /**

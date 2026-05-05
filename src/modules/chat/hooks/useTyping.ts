@@ -196,31 +196,34 @@ export function useTyping({
     const channelName = `typing:${conversationId}`;
     const channel = channelManager.getChannel(channelName);
 
-    channel
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'typing_status',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        async (payload: RealtimePostgresChangesPayload<TypingStatus>) => {
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const status = payload.new;
-            if (status.user_id === currentUserId) return;
+    // @ts-ignore
+    if (channel.state === 'closed' || channel.state === 'errored') {
+      channel
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'typing_status',
+            filter: `conversation_id=eq.${conversationId}`,
+          },
+          async (payload: RealtimePostgresChangesPayload<TypingStatus>) => {
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const status = payload.new;
+              if (status.user_id === currentUserId) return;
 
-            const profile = await getProfile(status.user_id);
-            setTypingUsers((prev) => {
-              const filtered = prev.filter((u) => u.user_id !== status.user_id);
-              return [...filtered, { ...status, user: profile }];
-            });
-          } else if (payload.eventType === 'DELETE') {
-            const deleted = payload.old;
-            setTypingUsers((prev) => prev.filter((u) => u.user_id !== deleted.user_id));
+              const profile = await getProfile(status.user_id);
+              setTypingUsers((prev) => {
+                const filtered = prev.filter((u) => u.user_id !== status.user_id);
+                return [...filtered, { ...status, user: profile }];
+              });
+            } else if (payload.eventType === 'DELETE') {
+              const deleted = payload.old;
+              setTypingUsers((prev) => prev.filter((u) => u.user_id !== deleted.user_id));
+            }
           }
-        }
-      );
+        );
+    }
 
     channelManager.subscribe(channelName, {
       onError: (err) => {

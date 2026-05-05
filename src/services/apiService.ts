@@ -1,4 +1,5 @@
-import { ApiClient, ApiOrder, Product, Client, Order, Seller } from '../types';
+import { ApiClient, ApiOrder, Product, Client, Order, Seller, CartItem } from '../types';
+import { savePendingOrder } from './pendingOrdersSync';
 
 import { Capacitor } from '@capacitor/core';
 
@@ -407,7 +408,8 @@ export const apiService = {
     methodpay?: string;
     otheremail?: string;
     iva?: number | string;
-  }, sellerId: string): Promise<{success: boolean, message: string, orderId?: string}> {
+    sendEmail?: boolean;
+  }, sellerId: string, fullClient?: Client): Promise<{success: boolean, message: string, orderId?: string}> {
     const url = `${BASE_URL}/pedido`;
     const headers = { 
       'Content-Type': 'application/json', 'Accept': 'application/json',
@@ -422,6 +424,7 @@ export const apiService = {
       methodpay: details.methodpay || "",
       oemail: details.otheremail || "",
       iva: details.iva ? parseInt(String(details.iva)) : 0,
+      send_email: details.sendEmail !== undefined ? details.sendEmail : true,
       products: items.map(i => {
         const parsedId = parseInt(i.id.toString().split('-')[0]);
         if (isNaN(parsedId)) return null;
@@ -434,6 +437,44 @@ export const apiService = {
       }).filter(p => p !== null)
     };
     const body = JSON.stringify(bodyObj);
+
+    // Helper para guardar en Supabase como fallback
+    const saveToSupabase = async () => {
+      try {
+        // Reconstruir items desde bodyObj
+        const items: CartItem[] = bodyObj.products.map(p => ({
+          id: p.product_id?.toString() || '',
+          vid: p.variation_id?.toString(),
+          name: '', // No tenemos el nombre aquí, se completa después
+          price: p.price,
+          quantity: p.quantity,
+          stock: 0,
+          category: '',
+          description: '',
+        }));
+
+        // Usar fullClient si está disponible, sino crear uno básico
+        const clientData: Client = fullClient || {
+          id: clientId,
+          name: '',
+          email: '',
+          phone: '',
+          address: '',
+        };
+
+        await savePendingOrder(sellerId, clientData, items, {
+          commit: details.commit,
+          discount: details.discount,
+          recargo: details.recargo,
+          transport: details.transport,
+          methodpay: details.methodpay,
+          otheremail: details.otheremail,
+          iva: details.iva,
+        });
+      } catch (e) {
+        console.error('[API] Error saving pending order to Supabase:', e);
+      }
+    };
 
     if (!navigator.onLine) {
       // Guardar en IndexedDB para sincronización offline
@@ -460,7 +501,11 @@ export const apiService = {
             });
           }
         };
-        return { success: false, message: 'Estás sin conexión. El pedido se enviará automáticamente al recuperar red.' };
+        
+        // También guardar en Supabase como backup
+        await saveToSupabase();
+        
+        return { success: false, message: 'Estás sin conexión. El pedido se guardó y se enviará automáticamente al recuperar red.' };
       } catch {
         return { success: false, message: 'Error al guardar pedido offline.' };
       }
@@ -491,7 +536,37 @@ export const apiService = {
       };
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Error de conexión con el servidor.';
-      return { success: false, message: msg };
+      
+      // Guardar en Supabase para reintento posterior
+      try {
+        const items: CartItem[] = bodyObj.products.map(p => ({
+          id: p.product_id?.toString() || '',
+          vid: p.variation_id?.toString(),
+          name: '',
+          price: p.price,
+          quantity: p.quantity,
+          stock: 0,
+          category: '',
+          description: '',
+        }));
+
+        // Usar fullClient si está disponible
+        const clientData: Client = fullClient || {
+          id: clientId,
+          name: '',
+          email: '',
+          phone: '',
+          address: '',
+        };
+
+        await savePendingOrder(sellerId, clientData, items, details);
+        
+        console.log('[API] Order saved to Supabase for retry after error');
+      } catch (e) {
+        console.error('[API] Error saving to Supabase after API failure:', e);
+      }
+      
+      return { success: false, message: msg + ' (El pedido se guardó para reintentar)' };
     }
   },
 
@@ -646,5 +721,102 @@ export const apiService = {
     };
     
     return () => eventSource.close();
+  },
+
+  // ============================================================================
+  // SUPABASE HELPERS (BRIDGE)
+  // ============================================================================
+
+  async getSupabaseNotificationChannel() {
+    const { supabase } = await import('../modules/chat/lib/supabase');
+    return supabase
+      .from('conversations')
+      .select('id')
+      .eq('slug', 'notificaciones')
+      .single();
+  },
+
+  async getSupabaseMemberStatus(conversationId: string, userId: string) {
+    const { supabase } = await import('../modules/chat/lib/supabase');
+    return supabase
+      .from('conversation_members')
+      .select('unread_count')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId)
+      .maybeSingle();
+  },
+
+  async subscribeToSupabaseTable(table: string, filter: string, callback: (payload: any) => void) {
+    const { channelManager } = await import('../modules/chat/lib/supabase');
+    const channelName = `global-${table}`;
+
+    // Clean up any existing subscription to avoid "after subscribe" errors
+    await channelManager.unsubscribe(channelName);
+
+    const channel = channelManager.getChannel(channelName);
+    
+    // @ts-ignore
+    if (channel.state === 'closed' || channel.state === 'errored') {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table, filter }, callback);
+    }
+    await channelManager.subscribe(channelName);
+
+    return channel;
+  },
+
+  async unsubscribeSupabase(channel: any) {
+    if (!channel) return;
+    const { channelManager } = await import('../modules/chat/lib/supabase');
+    await channelManager.removeChannel(channel);
+  },
+
+  // ============================================================================
+  // SUPABASE AUTH BRIDGE
+  // ============================================================================
+
+  async syncSupabaseAuth(pin: string) {
+    if (!pin) return { error: 'PIN requerido' };
+    
+    const { supabase } = await import('../modules/chat/lib/supabase');
+    const email = `vendedor+${pin}@tecnogafas.com.ar`;
+    const password = `tg_${pin}_secure`; // Password derivado del PIN
+
+    // 1. Intentar Login
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (!signInError) {
+      console.log('✅ Supabase Auth sincronizado para:', email);
+      return { session: signInData.session, user: signInData.user };
+    }
+
+    // 2. Si el usuario no existe (Error 400 - Invalid login credentials), intentar SignUp
+    // Esto es útil para desarrollo y auto-provisión de vendedores.
+    if (signInError.status === 400 || signInError.message.includes('Invalid login credentials')) {
+      console.log('👷 Usuario no existe, intentando auto-registro...');
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: `Vendedor ${pin}`,
+            pin: pin
+          }
+        }
+      });
+
+      if (signUpError) {
+        console.error('❌ Error en auto-registro Supabase:', signUpError.message);
+        return { error: signUpError.message };
+      }
+
+      console.log('✅ Usuario Supabase creado y sincronizado:', email);
+      return { session: signUpData.session, user: signUpData.user };
+    }
+
+    console.error('❌ Error sincronizando Supabase Auth:', signInError.message);
+    return { error: signInError.message };
   }
 };

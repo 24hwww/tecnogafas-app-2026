@@ -1,15 +1,17 @@
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { get, set, del } from 'idb-keyval';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
-import { Product, Client, Order, CartItem, DraftOrder, Seller } from './types';
+import { Product, Client, Order, CartItem, DraftOrder, Seller, SharedCart } from './types';
+import { syncAllPendingOrders, getPendingOrders } from './services/pendingOrdersSync';
 import { apiService } from './services/apiService';
 import { useNotifications } from './hooks/context/useNotifications';
 import { useDataSync } from './hooks/context/useDataSync';
 import { useCacheManager } from './hooks/context/useCacheManager';
 
 interface AppContextType {
+  supabaseUser: any;
   products: Product[];
   clients: Client[];
   orders: Order[];
@@ -30,6 +32,9 @@ interface AppContextType {
   saveDraft: (details: any) => void;
   loadDraft: (draftId: string) => void;
   markDraftAsSent: (draftId: string) => void;
+  shareCart: () => Promise<{ success: boolean; code: string; message: string; link: string }>;
+  loadSharedCart: (code: string) => Promise<{ success: boolean; cart: SharedCart | null; message: string }>;
+  sharedCarts: SharedCart[];
   primaryColor: string;
   fontSize: string;
   globalPin: string | null;
@@ -70,6 +75,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const [sharedCarts, setSharedCarts] = useState<SharedCart[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -98,6 +104,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'syncing' | 'error'>('online');
   const [shownNotificationIds, setShownNotificationIds] = useState<Set<number>>(new Set());
+  const [supabaseUser, setSupabaseUser] = useState<any>(null);
+  const [pendingOrdersCount, setPendingOrdersCount] = useState<number>(0);
 
   const { fetchNotifications, sendNotification: sendNotificationBase } = useNotifications(globalPin, currentSeller, setNotifications, setUnreadNotifications);
   
@@ -262,27 +270,77 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // No guardamos en localStorage para que la próxima vez detecte automáticamente
   }, [detectBuenosAiresTheme]);
 
-  const updateGlobalPin = (pin: string | null) => {
+  const updateGlobalPin = async (pin: string | null) => {
     setGlobalPin(pin);
     if (pin) {
       localStorage.setItem('tecnogafas_pin', pin);
+      // Sincronizar con Supabase Auth (esto disparará onAuthStateChange)
+      try {
+        await apiService.syncSupabaseAuth(pin);
+      } catch (err) {
+        console.error('Error in Supabase Auth sync:', err);
+      }
+      
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'START_POLLING', pin: pin });
         navigator.serviceWorker.controller.postMessage({ type: 'APP_ACTIVE' });
       }
     } else {
       localStorage.removeItem('tecnogafas_pin');
+      // Cerrar sesión en Supabase
+      try {
+        const { supabase } = await import('./modules/chat/lib/supabase');
+        await supabase.auth.signOut();
+        setSupabaseUser(null);
+        setUnreadNotifications(0);
+      } catch (err) {
+        console.error('Error signing out from Supabase:', err);
+      }
+      
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'STOP_POLLING' });
       }
     }
   };
 
+  // Función para sincronizar pedidos pendientes
+  const syncPendingOrders = useCallback(async (sellerId: string) => {
+    if (!isOnline) return;
+    
+    console.log('🔄 Checking for pending orders to sync...');
+    try {
+      setConnectionStatus('syncing');
+      const result = await syncAllPendingOrders(sellerId);
+      
+      if (result.total > 0) {
+        console.log(`✅ Synced ${result.success} orders, ${result.failed} failed`);
+        // Refrescar la lista de pedidos si se sincronizó alguno exitosamente
+        if (result.success > 0) {
+          await refreshData();
+        }
+      }
+      
+      // Actualizar contador
+      const pending = await getPendingOrders(sellerId, ['pending', 'failed']);
+      setPendingOrdersCount(pending.length);
+      
+      setConnectionStatus('online');
+    } catch (err) {
+      console.error('Error syncing pending orders:', err);
+      setConnectionStatus('error');
+    }
+  }, [isOnline, refreshData]);
+
   // Remaining useEffect logic for SSE and initialization
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
       setConnectionStatus('online');
+      // Sincronizar pedidos pendientes al recuperar conexión
+      const savedPin = localStorage.getItem('tecnogafas_pin');
+      if (savedPin) {
+        syncPendingOrders(savedPin);
+      }
     };
     const handleOffline = () => {
       setIsOnline(false);
@@ -307,6 +365,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const savedPin = localStorage.getItem('tecnogafas_pin');
     if (savedPin) {
       setGlobalPin(savedPin);
+      apiService.syncSupabaseAuth(savedPin);
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'START_POLLING', pin: savedPin });
       }
@@ -322,10 +381,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const cachedOrdersData = await get<Order[]>('tecnogafas_orders');
         const cachedSellers = await get<Seller[]>('tecnogafas_sellers');
         const cachedDrafts = await get<DraftOrder[]>('tecnogafas_drafts');
+        const cachedSharedCarts = await get<SharedCart[]>('tecnogafas_shared_carts');
 
         if (cachedProducts) { setProducts(cachedProducts); hasCache = true; }
         if (cachedClients) { setClients(cachedClients); hasCache = true; }
         if (cachedDrafts) { setDrafts(cachedDrafts); }
+        if (cachedSharedCarts) { setSharedCarts(cachedSharedCarts); }
         if (cachedOrdersData) { 
           setOrders(cachedOrdersData); 
           setTotalOrders(cachedOrdersData.length); 
@@ -382,18 +443,98 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [initializePushNotifications, globalPin, updateTheme, detectBuenosAiresTheme]);
 
-  // Events API desactivada temporalmente junto con SSE
+  // 1. Escuchar cambios de autenticación en Supabase
   useEffect(() => {
-    setUnreadNotifications(0);
-    setNotifications([]);
-    return;
-    /* Código comentado temporalmente:
-    if (globalPin && isOnline) {
-      apiService.getUnreadCount(globalPin).then(setUnreadNotifications);
-      fetchNotifications();
+    let authSubscription: any = null;
+
+    const initAuth = async () => {
+      const { supabase } = await import('./modules/chat/lib/supabase');
+      
+      // Obtener sesión inicial
+      const { data: { session } } = await supabase.auth.getSession();
+      setSupabaseUser(session?.user ?? null);
+
+      // Suscribirse a cambios
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        console.log('🔐 Supabase Auth Event:', _event, session?.user?.email);
+        setSupabaseUser(session?.user ?? null);
+      });
+      authSubscription = subscription;
+    };
+
+    initAuth();
+
+    return () => {
+      if (authSubscription) authSubscription.unsubscribe();
+    };
+  }, []);
+
+  // 2. Suscribirse a notificaciones globales cuando el usuario esté autenticado
+  const globalChannelRef = React.useRef<any>(null);
+
+  useEffect(() => {
+    if (!supabaseUser || !isOnline) {
+      if (!supabaseUser) setUnreadNotifications(0);
+      return;
     }
-    */
-  }, [globalPin, isOnline, fetchNotifications]);
+
+    const setupGlobalNotifications = async () => {
+      try {
+        // Limpiar suscripción previa si existe
+        if (globalChannelRef.current) {
+          await apiService.unsubscribeSupabase(globalChannelRef.current);
+          globalChannelRef.current = null;
+        }
+
+        // 1. Buscar el ID del canal de #notificaciones
+        const { data: conv, error: convError } = await apiService.getSupabaseNotificationChannel();
+        if (convError || !conv) {
+          console.error("Error fetching notification channel:", convError);
+          return;
+        }
+
+        // 2. Cargar contador inicial de no leídos usando el ID de Supabase
+        const { data: member, error: memberError } = await apiService.getSupabaseMemberStatus(conv.id, supabaseUser.id);
+        if (member && !memberError) {
+          setUnreadNotifications(member.unread_count || 0);
+        }
+
+        // 3. Suscribirse a cambios en mensajes para este canal
+        globalChannelRef.current = await apiService.subscribeToSupabaseTable(
+          'messages',
+          `conversation_id=eq.${conv.id}`,
+          (payload) => {
+            if (payload.eventType === 'INSERT') {
+              setUnreadNotifications(prev => prev + 1);
+              
+              if (window.location.pathname !== '/chat') {
+                const msg = payload.new;
+                LocalNotifications.schedule({
+                  notifications: [{
+                    title: 'Nueva Notificación',
+                    body: msg.content || 'Tienes un nuevo mensaje del sistema',
+                    id: Date.now(),
+                    extra: { event_id: msg.id }
+                  }]
+                });
+              }
+            }
+          }
+        );
+      } catch (err) {
+        console.error('Error setting up global notifications:', err);
+      }
+    };
+
+    setupGlobalNotifications();
+
+    return () => {
+      if (globalChannelRef.current) {
+        apiService.unsubscribeSupabase(globalChannelRef.current);
+        globalChannelRef.current = null;
+      }
+    };
+  }, [supabaseUser, isOnline]);
 
   // Efecto para actualizar tema automáticamente SOLO si no fue manual
   useEffect(() => {
@@ -461,6 +602,110 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const updatedDrafts = drafts.map(d => d.id === draftId ? { ...d, status: 'enviado' as const } : d);
     setDrafts(updatedDrafts);
     await set('tecnogafas_drafts', updatedDrafts);
+  };
+
+  // Cart sharing functions
+  const shareCart = async () => {
+    if (!selectedClient || cart.length === 0) {
+      return { success: false, code: '', message: 'No hay productos en el carrito', link: '' };
+    }
+
+    try {
+      // Generate 13-character alphanumeric code
+      const generateCartCode = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 13; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+      };
+
+      const cartCode = generateCartCode();
+      const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+      // Create shared cart object
+      const sharedCart: SharedCart = {
+        id: `shared_${Date.now()}`,
+        code: cartCode,
+        client: selectedClient,
+        items: [...cart],
+        total,
+        createdAt: new Date().toISOString(),
+        expiresAt: expiresAt.toISOString(),
+        isActive: true
+      };
+
+      // Save to Supabase
+      const { supabase } = await import('./modules/chat/lib/supabase');
+      const { data, error } = await supabase
+        .from('shared_carts')
+        .insert([sharedCart])
+        .select();
+
+      if (error) {
+        console.error('Error saving shared cart:', error);
+        return { success: false, code: '', message: 'Error al guardar carrito compartido', link: '' };
+      }
+
+      // Save to local cache
+      const updatedSharedCarts = [sharedCart, ...sharedCarts.filter(c => c.id !== sharedCart.id)];
+      setSharedCarts(updatedSharedCarts);
+      await set('tecnogafas_shared_carts', updatedSharedCarts);
+
+      const shareLink = `${window.location.origin}/carrito/${cartCode}`;
+      
+      return { 
+        success: true, 
+        code: cartCode, 
+        message: 'Carrito guardado exitosamente', 
+        link: shareLink 
+      };
+
+    } catch (error) {
+      console.error('Error sharing cart:', error);
+      return { success: false, code: '', message: 'Error al compartir carrito', link: '' };
+    }
+  };
+
+  const loadSharedCart = async (code: string) => {
+    try {
+      // First check local cache
+      const cachedCart = sharedCarts.find(c => c.code === code && c.isActive && new Date(c.expiresAt) > new Date());
+      if (cachedCart) {
+        return { success: true, cart: cachedCart, message: 'Carrito cargado desde caché' };
+      }
+
+      // Check Supabase
+      const { supabase } = await import('./modules/chat/lib/supabase');
+      const { data, error } = await supabase
+        .from('shared_carts')
+        .select('*')
+        .eq('code', code)
+        .eq('is_active', true)
+        .single();
+
+      if (error || !data) {
+        return { success: false, cart: null, message: 'Carrito no encontrado o expirado' };
+      }
+
+      // Check if expired
+      if (new Date(data.expires_at) < new Date()) {
+        return { success: false, cart: null, message: 'Este carrito ha expirado' };
+      }
+
+      // Update local cache
+      const updatedSharedCarts = [data, ...sharedCarts.filter(c => c.id !== data.id)];
+      setSharedCarts(updatedSharedCarts);
+      await set('tecnogafas_shared_carts', updatedSharedCarts);
+
+      return { success: true, cart: data, message: 'Carrito cargado exitosamente' };
+
+    } catch (error) {
+      console.error('Error loading shared cart:', error);
+      return { success: false, cart: null, message: 'Error al cargar carrito compartido' };
+    }
   };
 
   // SSE desactivado temporalmente por problemas de conexión
@@ -553,9 +798,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, theme, isOnline, connectionStatus, setNotifications, setSelectedClient,
-      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, setTheme: updateTheme, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh, initializePushNotifications, clearAllCaches, hasNewVersion, currentAppVersion,
-      markAllNotificationsAsRead, markNotificationAsShown, hasNotificationBeenShown
+      supabaseUser, products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, sharedCarts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, theme, isOnline, connectionStatus, pendingOrdersCount, setNotifications, setSelectedClient,
+      addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, shareCart, loadSharedCart, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, setTheme: updateTheme, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh, initializePushNotifications, clearAllCaches, hasNewVersion, currentAppVersion,
+      markAllNotificationsAsRead, markNotificationAsShown, hasNotificationBeenShown,
+      syncPendingOrders: async () => { if (globalPin) await syncPendingOrders(globalPin); }
     }}>
       {children}
     </AppContext.Provider>

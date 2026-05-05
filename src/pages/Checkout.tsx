@@ -31,6 +31,8 @@ export default function Checkout() {
     otheremail: '',
   });
 
+  const [sendEmail, setSendEmail] = useState(true);
+
   React.useEffect(() => {
     if (currentDraftId) {
       const draft = drafts.find(d => d.id === currentDraftId);
@@ -169,23 +171,56 @@ export default function Checkout() {
     try {
       const orderData = {
         ...form,
-        total_calc: finalTotal
+        total_calc: finalTotal,
+        sendEmail: sendEmail
       };
       
-      const result = await apiService.createOrder(selectedClient!.id, cart, orderData, sellerId);
+      const result = await apiService.createOrder(selectedClient!.id, cart, orderData, sellerId, selectedClient || undefined);
       
       if (result.success) {
         let emailMessage = '';
         if (result.orderId) {
-          // Step 2: Send email and wait for detailed result as requested
+          // Step 2: Send email and wait for detailed result only if checkbox is checked
+          if (sendEmail) {
+            try {
+              console.log("📤 Sending order notification and PDF...");
+              const emailResult = await apiService.sendOrderEmail(result.orderId.toString(), sellerId);
+              console.log("Email send result:", emailResult);
+              emailMessage = emailResult.message || 'Correo y PDF enviados.';
+            } catch (emailErr) {
+              console.error("Error sending email:", emailErr);
+              emailMessage = 'El pedido se creó pero hubo un error al enviar el comprobante por correo.';
+            }
+          } else {
+            console.log("📧 Email sending skipped by user preference");
+            emailMessage = 'El pedido se creó sin enviar correo electrónico.';
+          }
+
+          // Step 4: Supabase Chat Notification Bridge
           try {
-            console.log("📤 Sending order notification and PDF...");
-            const emailResult = await apiService.sendOrderEmail(result.orderId.toString(), sellerId);
-            console.log("Email send result:", emailResult);
-            emailMessage = emailResult.message || 'Correo y PDF enviados.';
-          } catch (emailErr) {
-            console.error("Error sending email:", emailErr);
-            emailMessage = 'El pedido se creó pero hubo un error al enviar el comprobante por correo.';
+            const { supabase } = await import('../modules/chat/lib/supabase');
+            const sellerName = seller?.name || 'Vendedor';
+            const clientName = selectedClient?.name || 'Cliente';
+
+            await supabase.rpc('send_notification_to_chat', {
+              p_title: '📦 Nuevo Pedido',
+              p_message: `${sellerName} cargó el pedido #${result.orderId} para ${clientName}`,
+              p_type: 'order',
+              p_priority: 'normal',
+              p_action_url: `/orders/${result.orderId}`,
+              p_action_label: 'Ver detalles',
+              p_metadata: {
+                order_id: result.orderId,
+                seller_id: sellerId,
+                seller_name: sellerName,
+                client_name: clientName,
+                total: finalTotal,
+                source: 'checkout_bridge'
+              }
+            });
+            console.log("✅ Supabase order notification sent");
+          } catch (supaErr) {
+            console.error("Error sending Supabase notification:", supaErr);
           }
 
           // Step 3: Broadcast event to all users about the new order (DISABLED)
@@ -400,6 +435,22 @@ export default function Checkout() {
               value={form.otheremail}
               onChange={e => setForm({...form, otheremail: e.target.value})}
             />
+          </div>
+
+          <div className="space-y-1">
+            <label className="flex items-center gap-3 p-4 bg-surface-variant rounded-lg cursor-pointer hover:bg-surface-variant/80 transition-colors">
+              <input 
+                id="checkout-send-email-checkbox"
+                type="checkbox"
+                className="w-5 h-5 text-primary bg-surface border-2 border-outline rounded focus:ring-2 focus:ring-primary focus:ring-offset-0"
+                checked={sendEmail}
+                onChange={e => setSendEmail(e.target.checked)}
+              />
+              <div className="flex-1">
+                <span className="text-sm font-bold text-on-surface">Enviar comprobante por correo</span>
+                <p className="text-xs text-on-surface-variant mt-1">Enviar el pedido y comprobante por email al cliente</p>
+              </div>
+            </label>
           </div>
         </div>
       </div>

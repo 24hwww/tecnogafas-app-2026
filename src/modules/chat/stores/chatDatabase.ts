@@ -36,7 +36,7 @@ export class ChatDatabase extends Dexie {
   constructor() {
     super('TecnoChatDB');
 
-    this.version(1).stores({
+    this.version(2).stores({
       // Perfiles: indexados por id y username
       profiles: 'id, username, status, last_seen_at',
       
@@ -49,8 +49,8 @@ export class ChatDatabase extends Dexie {
       // Mensajes: compound index crítico para performance
       messages: 'id, [conversation_id+created_at], conversation_id, user_id, parent_id, type, pending, *synced_at',
       
-      // Reacciones: indexado por message_id
-      reactions: 'id, [message_id+emoji], message_id, user_id',
+      // Reacciones: compound index para búsquedas únicas
+      reactions: 'id, [message_id+user_id+emoji], [message_id+emoji], message_id, user_id',
       
       // Typing: expira automáticamente
       typingStatus: 'id, conversation_id, user_id, expires_at',
@@ -280,8 +280,15 @@ export async function saveReactions(
 export async function addReaction(
   reaction: Omit<MessageReaction, 'id' | 'created_at'>
 ): Promise<void> {
+  // Validar que los campos requeridos existan
+  if (!reaction.message_id || !reaction.user_id || !reaction.emoji) {
+    console.error('[addReaction] Invalid reaction data:', reaction);
+    return;
+  }
+
   const existing = await chatDB.reactions
-    .where({ message_id: reaction.message_id, user_id: reaction.user_id, emoji: reaction.emoji })
+    .where('[message_id+user_id+emoji]')
+    .equals([reaction.message_id, reaction.user_id, reaction.emoji])
     .first();
 
   if (!existing) {
@@ -298,8 +305,15 @@ export async function removeReaction(
   userId: string,
   emoji: string
 ): Promise<void> {
+  // Validar que los campos requeridos existan
+  if (!messageId || !userId || !emoji) {
+    console.error('[removeReaction] Invalid parameters:', { messageId, userId, emoji });
+    return;
+  }
+
   const reaction = await chatDB.reactions
-    .where({ message_id: messageId, user_id: userId, emoji })
+    .where('[message_id+user_id+emoji]')
+    .equals([messageId, userId, emoji])
     .first();
 
   if (reaction) {

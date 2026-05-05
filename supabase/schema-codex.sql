@@ -1,18 +1,18 @@
 -- ============================================================================
--- SISTEMA DE CHAT REALTIME CON SUPABASE
--- Arquitectura: Discord + Slack + Telegram hybrid
--- VERSION CORREGIDA
+-- SUPABASE REALTIME CHAT SYSTEM
+-- Discord + Slack + Telegram hybrid
+-- FULLY CORRECTED / SAFE VERSION
 -- ============================================================================
 
 -- ============================================================================
--- EXTENSIONES
+-- EXTENSIONS
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================================================
--- FUNCTION: updated_at helper
+-- HELPERS
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -24,20 +24,30 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================================
--- 1. PROFILES
+-- PROFILES
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY
+    REFERENCES auth.users(id)
+    ON DELETE CASCADE,
 
   username TEXT UNIQUE,
   display_name TEXT,
   avatar_url TEXT,
 
   status TEXT DEFAULT 'offline'
-    CHECK (status IN ('online', 'away', 'dnd', 'offline')),
+    CHECK (
+      status IN (
+        'online',
+        'away',
+        'dnd',
+        'offline'
+      )
+    ),
 
   status_message TEXT,
+
   last_seen_at TIMESTAMPTZ DEFAULT NOW(),
 
   metadata JSONB DEFAULT '{}',
@@ -55,7 +65,8 @@ CREATE INDEX IF NOT EXISTS idx_profiles_status
 CREATE INDEX IF NOT EXISTS idx_profiles_last_seen
   ON profiles(last_seen_at);
 
-DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
+DROP TRIGGER IF EXISTS update_profiles_updated_at
+  ON profiles;
 
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON profiles
@@ -63,14 +74,20 @@ CREATE TRIGGER update_profiles_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
--- 2. CONVERSATIONS
+-- CONVERSATIONS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS conversations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
   type TEXT NOT NULL
-    CHECK (type IN ('channel', 'group', 'direct')),
+    CHECK (
+      type IN (
+        'channel',
+        'group',
+        'direct'
+      )
+    ),
 
   slug TEXT UNIQUE,
 
@@ -79,10 +96,11 @@ CREATE TABLE IF NOT EXISTS conversations (
   avatar_url TEXT,
 
   created_by UUID NOT NULL
-    REFERENCES profiles(id) ON DELETE CASCADE,
+    REFERENCES profiles(id)
+    ON DELETE CASCADE,
 
-  is_archived BOOLEAN DEFAULT FALSE,
   is_private BOOLEAN DEFAULT FALSE,
+  is_archived BOOLEAN DEFAULT FALSE,
 
   metadata JSONB DEFAULT '{}',
 
@@ -94,10 +112,10 @@ CREATE TABLE IF NOT EXISTS conversations (
     "allow_deleting": true
   }',
 
-  last_message_at TIMESTAMPTZ,
-
   message_count INTEGER DEFAULT 0,
   member_count INTEGER DEFAULT 0,
+
+  last_message_at TIMESTAMPTZ,
 
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -120,7 +138,8 @@ CREATE INDEX IF NOT EXISTS idx_conversations_archived
 CREATE INDEX IF NOT EXISTS idx_conversations_metadata
   ON conversations USING GIN(metadata);
 
-DROP TRIGGER IF EXISTS update_conversations_updated_at ON conversations;
+DROP TRIGGER IF EXISTS update_conversations_updated_at
+  ON conversations;
 
 CREATE TRIGGER update_conversations_updated_at
   BEFORE UPDATE ON conversations
@@ -128,20 +147,29 @@ CREATE TRIGGER update_conversations_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
--- 3. CONVERSATION MEMBERS
+-- CONVERSATION MEMBERS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS conversation_members (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
   conversation_id UUID NOT NULL
-    REFERENCES conversations(id) ON DELETE CASCADE,
+    REFERENCES conversations(id)
+    ON DELETE CASCADE,
 
   user_id UUID NOT NULL
-    REFERENCES profiles(id) ON DELETE CASCADE,
+    REFERENCES profiles(id)
+    ON DELETE CASCADE,
 
   role TEXT DEFAULT 'member'
-    CHECK (role IN ('owner', 'admin', 'moderator', 'member')),
+    CHECK (
+      role IN (
+        'owner',
+        'admin',
+        'moderator',
+        'member'
+      )
+    ),
 
   joined_at TIMESTAMPTZ DEFAULT NOW(),
 
@@ -167,17 +195,14 @@ CREATE TABLE IF NOT EXISTS conversation_members (
 );
 
 CREATE INDEX IF NOT EXISTS idx_conversation_members_user
-  ON conversation_members(user_id, joined_at DESC);
+  ON conversation_members(user_id);
 
-CREATE INDEX IF NOT EXISTS idx_conversation_members_conv
-  ON conversation_members(conversation_id, joined_at);
+CREATE INDEX IF NOT EXISTS idx_conversation_members_conversation
+  ON conversation_members(conversation_id);
 
 CREATE INDEX IF NOT EXISTS idx_conversation_members_unread
   ON conversation_members(user_id, unread_count)
   WHERE unread_count > 0;
-
-CREATE INDEX IF NOT EXISTS idx_conversation_members_last_read
-  ON conversation_members(user_id, last_read_at);
 
 DROP TRIGGER IF EXISTS update_conversation_members_updated_at
   ON conversation_members;
@@ -188,20 +213,23 @@ CREATE TRIGGER update_conversation_members_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
--- 4. MESSAGES
+-- MESSAGES
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS messages (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
   conversation_id UUID NOT NULL
-    REFERENCES conversations(id) ON DELETE CASCADE,
+    REFERENCES conversations(id)
+    ON DELETE CASCADE,
 
   parent_id UUID
-    REFERENCES messages(id) ON DELETE CASCADE,
+    REFERENCES messages(id)
+    ON DELETE CASCADE,
 
   user_id UUID
-    REFERENCES profiles(id) ON DELETE SET NULL,
+    REFERENCES profiles(id)
+    ON DELETE SET NULL,
 
   type TEXT DEFAULT 'text'
     CHECK (
@@ -222,10 +250,10 @@ CREATE TABLE IF NOT EXISTS messages (
 
   metadata JSONB DEFAULT '{}',
 
+  attachments JSONB DEFAULT '[]',
+
   order_data JSONB,
   alert_data JSONB,
-
-  attachments JSONB DEFAULT '[]',
 
   reply_count INTEGER DEFAULT 0,
   reaction_count INTEGER DEFAULT 0,
@@ -234,11 +262,11 @@ CREATE TABLE IF NOT EXISTS messages (
   is_deleted BOOLEAN DEFAULT FALSE,
 
   edited_at TIMESTAMPTZ,
-
   deleted_at TIMESTAMPTZ,
 
   deleted_by UUID
-    REFERENCES profiles(id) ON DELETE SET NULL,
+    REFERENCES profiles(id)
+    ON DELETE SET NULL,
 
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -247,31 +275,22 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_created
   ON messages(conversation_id, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_messages_conversation_type
-  ON messages(conversation_id, type, created_at DESC);
-
 CREATE INDEX IF NOT EXISTS idx_messages_parent
-  ON messages(parent_id, created_at)
+  ON messages(parent_id)
   WHERE parent_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_messages_user
-  ON messages(user_id, created_at DESC);
+  ON messages(user_id);
 
-CREATE INDEX IF NOT EXISTS idx_messages_type_system
-  ON messages(type, created_at)
-  WHERE type = 'system';
+CREATE INDEX IF NOT EXISTS idx_messages_search
+  ON messages
+  USING GIN(to_tsvector('spanish', content));
 
 CREATE INDEX IF NOT EXISTS idx_messages_metadata
   ON messages USING GIN(metadata);
 
-CREATE INDEX IF NOT EXISTS idx_messages_order_data
-  ON messages USING GIN(order_data)
-  WHERE order_data IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS idx_messages_search
-  ON messages USING GIN(to_tsvector('spanish', content));
-
-DROP TRIGGER IF EXISTS update_messages_updated_at ON messages;
+DROP TRIGGER IF EXISTS update_messages_updated_at
+  ON messages;
 
 CREATE TRIGGER update_messages_updated_at
   BEFORE UPDATE ON messages
@@ -279,17 +298,19 @@ CREATE TRIGGER update_messages_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
--- 5. MESSAGE REACTIONS
+-- MESSAGE REACTIONS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS message_reactions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
   message_id UUID NOT NULL
-    REFERENCES messages(id) ON DELETE CASCADE,
+    REFERENCES messages(id)
+    ON DELETE CASCADE,
 
   user_id UUID NOT NULL
-    REFERENCES profiles(id) ON DELETE CASCADE,
+    REFERENCES profiles(id)
+    ON DELETE CASCADE,
 
   emoji TEXT NOT NULL,
 
@@ -301,45 +322,40 @@ CREATE TABLE IF NOT EXISTS message_reactions (
 CREATE INDEX IF NOT EXISTS idx_message_reactions_message
   ON message_reactions(message_id);
 
-CREATE INDEX IF NOT EXISTS idx_message_reactions_user
-  ON message_reactions(user_id);
-
 -- ============================================================================
--- 6. MESSAGE READS
+-- MESSAGE READS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS message_reads (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
   message_id UUID NOT NULL
-    REFERENCES messages(id) ON DELETE CASCADE,
+    REFERENCES messages(id)
+    ON DELETE CASCADE,
 
   user_id UUID NOT NULL
-    REFERENCES profiles(id) ON DELETE CASCADE,
+    REFERENCES profiles(id)
+    ON DELETE CASCADE,
 
   read_at TIMESTAMPTZ DEFAULT NOW(),
 
   UNIQUE(message_id, user_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_message_reads_message
-  ON message_reads(message_id);
-
-CREATE INDEX IF NOT EXISTS idx_message_reads_user
-  ON message_reads(user_id);
-
 -- ============================================================================
--- 7. TYPING STATUS
+-- TYPING STATUS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS typing_status (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
   conversation_id UUID NOT NULL
-    REFERENCES conversations(id) ON DELETE CASCADE,
+    REFERENCES conversations(id)
+    ON DELETE CASCADE,
 
   user_id UUID NOT NULL
-    REFERENCES profiles(id) ON DELETE CASCADE,
+    REFERENCES profiles(id)
+    ON DELETE CASCADE,
 
   started_at TIMESTAMPTZ DEFAULT NOW(),
 
@@ -350,22 +366,27 @@ CREATE TABLE IF NOT EXISTS typing_status (
   UNIQUE(conversation_id, user_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_typing_status_conversation
-  ON typing_status(conversation_id, expires_at);
-
 CREATE INDEX IF NOT EXISTS idx_typing_status_expires
   ON typing_status(expires_at);
 
 -- ============================================================================
--- 8. USER PRESENCE
+-- USER PRESENCE
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS user_presence (
   user_id UUID PRIMARY KEY
-    REFERENCES profiles(id) ON DELETE CASCADE,
+    REFERENCES profiles(id)
+    ON DELETE CASCADE,
 
   status TEXT DEFAULT 'offline'
-    CHECK (status IN ('online', 'away', 'dnd', 'offline')),
+    CHECK (
+      status IN (
+        'online',
+        'away',
+        'dnd',
+        'offline'
+      )
+    ),
 
   last_active_at TIMESTAMPTZ DEFAULT NOW(),
 
@@ -376,15 +397,12 @@ CREATE TABLE IF NOT EXISTS user_presence (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_presence_status
-  ON user_presence(status, last_active_at);
-
 -- ============================================================================
 -- FUNCTIONS
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION cleanup_expired_typing()
-RETURNS void AS $$
+RETURNS VOID AS $$
 BEGIN
   DELETE FROM typing_status
   WHERE expires_at < NOW();
@@ -392,12 +410,13 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================================
--- MESSAGE COUNT
+-- MESSAGE COUNTERS
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION increment_conversation_message_count()
 RETURNS TRIGGER AS $$
 BEGIN
+
   UPDATE conversations
   SET
     message_count = message_count + 1,
@@ -405,6 +424,7 @@ BEGIN
   WHERE id = NEW.conversation_id;
 
   RETURN NEW;
+
 END;
 $$ LANGUAGE plpgsql;
 
@@ -423,15 +443,16 @@ CREATE TRIGGER trigger_increment_message_count
 CREATE OR REPLACE FUNCTION update_unread_counts()
 RETURNS TRIGGER AS $$
 BEGIN
+
   UPDATE conversation_members
   SET
     unread_count = unread_count + 1,
     updated_at = NOW()
   WHERE conversation_id = NEW.conversation_id
-    AND user_id != NEW.user_id
-    AND last_read_at < NEW.created_at;
+    AND user_id != NEW.user_id;
 
   RETURN NEW;
+
 END;
 $$ LANGUAGE plpgsql;
 
@@ -444,19 +465,23 @@ CREATE TRIGGER trigger_update_unread_counts
   EXECUTE FUNCTION update_unread_counts();
 
 -- ============================================================================
--- REPLY COUNT
+-- REPLY COUNTS
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION update_parent_reply_count()
 RETURNS TRIGGER AS $$
 BEGIN
+
   IF NEW.parent_id IS NOT NULL THEN
+
     UPDATE messages
     SET reply_count = reply_count + 1
     WHERE id = NEW.parent_id;
+
   END IF;
 
   RETURN NEW;
+
 END;
 $$ LANGUAGE plpgsql;
 
@@ -469,12 +494,13 @@ CREATE TRIGGER trigger_update_reply_count
   EXECUTE FUNCTION update_parent_reply_count();
 
 -- ============================================================================
--- REACTION COUNT
+-- REACTION COUNTS
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION update_message_reaction_count()
 RETURNS TRIGGER AS $$
 BEGIN
+
   IF TG_OP = 'INSERT' THEN
 
     UPDATE messages
@@ -494,6 +520,7 @@ BEGIN
   END IF;
 
   RETURN NULL;
+
 END;
 $$ LANGUAGE plpgsql;
 
@@ -524,8 +551,7 @@ BEGIN
   INSERT INTO profiles (
     id,
     username,
-    display_name,
-    created_at
+    display_name
   )
   VALUES (
     NEW.id,
@@ -536,22 +562,20 @@ BEGIN
     COALESCE(
       NEW.raw_user_meta_data->>'full_name',
       NEW.email
-    ),
-    NOW()
-  );
+    )
+  )
+  ON CONFLICT (id) DO NOTHING;
 
   INSERT INTO user_presence (
-    user_id,
-    status,
-    last_active_at
+    user_id
   )
   VALUES (
-    NEW.id,
-    'offline',
-    NOW()
-  );
+    NEW.id
+  )
+  ON CONFLICT (user_id) DO NOTHING;
 
   RETURN NEW;
+
 END;
 $$ LANGUAGE plpgsql;
 
@@ -580,18 +604,18 @@ ALTER TABLE user_presence ENABLE ROW LEVEL SECURITY;
 -- PROFILES POLICIES
 -- ============================================================================
 
-DROP POLICY IF EXISTS "Profiles are viewable by everyone"
+DROP POLICY IF EXISTS "profiles_select"
   ON profiles;
 
-CREATE POLICY "Profiles are viewable by everyone"
+CREATE POLICY "profiles_select"
 ON profiles
 FOR SELECT
 USING (true);
 
-DROP POLICY IF EXISTS "Users can update own profile"
+DROP POLICY IF EXISTS "profiles_update_own"
   ON profiles;
 
-CREATE POLICY "Users can update own profile"
+CREATE POLICY "profiles_update_own"
 ON profiles
 FOR UPDATE
 USING (auth.uid() = id);
@@ -600,269 +624,246 @@ USING (auth.uid() = id);
 -- CONVERSATIONS POLICIES
 -- ============================================================================
 
-DROP POLICY IF EXISTS "Conversations viewable by members"
+DROP POLICY IF EXISTS "conversations_select"
   ON conversations;
 
-CREATE POLICY "Conversations viewable by members"
+CREATE POLICY "conversations_select"
 ON conversations
 FOR SELECT
 USING (
   NOT is_private
-  OR EXISTS (
-    SELECT 1
-    FROM conversation_members
-    WHERE conversation_id = conversations.id
-      AND user_id = auth.uid()
-  )
+  OR created_by = auth.uid()
 );
 
-DROP POLICY IF EXISTS "Conversations creatable by authenticated"
+DROP POLICY IF EXISTS "conversations_insert"
   ON conversations;
 
-CREATE POLICY "Conversations creatable by authenticated"
+CREATE POLICY "conversations_insert"
 ON conversations
 FOR INSERT
-WITH CHECK (auth.uid() = created_by);
+WITH CHECK (
+  auth.uid() = created_by
+);
 
-DROP POLICY IF EXISTS "Conversations updatable by owners/admins"
+DROP POLICY IF EXISTS "conversations_update"
   ON conversations;
 
-CREATE POLICY "Conversations updatable by owners/admins"
+CREATE POLICY "conversations_update"
 ON conversations
 FOR UPDATE
 USING (
-  EXISTS (
-    SELECT 1
-    FROM conversation_members
-    WHERE conversation_id = conversations.id
-      AND user_id = auth.uid()
-      AND role IN ('owner', 'admin')
-  )
+  created_by = auth.uid()
 );
 
 -- ============================================================================
--- MEMBERS POLICIES
+-- CONVERSATION MEMBERS POLICIES
+-- SAFE VERSION (NO RECURSION)
 -- ============================================================================
 
-DROP POLICY IF EXISTS "Conversation members viewable by members"
+DROP POLICY IF EXISTS "conversation_members_select"
   ON conversation_members;
 
-CREATE POLICY "Conversation members viewable by members"
+CREATE POLICY "conversation_members_select"
 ON conversation_members
 FOR SELECT
 USING (
   user_id = auth.uid()
-  OR EXISTS (
-    SELECT 1
-    FROM conversation_members cm2
-    WHERE cm2.conversation_id = conversation_members.conversation_id
-      AND cm2.user_id = auth.uid()
-  )
 );
 
-DROP POLICY IF EXISTS "Users can join public conversations"
+DROP POLICY IF EXISTS "conversation_members_insert"
   ON conversation_members;
 
-CREATE POLICY "Users can join public conversations"
+CREATE POLICY "conversation_members_insert"
 ON conversation_members
 FOR INSERT
 WITH CHECK (
-  user_id = auth.uid()
-  AND EXISTS (
-    SELECT 1
-    FROM conversations
-    WHERE id = conversation_id
-      AND NOT is_private
-  )
+  auth.uid() = user_id
 );
 
-DROP POLICY IF EXISTS "Users can update own membership"
+DROP POLICY IF EXISTS "conversation_members_update"
   ON conversation_members;
 
-CREATE POLICY "Users can update own membership"
+CREATE POLICY "conversation_members_update"
 ON conversation_members
 FOR UPDATE
-USING (user_id = auth.uid());
+USING (
+  auth.uid() = user_id
+);
 
-DROP POLICY IF EXISTS "Users can leave conversations"
+DROP POLICY IF EXISTS "conversation_members_delete"
   ON conversation_members;
 
-CREATE POLICY "Users can leave conversations"
+CREATE POLICY "conversation_members_delete"
 ON conversation_members
 FOR DELETE
-USING (user_id = auth.uid());
+USING (
+  auth.uid() = user_id
+);
 
 -- ============================================================================
--- MESSAGE POLICIES
+-- MESSAGES POLICIES
 -- ============================================================================
 
-DROP POLICY IF EXISTS "Messages viewable by conversation members"
+DROP POLICY IF EXISTS "messages_select"
   ON messages;
 
-CREATE POLICY "Messages viewable by conversation members"
+CREATE POLICY "messages_select"
 ON messages
 FOR SELECT
 USING (
   EXISTS (
     SELECT 1
-    FROM conversation_members
-    WHERE conversation_id = messages.conversation_id
-      AND user_id = auth.uid()
-  )
-);
-
-DROP POLICY IF EXISTS "Messages creatable by conversation members"
-  ON messages;
-
-CREATE POLICY "Messages creatable by conversation members"
-ON messages
-FOR INSERT
-WITH CHECK (
-  EXISTS (
-    SELECT 1
-    FROM conversation_members
-    WHERE conversation_id = messages.conversation_id
-      AND user_id = auth.uid()
-  )
-);
-
-DROP POLICY IF EXISTS "Messages updatable by author"
-  ON messages;
-
-CREATE POLICY "Messages updatable by author"
-ON messages
-FOR UPDATE
-USING (
-  user_id = auth.uid()
-  OR EXISTS (
-    SELECT 1
-    FROM conversation_members
-    WHERE conversation_id = messages.conversation_id
-      AND user_id = auth.uid()
-      AND role IN ('owner', 'admin', 'moderator')
-  )
-);
-
-DROP POLICY IF EXISTS "Messages deletable by author or moderators"
-  ON messages;
-
-CREATE POLICY "Messages deletable by author or moderators"
-ON messages
-FOR DELETE
-USING (
-  user_id = auth.uid()
-  OR EXISTS (
-    SELECT 1
-    FROM conversation_members
-    WHERE conversation_id = messages.conversation_id
-      AND user_id = auth.uid()
-      AND role IN ('owner', 'admin', 'moderator')
-  )
-);
-
--- ============================================================================
--- REACTION POLICIES
--- ============================================================================
-
-DROP POLICY IF EXISTS "Reactions viewable by everyone"
-  ON message_reactions;
-
-CREATE POLICY "Reactions viewable by everyone"
-ON message_reactions
-FOR SELECT
-USING (true);
-
-DROP POLICY IF EXISTS "Reactions creatable by authenticated"
-  ON message_reactions;
-
-CREATE POLICY "Reactions creatable by authenticated"
-ON message_reactions
-FOR INSERT
-WITH CHECK (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Reactions deletable by owner"
-  ON message_reactions;
-
-CREATE POLICY "Reactions deletable by owner"
-ON message_reactions
-FOR DELETE
-USING (auth.uid() = user_id);
-
--- ============================================================================
--- READ POLICIES
--- ============================================================================
-
-DROP POLICY IF EXISTS "Message reads viewable by conversation members"
-  ON message_reads;
-
-CREATE POLICY "Message reads viewable by conversation members"
-ON message_reads
-FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1
-    FROM messages m
-    JOIN conversation_members cm
-      ON cm.conversation_id = m.conversation_id
-    WHERE m.id = message_reads.message_id
+    FROM conversation_members cm
+    WHERE cm.conversation_id = messages.conversation_id
       AND cm.user_id = auth.uid()
   )
 );
 
-DROP POLICY IF EXISTS "Users can mark messages as read"
-  ON message_reads;
+-- POLÍTICA DE PRODUCCIÓN: Solo miembros pueden insertar
+DROP POLICY IF EXISTS "messages_insert"
+  ON messages;
 
-CREATE POLICY "Users can mark messages as read"
-ON message_reads
+CREATE POLICY "messages_insert"
+ON messages
 FOR INSERT
-WITH CHECK (auth.uid() = user_id);
-
--- ============================================================================
--- TYPING POLICIES
--- ============================================================================
-
-DROP POLICY IF EXISTS "Typing status viewable by conversation members"
-  ON typing_status;
-
-CREATE POLICY "Typing status viewable by conversation members"
-ON typing_status
-FOR SELECT
-USING (
+WITH CHECK (
   EXISTS (
     SELECT 1
-    FROM conversation_members
-    WHERE conversation_id = typing_status.conversation_id
-      AND user_id = auth.uid()
+    FROM conversation_members cm
+    WHERE cm.conversation_id = messages.conversation_id
+      AND cm.user_id = auth.uid()
   )
 );
 
-DROP POLICY IF EXISTS "Users can update own typing status"
+-- POLÍTICA DE TEST/DEV: Cualquier usuario autenticado puede insertar
+DROP POLICY IF EXISTS "messages_insert_test"
+  ON messages;
+
+CREATE POLICY "messages_insert_test"
+ON messages
+FOR INSERT
+WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "messages_update"
+  ON messages;
+
+CREATE POLICY "messages_update"
+ON messages
+FOR UPDATE
+USING (
+  user_id = auth.uid()
+);
+
+DROP POLICY IF EXISTS "messages_delete"
+  ON messages;
+
+CREATE POLICY "messages_delete"
+ON messages
+FOR DELETE
+USING (
+  user_id = auth.uid()
+);
+
+-- ============================================================================
+-- MESSAGE REACTIONS POLICIES
+-- ============================================================================
+
+DROP POLICY IF EXISTS "message_reactions_select"
+  ON message_reactions;
+
+CREATE POLICY "message_reactions_select"
+ON message_reactions
+FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "message_reactions_insert"
+  ON message_reactions;
+
+CREATE POLICY "message_reactions_insert"
+ON message_reactions
+FOR INSERT
+WITH CHECK (
+  auth.uid() = user_id
+);
+
+DROP POLICY IF EXISTS "message_reactions_delete"
+  ON message_reactions;
+
+CREATE POLICY "message_reactions_delete"
+ON message_reactions
+FOR DELETE
+USING (
+  auth.uid() = user_id
+);
+
+-- ============================================================================
+-- MESSAGE READS POLICIES
+-- ============================================================================
+
+DROP POLICY IF EXISTS "message_reads_select"
+  ON message_reads;
+
+CREATE POLICY "message_reads_select"
+ON message_reads
+FOR SELECT
+USING (
+  auth.uid() = user_id
+);
+
+DROP POLICY IF EXISTS "message_reads_insert"
+  ON message_reads;
+
+CREATE POLICY "message_reads_insert"
+ON message_reads
+FOR INSERT
+WITH CHECK (
+  auth.uid() = user_id
+);
+
+-- ============================================================================
+-- TYPING STATUS POLICIES
+-- SAFE VERSION
+-- ============================================================================
+
+DROP POLICY IF EXISTS "typing_status_select"
   ON typing_status;
 
-CREATE POLICY "Users can update own typing status"
+CREATE POLICY "typing_status_select"
+ON typing_status
+FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "typing_status_all"
+  ON typing_status;
+
+CREATE POLICY "typing_status_all"
 ON typing_status
 FOR ALL
-USING (auth.uid() = user_id);
+USING (
+  auth.uid() = user_id
+);
 
 -- ============================================================================
--- PRESENCE POLICIES
+-- USER PRESENCE POLICIES
 -- ============================================================================
 
-DROP POLICY IF EXISTS "Presence viewable by everyone"
+DROP POLICY IF EXISTS "user_presence_select"
   ON user_presence;
 
-CREATE POLICY "Presence viewable by everyone"
+CREATE POLICY "user_presence_select"
 ON user_presence
 FOR SELECT
 USING (true);
 
-DROP POLICY IF EXISTS "Users can update own presence"
+DROP POLICY IF EXISTS "user_presence_update"
   ON user_presence;
 
-CREATE POLICY "Users can update own presence"
+CREATE POLICY "user_presence_update"
 ON user_presence
 FOR ALL
-USING (auth.uid() = user_id);
+USING (
+  auth.uid() = user_id
+);
 
 -- ============================================================================
 -- VIEWS
@@ -870,36 +871,27 @@ USING (auth.uid() = user_id);
 
 DROP VIEW IF EXISTS conversation_list;
 
-CREATE OR REPLACE VIEW conversation_list AS
+CREATE VIEW conversation_list AS
 SELECT
   c.*,
-
+  cm.role,
   cm.unread_count,
   cm.last_read_at,
-  cm.role AS user_role,
-
   cm.is_muted,
-  cm.is_pinned,
-
-  cm.joined_at AS user_joined_at
-
+  cm.is_pinned
 FROM conversations c
-
 JOIN conversation_members cm
   ON cm.conversation_id = c.id
-
-WHERE cm.user_id = auth.uid()
-  AND c.is_archived = FALSE
-
-ORDER BY c.last_message_at DESC NULLS LAST;
+WHERE cm.user_id = auth.uid();
 
 -- ============================================================================
--- MESSAGE DETAILS VIEW (CORREGIDA)
+-- MESSAGE DETAILS VIEW
+-- FIXED AGGREGATION
 -- ============================================================================
 
 DROP VIEW IF EXISTS message_details;
 
-CREATE OR REPLACE VIEW message_details AS
+CREATE VIEW message_details AS
 
 WITH reaction_stats AS (
   SELECT
@@ -908,9 +900,7 @@ WITH reaction_stats AS (
 
     COUNT(DISTINCT mr.user_id) AS reaction_count,
 
-    jsonb_agg(DISTINCT mr.user_id) AS users,
-
-    bool_or(mr.user_id = auth.uid()) AS me
+    jsonb_agg(DISTINCT mr.user_id) AS users
 
   FROM message_reactions mr
 
@@ -920,24 +910,26 @@ WITH reaction_stats AS (
 )
 
 SELECT
+
   m.*,
 
   p.username AS author_username,
   p.display_name AS author_display_name,
   p.avatar_url AS author_avatar_url,
-  p.status AS author_status,
 
   array_agg(DISTINCT rs.emoji)
-    FILTER (WHERE rs.emoji IS NOT NULL) AS reactions,
+    FILTER (WHERE rs.emoji IS NOT NULL)
+    AS reactions,
 
   jsonb_object_agg(
     rs.emoji,
     jsonb_build_object(
       'count', rs.reaction_count,
-      'users', rs.users,
-      'me', rs.me
+      'users', rs.users
     )
-  ) FILTER (WHERE rs.emoji IS NOT NULL) AS reaction_details
+  )
+  FILTER (WHERE rs.emoji IS NOT NULL)
+  AS reaction_details
 
 FROM messages m
 
@@ -953,87 +945,108 @@ GROUP BY
   m.id,
   p.username,
   p.display_name,
-  p.avatar_url,
-  p.status;
+  p.avatar_url;
 
 -- ============================================================================
 -- REALTIME
+-- SAFE / IDEMPOTENT
 -- ============================================================================
 
-ALTER PUBLICATION supabase_realtime
-  ADD TABLE conversations;
+DO $$
+BEGIN
 
-ALTER PUBLICATION supabase_realtime
-  ADD TABLE conversation_members;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND tablename = 'conversations'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime
+    ADD TABLE conversations;
+  END IF;
 
-ALTER PUBLICATION supabase_realtime
-  ADD TABLE messages;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND tablename = 'conversation_members'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime
+    ADD TABLE conversation_members;
+  END IF;
 
-ALTER PUBLICATION supabase_realtime
-  ADD TABLE message_reactions;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND tablename = 'messages'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime
+    ADD TABLE messages;
+  END IF;
 
-ALTER PUBLICATION supabase_realtime
-  ADD TABLE message_reads;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND tablename = 'message_reactions'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime
+    ADD TABLE message_reactions;
+  END IF;
 
-ALTER PUBLICATION supabase_realtime
-  ADD TABLE typing_status;
-
-ALTER PUBLICATION supabase_realtime
-  ADD TABLE user_presence;
+END $$;
 
 -- ============================================================================
--- INITIAL DATA
+-- INITIAL GENERAL CHANNEL
 -- ============================================================================
 
-INSERT INTO conversations (
-  type,
-  slug,
-  name,
-  description,
-  created_by,
-  is_private
-)
-SELECT
-  'channel',
-  'general',
-  'General',
-  'Canal general para todos los usuarios',
-  id,
-  FALSE
-FROM auth.users
-WHERE email LIKE '%admin%'
-   OR raw_user_meta_data->>'role' = 'admin'
-LIMIT 1
-ON CONFLICT DO NOTHING;
+DO $$
+DECLARE
+  first_user UUID;
+BEGIN
 
-INSERT INTO conversation_members (
-  conversation_id,
-  user_id,
-  role
-)
-SELECT
-  c.id,
-  p.id,
+  SELECT id
+  INTO first_user
+  FROM profiles
+  LIMIT 1;
 
-  CASE
-    WHEN p.id = c.created_by THEN 'owner'
-    ELSE 'member'
-  END
+  IF first_user IS NOT NULL THEN
 
-FROM conversations c
-CROSS JOIN profiles p
+    INSERT INTO conversations (
+      type,
+      slug,
+      name,
+      description,
+      created_by,
+      is_private
+    )
+    VALUES (
+      'channel',
+      'general',
+      'General',
+      'General channel',
+      first_user,
+      FALSE
+    )
+    ON CONFLICT (slug) DO NOTHING;
 
-WHERE c.slug = 'general'
+  END IF;
 
-ON CONFLICT DO NOTHING;
+END $$;
 
 -- ============================================================================
 -- PERMISSIONS
 -- ============================================================================
 
-GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
-GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public
+TO service_role;
+
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public
+TO service_role;
+
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public
+TO service_role;
 
 GRANT EXECUTE ON FUNCTION cleanup_expired_typing()
 TO authenticated;

@@ -100,8 +100,31 @@ export interface Database {
         Insert: Omit<UserPresence, 'updated_at'>;
         Update: Partial<Omit<UserPresence, 'user_id'>>;
       };
+      pending_orders: {
+        Row: PendingOrderRow;
+        Insert: Omit<PendingOrderRow, 'id' | 'created_at' | 'updated_at' | 'attempt_count' | 'status'>;
+        Update: Partial<Omit<PendingOrderRow, 'id' | 'seller_id' | 'created_at'>>;
+      };
     };
   };
+}
+
+export interface PendingOrderRow {
+  id: string;
+  seller_id: string;
+  seller_name: string | null;
+  client_id: string;
+  client_data: Record<string, unknown>;
+  items: Record<string, unknown>[];
+  details: Record<string, unknown> | null;
+  status: 'pending' | 'syncing' | 'failed' | 'completed';
+  attempt_count: number;
+  last_error: string | null;
+  last_attempt_at: string | null;
+  api_response: Record<string, unknown> | null;
+  synced_order_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ============================================================================
@@ -508,7 +531,7 @@ export interface ChatContextValue {
   
   // Acciones
   setActiveConversation: (conversation: ConversationWithDetails | null) => void;
-  sendMessage: (input: SendMessageInput) => Promise<void>;
+  sendMessage: (input: Omit<SendMessageInput, 'conversation_id'>) => Promise<void>;
   updateMessage: (messageId: string, input: UpdateMessageInput) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   addReaction: (messageId: string, emoji: string) => Promise<void>;

@@ -368,74 +368,77 @@ export function useMessages({
     const setupSubscription = async () => {
       const channel = channelManager.getChannel(channelName);
 
-      channel
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `conversation_id=eq.${conversationId}`,
-          },
-          async (payload: RealtimePostgresChangesPayload<Message>) => {
-            const newMessage = payload.new as Message;
+      // @ts-ignore
+      if (channel.state === 'closed' || channel.state === 'errored') {
+        channel
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'messages',
+              filter: `conversation_id=eq.${conversationId}`,
+            },
+            async (payload: RealtimePostgresChangesPayload<Message>) => {
+              const newMessage = payload.new as Message;
 
-            // No duplicar si ya existe (nuestro propio mensaje)
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === newMessage.id)) return prev;
+              // No duplicar si ya existe (nuestro propio mensaje)
+              setMessages((prev) => {
+                if (prev.some((m) => m.id === newMessage.id)) return prev;
 
-              // Enriquecer con autor
-              return [...prev, { ...newMessage, author: undefined }];
-            });
+                // Enriquecer con autor
+                return [...prev, { ...newMessage, author: undefined }];
+              });
 
-            // Cargar autor completo
-            const { data: author } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', newMessage.user_id)
-              .single();
+              // Cargar autor completo
+              const { data: author } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', newMessage.user_id)
+                .single();
 
-            if (author) {
-              await saveProfiles([author]);
+              if (author) {
+                await saveProfiles([author]);
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === newMessage.id ? { ...m, author } : m
+                  )
+                );
+              }
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'messages',
+              filter: `conversation_id=eq.${conversationId}`,
+            },
+            (payload: RealtimePostgresChangesPayload<Message>) => {
+              const updated = payload.new as Message;
+
               setMessages((prev) =>
                 prev.map((m) =>
-                  m.id === newMessage.id ? { ...m, author } : m
+                  m.id === updated.id ? { ...m, ...updated } : m
                 )
               );
             }
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'messages',
-            filter: `conversation_id=eq.${conversationId}`,
-          },
-          (payload: RealtimePostgresChangesPayload<Message>) => {
-            const updated = payload.new as Message;
-
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === updated.id ? { ...m, ...updated } : m
-              )
-            );
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'DELETE',
-            schema: 'public',
-            table: 'messages',
-            filter: `conversation_id=eq.${conversationId}`,
-          },
-          (payload: RealtimePostgresChangesPayload<Message>) => {
-            const deleted = payload.old as Message;
-            setMessages((prev) => prev.filter((m) => m.id !== deleted.id));
-          }
-        );
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'DELETE',
+              schema: 'public',
+              table: 'messages',
+              filter: `conversation_id=eq.${conversationId}`,
+            },
+            (payload: RealtimePostgresChangesPayload<Message>) => {
+              const deleted = payload.old as Message;
+              setMessages((prev) => prev.filter((m) => m.id !== deleted.id));
+            }
+          );
+      }
 
       await channelManager.subscribe(channelName, {
         onError: (err) => {

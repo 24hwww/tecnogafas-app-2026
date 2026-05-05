@@ -1,152 +1,110 @@
 // ============================================================================
-// CHAT LAYOUT - Layout principal tipo Discord/Telegram
-// Mobile-first con sidebar colapsable
+// CHAT LAYOUT - Layout minimalista integrado con la App
 // ============================================================================
 
 import React, { useState } from 'react';
 import { useChat } from '../providers/ChatProvider';
-import { ChatList } from './ChatList';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatInput } from './ChatInput';
+import { ChatList } from './ChatList';
 import { TypingIndicator } from './TypingIndicator';
-import { Menu, X, ChevronLeft } from 'lucide-react';
+import { RefreshCw, ArrowLeft } from 'lucide-react';
+import { PullToRefresh } from '../../../components/PullToRefresh';
 
 interface ChatLayoutProps {
   className?: string;
 }
 
 export function ChatLayout({ className = '' }: ChatLayoutProps) {
-  const { conversations, activeConversation, isLoading, setActiveConversation } = useChat();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { 
+    activeConversation, 
+    setActiveConversation, 
+    conversations, 
+    isLoading, 
+    refresh
+  } = useChat();
 
-  const handleSelectConversation = (conv: typeof activeConversation) => {
-    setActiveConversation(conv);
-    setSidebarOpen(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredConversations = conversations.filter(conv => 
+    conv.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleRefresh = async () => {
+    await refresh();
   };
 
-  return (
-    <div className={`flex h-full bg-gray-50 dark:bg-gray-900 ${className}`}>
-      {/* Sidebar - Conversations List */}
-      <aside
-        className={`
-          fixed inset-y-0 left-0 z-40 w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
-          transform transition-transform duration-300 ease-in-out
-          lg:relative lg:translate-x-0
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}
-      >
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <span>💬</span> Chat
-            </h2>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+  // Si hay una conversación activa, mostramos el chat
+  if (activeConversation) {
+    return (
+      <div className={`flex flex-col h-dvh bg-background ${className}`}>
+        {/* Header compacto estilo chat */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-outline/10 bg-surface shrink-0">
+          <button 
+            onClick={() => setActiveConversation(null)}
+            className="p-2 -ml-2 hover:bg-surface-variant rounded-full transition-colors"
+          >
+            <ArrowLeft size={20} className="text-primary" />
+          </button>
+          <h2 className="text-lg font-semibold flex-1 truncate">{activeConversation.name}</h2>
+          <button
+            onClick={handleRefresh}
+            disabled={isLoading}
+            className={`p-2 hover:bg-surface-variant rounded-full transition-all ${isLoading ? 'animate-spin' : ''}`}
+          >
+            <RefreshCw size={18} className="text-primary" />
+          </button>
+        </div>
 
-          {/* Chat List */}
-          <ChatList
-            conversations={conversations}
-            selectedId={activeConversation?.id}
-            onSelect={handleSelectConversation}
+        {/* Messages Area - ocupa todo el espacio restante */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <ChatMessageList />
+        </div>
+
+        {/* Footer Area with Input - siempre abajo */}
+        <div className="p-3 bg-surface border-t border-outline/10 shrink-0">
+          <TypingIndicator />
+          <ChatInput />
+        </div>
+      </div>
+    );
+  }
+
+  // Si no hay conversación activa, mostramos la lista de chats (estilo Orders list)
+  return (
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div className={`space-y-8 min-h-[50vh] ${className}`}>
+        {/* Header estilo Orders */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Conversaciones</h2>
+          <button
+            onClick={handleRefresh}
+            disabled={isLoading}
+            className={`p-2.5 hover:bg-surface-variant rounded-full transition-all ${isLoading ? 'animate-spin' : ''}`}
+            title="Sincronizar"
+          >
+            <RefreshCw size={20} className="text-primary" />
+          </button>
+        </div>
+
+        {/* Buscador estilo Orders */}
+        <input 
+          type="text" 
+          placeholder="Buscar conversación..." 
+          className="w-full p-3 m3-input rounded-lg border border-outline/20"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+
+        {/* Lista estilo Orders cards */}
+        <div className="flex-1 overflow-hidden">
+          <ChatList 
+            conversations={filteredConversations} 
+            onSelect={setActiveConversation}
             isLoading={isLoading}
           />
         </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Header */}
-        <header className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-700 lg:hidden">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          
-          {activeConversation && (
-            <>
-              <button
-                onClick={() => setActiveConversation(null)}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <h1 className="font-semibold text-gray-900 dark:text-white truncate">
-                {activeConversation.name}
-              </h1>
-            </>
-          )}
-        </header>
-
-        {/* Desktop Header */}
-        <header className="hidden lg:flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          {activeConversation ? (
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
-                {activeConversation.name.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <h1 className="font-semibold text-gray-900 dark:text-white">
-                  {activeConversation.name}
-                </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {activeConversation.member_count || 0} miembros
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white">
-                💬
-              </div>
-              <h1 className="font-semibold text-gray-900 dark:text-white">
-                Chat
-              </h1>
-            </div>
-          )}
-        </header>
-
-        {/* Messages Area */}
-        {activeConversation ? (
-          <>
-            <div className="flex-1 overflow-hidden">
-              <ChatMessageList />
-            </div>
-            
-            <TypingIndicator />
-            
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-              <ChatInput />
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                <Menu className="w-8 h-8 text-gray-400" />
-              </div>
-              <p className="text-gray-500 dark:text-gray-400">
-                Selecciona un chat para comenzar
-              </p>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-    </div>
+      </div>
+    </PullToRefresh>
   );
 }

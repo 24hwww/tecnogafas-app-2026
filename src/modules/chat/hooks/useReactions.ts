@@ -48,14 +48,21 @@ export function useReactions({
       const { data, error } = await supabase
         .from('message_reactions')
         .select('*')
-        .eq('message_id', messageId);
+        .eq('message_id', messageId)
+        .returns<MessageReaction[]>();
 
       if (error) throw error;
 
-      if (data) {
+      if (data && data.length > 0) {
         setReactions(groupReactions(data, currentUserId));
         // Guardar en cache
-        await dbAddReaction(data as MessageReaction);
+        for (const reaction of data) {
+          await dbAddReaction({
+            message_id: reaction.message_id,
+            user_id: reaction.user_id,
+            emoji: reaction.emoji,
+          });
+        }
       }
     } catch (err) {
       console.error('[useReactions] Error loading:', err);
@@ -123,11 +130,9 @@ export function useReactions({
         if (error) throw error;
 
         await dbAddReaction({
-          id: crypto.randomUUID(),
           message_id: messageId,
           user_id: currentUserId,
           emoji,
-          created_at: new Date().toISOString(),
         });
       } catch (err) {
         // Revert on error
@@ -209,75 +214,87 @@ export function useReactions({
     if (!messageId) return;
 
     const channelName = `reactions:${messageId}`;
+    
     const channel = channelManager.getChannel(channelName);
 
-    channel
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'message_reactions',
-          filter: `message_id=eq.${messageId}`,
-        },
-        (payload: RealtimePostgresChangesPayload<MessageReaction>) => {
-          const newReaction = payload.new;
-          setReactions((prev) => {
-            const existing = prev.find((r) => r.emoji === newReaction.emoji);
-            if (existing) {
-              return prev.map((r) =>
-                r.emoji === newReaction.emoji
-                  ? {
+    // Agregar callbacks ANTES de suscribirse, con guardas de seguridad
+    // @ts-ignore - Accediendo a propiedad interna para máxima seguridad
+    const isReady = channel.state === 'closed' || channel.state === 'errored';
+    
+    if (isReady) {
+      channel
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'message_reactions',
+            filter: `message_id=eq.${messageId}`,
+          },
+          (payload: RealtimePostgresChangesPayload<MessageReaction>) => {
+            const newReaction = payload.new as MessageReaction;
+            if (!newReaction || !newReaction.emoji || !newReaction.user_id) return;
+            
+            setReactions((prev) => {
+              const existing = prev.find((r) => r.emoji === newReaction.emoji);
+              if (existing) {
+                return prev.map((r) =>
+                  r.emoji === newReaction.emoji
+                    ? {
+                        ...r,
+                        count: r.count + 1,
+                        users: [...r.users, newReaction.user_id],
+                        me: newReaction.user_id === currentUserId ? true : r.me,
+                      }
+                    : r
+                );
+              }
+              return [
+                ...prev,
+                {
+                  emoji: newReaction.emoji,
+                  count: 1,
+                  users: [newReaction.user_id],
+                  me: newReaction.user_id === currentUserId,
+                },
+              ];
+            });
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'message_reactions',
+            filter: `message_id=eq.${messageId}`,
+          },
+          (payload: RealtimePostgresChangesPayload<MessageReaction>) => {
+            const deleted = payload.old as MessageReaction;
+            if (!deleted || !deleted.emoji || !deleted.user_id) return;
+            
+            setReactions((prev) => {
+              return prev
+                .map((r) => {
+                  if (r.emoji === deleted.emoji) {
+                    const newCount = r.count - 1;
+                    if (newCount <= 0) return null;
+                    return {
                       ...r,
-                      count: r.count + 1,
-                      users: [...r.users, newReaction.user_id],
-                      me: newReaction.user_id === currentUserId ? true : r.me,
-                    }
-                  : r
-              );
-            }
-            return [
-              ...prev,
-              {
-                emoji: newReaction.emoji,
-                count: 1,
-                users: [newReaction.user_id],
-                me: newReaction.user_id === currentUserId,
-              },
-            ];
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'message_reactions',
-          filter: `message_id=eq.${messageId}`,
-        },
-        (payload: RealtimePostgresChangesPayload<MessageReaction>) => {
-          const deleted = payload.old;
-          setReactions((prev) => {
-            return prev
-              .map((r) => {
-                if (r.emoji === deleted.emoji) {
-                  const newCount = r.count - 1;
-                  if (newCount <= 0) return null;
-                  return {
-                    ...r,
-                    count: newCount,
-                    users: r.users.filter((u) => u !== deleted.user_id),
-                    me: deleted.user_id === currentUserId ? false : r.me,
-                  };
-                }
-                return r;
-              })
-              .filter((r): r is ReactionGroup => r !== null);
-          });
-        }
-      );
+                      count: newCount,
+                      users: r.users.filter((u) => u !== deleted.user_id),
+                      me: deleted.user_id === currentUserId ? false : r.me,
+                    };
+                  }
+                  return r;
+                })
+                .filter((r): r is ReactionGroup => r !== null);
+            });
+          }
+        );
+    }
 
+    // Ahora suscribirse después de agregar los callbacks
     channelManager.subscribe(channelName, {
       onError: (err) => {
         console.error('[Realtime] Reactions error:', err);

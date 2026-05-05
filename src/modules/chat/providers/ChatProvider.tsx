@@ -1,27 +1,13 @@
-// ============================================================================
-// CHAT PROVIDER - Contexto global del sistema de chat
-// Arquitectura: React Context + Hooks composition
-// ============================================================================
-
-import React, { createContext, useContext, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useEffect } from 'react';
 import type {
   ChatContextValue,
   ConversationWithDetails,
-  SendMessageInput,
 } from '../types';
 import { useConversations } from '../hooks/useConversations';
 import { useMessages } from '../hooks/useMessages';
 import { useTyping } from '../hooks/useTyping';
 
-// ============================================================================
-// CONTEXT
-// ============================================================================
-
-const ChatContext = createContext<ChatContextValue | null>(null);
-
-// ============================================================================
-// HOOK
-// ============================================================================
+export const ChatContext = createContext<ChatContextValue | null>(null);
 
 export function useChat(): ChatContextValue {
   const context = useContext(ChatContext);
@@ -31,25 +17,13 @@ export function useChat(): ChatContextValue {
   return context;
 }
 
-// ============================================================================
-// PROVIDER PROPS
-// ============================================================================
-
 interface ChatProviderProps {
   children: React.ReactNode;
   currentUserId: string | null;
   currentUser: { id: string; username?: string; avatar_url?: string } | null;
 }
 
-// ============================================================================
-// PROVIDER COMPONENT
-// ============================================================================
-
 export function ChatProvider({ children, currentUserId, currentUser }: ChatProviderProps) {
-  // ============================================================================
-  // CONVERSATIONS STATE
-  // ============================================================================
-
   const {
     conversations,
     isLoading: conversationsLoading,
@@ -61,14 +35,9 @@ export function ChatProvider({ children, currentUserId, currentUser }: ChatProvi
     pinConversation,
     muteConversation,
     markAsRead: markConversationAsRead,
-    refresh: refreshConversations,
     setActiveConversation,
     activeConversation,
   } = useConversationsState(currentUserId);
-
-  // ============================================================================
-  // MESSAGES STATE (depende de activeConversation)
-  // ============================================================================
 
   const {
     messages,
@@ -80,36 +49,23 @@ export function ChatProvider({ children, currentUserId, currentUser }: ChatProvi
     updateMessage,
     deleteMessage,
     loadMore,
-    refresh: refreshMessages,
+    refresh,
   } = useMessages({
     conversationId: activeConversation?.id || null,
     currentUserId,
   });
 
-  // ============================================================================
-  // TYPING STATE
-  // ============================================================================
-
   const {
     typingUsers,
     startTyping,
     stopTyping,
-    isTyping,
   } = useTyping({
     conversationId: activeConversation?.id || null,
     currentUserId,
   });
 
-  // ============================================================================
-  // COMBINED STATE
-  // ============================================================================
-
   const isLoading = conversationsLoading || messagesLoading;
   const error = conversationsError || messagesError;
-
-  // ============================================================================
-  // ONLINE USERS (simplificado - basado en typing status)
-  // ============================================================================
 
   const onlineUsers = useMemo(() => {
     const online = new Set<string>();
@@ -118,81 +74,30 @@ export function ChatProvider({ children, currentUserId, currentUser }: ChatProvi
     return online;
   }, [typingUsers, currentUserId]);
 
-  // ============================================================================
-  // WRAPPED ACTIONS
-  // ============================================================================
-
-  const handleSendMessage = useCallback(
-    async (input: Omit<SendMessageInput, 'conversation_id'>) => {
-      await sendMessage(input);
-      stopTyping();
-    },
-    [sendMessage, stopTyping]
-  );
-
-  const handleSetTyping = useCallback(
-    (conversationId: string, isTypingNow: boolean) => {
-      if (isTypingNow) {
-        startTyping();
-      } else {
-        stopTyping();
-      }
-    },
-    [startTyping, stopTyping]
-  );
-
-  const handleMarkAsRead = useCallback(
-    async (conversationId: string, messageId: string) => {
-      await markConversationAsRead(conversationId);
-    },
-    [markConversationAsRead]
-  );
-
-  // ============================================================================
-  // REACTIONS (per-message, handled via hook in components)
-  // ============================================================================
-
-  const addReaction = useCallback(
-    async (messageId: string, emoji: string) => {
-      // This is a placeholder - actual implementation uses useReactions hook per message
-      console.log('[ChatProvider] Add reaction:', messageId, emoji);
-    },
-    []
-  );
-
-  const removeReaction = useCallback(
-    async (messageId: string, emoji: string) => {
-      console.log('[ChatProvider] Remove reaction:', messageId, emoji);
-    },
-    []
-  );
-
-  // ============================================================================
-  // CONTEXT VALUE
-  // ============================================================================
-
   const value: ChatContextValue = useMemo(
     () => ({
-      // Estado
-      currentUser: currentUser as ChatContextValue['currentUser'],
+      currentUser: currentUser as unknown as ChatContextValue['currentUser'],
       conversations,
       activeConversation,
       messages,
       typingUsers,
       onlineUsers,
-      isConnected: true, // TODO: implement connection status
+      isConnected: true,
       isLoading,
+      isLoadingMore,
+      hasMore,
       error,
 
-      // Acciones
       setActiveConversation,
-      sendMessage: handleSendMessage,
+      sendMessage: (input) => sendMessage(input),
       updateMessage,
       deleteMessage,
-      addReaction,
-      removeReaction,
-      markAsRead: handleMarkAsRead,
-      setTyping: handleSetTyping,
+      loadMore,
+      refresh,
+      addReaction: async () => {}, // TODO
+      removeReaction: async () => {}, // TODO
+      markAsRead: async (c) => await markConversationAsRead(c),
+      setTyping: (id, typing) => (typing ? startTyping() : stopTyping()),
       createConversation,
       joinConversation,
       leaveConversation,
@@ -208,15 +113,18 @@ export function ChatProvider({ children, currentUserId, currentUser }: ChatProvi
       typingUsers,
       onlineUsers,
       isLoading,
+      isLoadingMore,
+      hasMore,
       error,
       setActiveConversation,
-      handleSendMessage,
+      sendMessage,
       updateMessage,
       deleteMessage,
-      addReaction,
-      removeReaction,
-      handleMarkAsRead,
-      handleSetTyping,
+      loadMore,
+      refresh,
+      markConversationAsRead,
+      startTyping,
+      stopTyping,
       createConversation,
       joinConversation,
       leaveConversation,
@@ -229,10 +137,6 @@ export function ChatProvider({ children, currentUserId, currentUser }: ChatProvi
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 }
 
-// ============================================================================
-// CONVERSATIONS STATE WRAPPER
-// ============================================================================
-
 function useConversationsState(currentUserId: string | null) {
   const [activeConversation, setActiveConversationState] =
     React.useState<ConversationWithDetails | null>(null);
@@ -242,13 +146,21 @@ function useConversationsState(currentUserId: string | null) {
   const setActiveConversation = useCallback(
     (conversation: ConversationWithDetails | null) => {
       setActiveConversationState(conversation);
-      // Marcar como leído al seleccionar
-      if (conversation && conversation.unread_count > 0) {
-        conversationsHook.markAsRead(conversation.id);
-      }
     },
-    [conversationsHook]
+    []
   );
+
+  // Auto-select default conversation when list loads
+  useEffect(() => {
+    if (!activeConversation && conversationsHook.conversations.length > 0) {
+      const notifChannel = conversationsHook.conversations.find(
+        (c) => c.slug === 'notificaciones'
+      );
+      setActiveConversationState(
+        notifChannel || conversationsHook.conversations[0]
+      );
+    }
+  }, [conversationsHook.conversations, activeConversation]);
 
   return {
     ...conversationsHook,
@@ -256,9 +168,3 @@ function useConversationsState(currentUserId: string | null) {
     setActiveConversation,
   };
 }
-
-// ============================================================================
-// EXPORTS
-// ============================================================================
-
-export { ChatContext };
