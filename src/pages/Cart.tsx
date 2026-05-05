@@ -3,6 +3,7 @@ import { Trash2, AlertCircle, ShoppingBag, User, Share2, Copy } from 'lucide-rea
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../lib/utils';
 import { useState } from 'react';
+import React from 'react';
 
 export default function Cart() {
   const { cart, selectedClient, removeFromCart, updateCartQuantity, shareCart } = useApp();
@@ -138,43 +139,46 @@ export default function Cart() {
               {shareResult.success ? '✅ ¡Carrito Compartido!' : '❌ Error al Compartir'}
             </h3>
             {shareResult.success ? (
-              <div className="space-y-3">
-                <p className="text-green-600 font-medium">{shareResult.message}</p>
-                <div className="bg-gray-100 p-3 rounded border">
-                  <p className="text-sm font-bold mb-2">Código del carrito:</p>
-                  <div className="flex items-center gap-2">
-                    <code className="bg-gray-200 px-3 py-2 rounded font-mono text-lg">{shareResult.code}</code>
-                    <button 
-                      onClick={() => navigator.clipboard.writeText(shareResult.link)}
-                      className="m3-button-outlined text-sm"
-                    >
-                      <Copy size={16} className="mr-1" />
-                      Copiar
-                    </button>
+              <React.Fragment>
+                <div className="space-y-3">
+                  <p className="text-green-600 font-medium">{shareResult.message}</p>
+                  <div className="bg-gray-100 p-3 rounded border">
+                    <p className="text-sm font-bold mb-2">Código del carrito:</p>
+                    <div className="flex items-center gap-2">
+                      <code className="bg-gray-200 px-3 py-2 rounded font-mono text-lg">{shareResult.code}</code>
+                      <button 
+                        onClick={() => navigator.clipboard.writeText(shareResult.link)}
+                        className="m3-button-outlined text-sm"
+                      >
+                        <Copy size={16} className="mr-1" />
+                        Copiar
+                      </button>
+                    </div>
                   </div>
+                  <p className="text-xs text-gray-600 mt-2">
+                    Enlace público: <a href={shareResult.link} target="_blank" className="text-blue-600 underline">{shareResult.link}</a>
+                  </p>
+                  <p className="text-xs text-gray-500">Este enlace expirará en 24 horas.</p>
                 </div>
-                <p className="text-xs text-gray-600 mt-2">
-                  Enlace público: <a href={shareResult.link} target="_blank" className="text-blue-600 underline">{shareResult.link}</a>
-                </p>
-                <p className="text-xs text-gray-500">Este enlace expirará en 24 horas.</p>
-              </div>
-              <button 
-                onClick={() => setShareResult(null)}
-                className="w-full m3-button-filled mt-4"
-              >
-                Cerrar
-              </button>
-            </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-red-600 font-medium">{shareResult.message}</p>
                 <button 
                   onClick={() => setShareResult(null)}
                   className="w-full m3-button-filled mt-4"
                 >
                   Cerrar
                 </button>
-              </div>
+              </React.Fragment>
+            ) : (
+              <React.Fragment>
+                <div className="space-y-3">
+                  <p className="text-red-600 font-medium">{shareResult.message}</p>
+                  <button 
+                    onClick={() => setShareResult(null)}
+                    className="w-full m3-button-filled mt-4"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </React.Fragment>
             )}
           </div>
         </div>
