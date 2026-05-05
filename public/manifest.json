@@ -85,12 +85,6 @@
   "note_taking": {
     "new_note_url": "/nueva-nota"
   },
-  "scope_extensions": [
-  {
-    "type": "navigation",
-    "origin": "https://app.tecnogafas.com.ar"
-  }
-],
   "widgets": [
     {
       "name": "Tecnogafas",
