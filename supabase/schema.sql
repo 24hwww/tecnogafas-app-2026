@@ -531,7 +531,7 @@ WHERE cm.user_id = auth.uid()
   AND c.is_archived = FALSE
 ORDER BY c.last_message_at DESC NULLS LAST;
 
--- Vista de mensajes con info del autor
+-- Vista de mensajes con info del autor (sin anidamiento de agregaciones)
 CREATE OR REPLACE VIEW message_details AS
 SELECT 
   m.*,
@@ -539,20 +539,30 @@ SELECT
   p.display_name as author_display_name,
   p.avatar_url as author_avatar_url,
   p.status as author_status,
-  array_agg(DISTINCT mr.emoji) as reactions,
-  jsonb_object_agg(
-    mr.emoji,
-    jsonb_build_object(
-      'count', COUNT(DISTINCT mr.user_id),
-      'users', jsonb_agg(DISTINCT mr.user_id),
-      'me', bool_or(mr.user_id = auth.uid())
+  COALESCE(
+    (SELECT jsonb_object_agg(
+      emoji_data.emoji,
+      jsonb_build_object(
+        'count', emoji_data.reaction_count,
+        'users', emoji_data.users,
+        'me', emoji_data.current_user_reacted
+      )
     )
-  ) FILTER (WHERE mr.emoji IS NOT NULL) as reaction_details
+    FROM (
+      SELECT 
+        mr.emoji,
+        COUNT(*)::int as reaction_count,
+        jsonb_agg(mr.user_id) as users,
+        bool_or(mr.user_id = auth.uid()) as current_user_reacted
+      FROM message_reactions mr
+      WHERE mr.message_id = m.id
+      GROUP BY mr.emoji
+    ) emoji_data),
+    '{}'::jsonb
+  ) as reaction_details
 FROM messages m
 LEFT JOIN profiles p ON p.id = m.user_id
-LEFT JOIN message_reactions mr ON mr.message_id = m.id
-WHERE m.is_deleted = FALSE
-GROUP BY m.id, p.username, p.display_name, p.avatar_url, p.status;
+WHERE m.is_deleted = FALSE;
 
 -- ============================================================================
 -- CONFIGURACIÓN REALTIME
