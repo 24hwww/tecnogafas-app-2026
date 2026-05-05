@@ -13,9 +13,10 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         strategies: 'generateSW',
+        manifest: false,
         workbox: {
           navigateFallback: 'index.html',
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,json}']
         },
         devOptions: {
           enabled: false
