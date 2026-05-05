@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ShoppingBag, AlertCircle, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { SharedCart } from '../types';
+import { useApp } from '../AppContext';
 
 export default function SharedCart() {
   const { code } = useParams<{ code: string }>();
@@ -46,46 +47,51 @@ export default function SharedCart() {
     loadSharedCart();
   }, [code]);
 
-  const handleContinueToCheckout = () => {
+  const { loadSharedCart, addToCart, setSelectedClient, clearCart } = useApp();
+
+  const handleContinueToCheckout = async () => {
     if (!cart) return;
     
-    // Load cart into app context
-    const { loadSharedCart } = await import('../AppContext');
-    const result = await loadSharedCart(cart.code);
-    
-    if (result.success && result.cart) {
-      // Set cart items and client in context
-      const { addToCart } = await import('../AppContext');
-      result.cart.client && (await import('../AppContext')).setSelectedClient(result.cart.client);
+    try {
+      const result = await loadSharedCart(cart.code);
       
-      // Clear existing cart and add shared items
-      const { clearCart } = await import('../AppContext');
-      clearCart();
-      
-      result.cart.items.forEach(item => {
-        addToCart(
-          {
-            id: item.product_id.toString(),
-            name: item.name,
-            category: '',
-            price: item.price,
-            stock: item.quantity,
-            image: '',
-            description: '',
-            variations: item.vid ? [{
-              vid: item.vid?.toString() || '',
-              title: item.variation_name || '',
+      if (result.success && result.cart) {
+        // Set client in context
+        if (result.cart.client) {
+          setSelectedClient(result.cart.client);
+        }
+        
+        // Clear existing cart and add shared items
+        clearCart();
+        
+        result.cart.items.forEach(item => {
+          addToCart(
+            {
+              id: item.product_id.toString(),
+              name: item.name,
+              category: '',
+              price: item.price,
               stock: item.quantity,
-              price: item.price
-            }] : undefined
-          },
-          item.quantity
-        );
-      });
-      
-      navigate('/carrito');
-    } else {
-      setError(result.message || 'Error al cargar el carrito');
+              image: '',
+              description: '',
+              variations: item.vid ? [{
+                vid: item.vid?.toString() || '',
+                title: item.variation_name || '',
+                stock: item.quantity,
+                price: item.price
+              }] : undefined
+            },
+            item.quantity
+          );
+        });
+        
+        navigate('/carrito');
+      } else {
+        setError(result.message || 'Error al cargar el carrito');
+      }
+    } catch (error) {
+      console.error('Error in handleContinueToCheckout:', error);
+      setError('Error al continuar al checkout');
     }
   };
 
