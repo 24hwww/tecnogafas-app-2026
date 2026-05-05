@@ -38,8 +38,8 @@ export function ChatLayout({ className = '' }: ChatLayoutProps) {
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Conversaciones
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <span>💬</span> Chat
             </h2>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -102,9 +102,14 @@ export function ChatLayout({ className = '' }: ChatLayoutProps) {
               </div>
             </div>
           ) : (
-            <h1 className="font-semibold text-gray-900 dark:text-white">
-              Selecciona una conversación
-            </h1>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white">
+                💬
+              </div>
+              <h1 className="font-semibold text-gray-900 dark:text-white">
+                Chat
+              </h1>
+            </div>
           )}
         </header>
 
@@ -128,7 +133,7 @@ export function ChatLayout({ className = '' }: ChatLayoutProps) {
                 <Menu className="w-8 h-8 text-gray-400" />
               </div>
               <p className="text-gray-500 dark:text-gray-400">
-                Selecciona una conversación para comenzar
+                Selecciona un chat para comenzar
               </p>
             </div>
           </div>
