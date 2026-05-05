@@ -1,6 +1,6 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { House, Package, Users, ClipboardList, ShoppingCart, Menu, X, Bell, Settings, RefreshCw } from 'lucide-react';
+import { House, Package, Users, ClipboardList, ShoppingCart, Menu, X, MessageCircle, Settings, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useApp } from '../AppContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -11,7 +11,7 @@ const navItems = [
   { path: '/clientes', label: 'Clientes', icon: Users },
   { path: '/pedidos', label: 'Pedidos', icon: ClipboardList },
   { path: '/carrito', label: 'Carrito', icon: ShoppingCart },
-  { path: '/notificaciones', label: 'Notificaciones', icon: Bell },
+  { path: '/chat', label: 'Chat', icon: MessageCircle },
   { path: '/configuracion', label: 'Configuración', icon: Settings },
 ];
 
@@ -107,7 +107,7 @@ export function Layout({ children }: { children: ReactNode }) {
                         {cart.reduce((a, b) => a + b.quantity, 0)}
                       </span>
                     )}
-                    {item.label === 'Notificaciones' && unreadNotifications > 0 && (
+                    {item.label === 'Chat' && unreadNotifications > 0 && (
                       <span className="ml-auto bg-error text-white text-[0.7rem] px-2 py-0.5 font-bold rounded-full">
                         {unreadNotifications > 99 ? '99+' : unreadNotifications}
                       </span>

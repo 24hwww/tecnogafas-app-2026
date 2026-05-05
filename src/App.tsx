@@ -23,7 +23,7 @@ const Clients = lazy(() => import('./pages/Clients'));
 const Orders = lazy(() => import('./pages/Orders'));
 const Cart = lazy(() => import('./pages/Cart'));
 const Checkout = lazy(() => import('./pages/Checkout'));
-const Notifications = lazy(() => import('./pages/Notifications'));
+const Chat = lazy(() => import('./pages/Chat'));
 const Settings = lazy(() => import('./pages/Settings'));
 const TestApiPage = lazy(() => import('./pages/TestApiPage'));
 
@@ -55,7 +55,7 @@ function AppInner() {
           <Route path="/pedidos" element={<Orders />} />
           <Route path="/carrito" element={<Cart />} />
           <Route path="/pago" element={<Checkout />} />
-          <Route path="/notificaciones" element={<Notifications />} />
+          <Route path="/chat" element={<Chat />} />
           <Route path="/configuracion" element={<Settings />} />
           <Route path="/test" element={<TestApiPage />} />
         </Routes>
