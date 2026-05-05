@@ -245,7 +245,7 @@ export function useMessages({
 
       // 4. Enviar a Supabase
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('messages')
           .insert({
             conversation_id: conversationId,
@@ -305,13 +305,13 @@ export function useMessages({
       );
 
       try {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('messages')
           .update({
             content: input.content,
             is_edited: true,
             edited_at: new Date().toISOString(),
-          } as Partial<Message>)
+          })
           .eq('id', messageId);
 
         if (error) throw error;
@@ -336,12 +336,12 @@ export function useMessages({
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
 
       try {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('messages')
           .update({
             is_deleted: true,
             deleted_at: new Date().toISOString(),
-          } as Partial<Message>)
+          })
           .eq('id', messageId);
 
         if (error) throw error;

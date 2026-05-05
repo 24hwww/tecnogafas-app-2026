@@ -202,9 +202,9 @@ export default function Checkout() {
             const sellerName = seller?.name || 'Vendedor';
             const clientName = selectedClient?.name || 'Cliente';
 
-            await supabase.rpc('send_notification_to_chat', {
+            await (supabase as any).rpc('send_notification_to_chat', {
               p_title: '📦 Nuevo Pedido',
-              p_message: `${sellerName} cargó el pedido #${result.orderId} para ${clientName}`,
+              p_message: `${sellerName} cargó el pedido #${result.orderId} for ${clientName}`,
               p_type: 'order',
               p_priority: 'normal',
               p_action_url: `/orders/${result.orderId}`,

@@ -172,6 +172,7 @@ export const apiService = {
         productName: i.name || '',
         quantity: i.quantity || 0,
         price: i.price || 0,
+        vid: i.vid?.toString(),
       })),
       total: o.order_total ? parseFloat(o.order_total.toString()) : 0,
       status: (o.post_status === 'unattended' ? 'Pendiente' : 'Completado') as Order['status'],
@@ -727,23 +728,23 @@ export const apiService = {
   // SUPABASE HELPERS (BRIDGE)
   // ============================================================================
 
-  async getSupabaseNotificationChannel() {
+  async getSupabaseNotificationChannel(): Promise<{ data: { id: string } | null, error: any }> {
     const { supabase } = await import('../modules/chat/lib/supabase');
     return supabase
       .from('conversations')
       .select('id')
       .eq('slug', 'notificaciones')
-      .single();
+      .single() as any;
   },
 
-  async getSupabaseMemberStatus(conversationId: string, userId: string) {
+  async getSupabaseMemberStatus(conversationId: string, userId: string): Promise<{ data: { unread_count: number } | null, error: any }> {
     const { supabase } = await import('../modules/chat/lib/supabase');
     return supabase
       .from('conversation_members')
       .select('unread_count')
       .eq('conversation_id', conversationId)
       .eq('user_id', userId)
-      .maybeSingle();
+      .maybeSingle() as any;
   },
 
   async subscribeToSupabaseTable(table: string, filter: string, callback: (payload: any) => void) {

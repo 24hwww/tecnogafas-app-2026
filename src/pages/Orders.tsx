@@ -155,7 +155,7 @@ export default function Orders() {
               name: item.productName,
               price: item.price,
               quantity: item.quantity,
-              vid: item.variationId ? item.variationId.toString() : undefined
+              vid: item.vid
             }));
           
           if (items.length === 0) {

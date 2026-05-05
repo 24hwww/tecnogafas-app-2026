@@ -93,6 +93,7 @@ export interface OrderItem {
   productName: string;
   quantity: number;
   price: number;
+  vid?: string;
 }
 
 export interface Order {

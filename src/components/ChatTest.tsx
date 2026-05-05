@@ -127,7 +127,7 @@ export default function ChatTest() {
         return;
       }
       
-      const { data: msgData, error: insertError } = await supabase
+      const { data: msgData, error: insertError } = await (supabase as any)
         .from('messages')
         .insert({
           conversation_id: conv.id,
@@ -183,7 +183,7 @@ export default function ChatTest() {
         return;
       }
 
-      const { data, error } = await supabase.rpc('send_notification_to_chat', {
+      const { data, error } = await (supabase as any).rpc('send_notification_to_chat', {
         p_title: '🧪 Test Sistema',
         p_message: 'Esta es una notificación de prueba desde el Bridge',
         p_type: 'system',

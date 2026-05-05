@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ShoppingBag, AlertCircle, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
-import { SharedCart } from '../types';
+import { SharedCart as SharedCartType } from '../types';
 import { useApp } from '../AppContext';
 
 export default function SharedCart() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
-  const [cart, setCart] = useState<SharedCart | null>(null);
+  const [cart, setCart] = useState<SharedCartType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,7 +16,7 @@ export default function SharedCart() {
     const loadSharedCart = async () => {
       try {
         const { supabase } = await import('../modules/chat/lib/supabase');
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('shared_carts')
           .select('*')
           .eq('code', code)
@@ -34,7 +34,17 @@ export default function SharedCart() {
           return;
         }
 
-        setCart(data);
+        const mappedCart: SharedCartType = {
+          id: data.id,
+          code: data.code,
+          items: data.items,
+          total: data.metadata?.total || 0,
+          createdAt: data.created_at,
+          expiresAt: data.expires_at,
+          isActive: data.is_active
+        };
+
+        setCart(mappedCart);
         setError(null);
       } catch (err) {
         console.error('Error loading shared cart:', err);
@@ -47,13 +57,13 @@ export default function SharedCart() {
     loadSharedCart();
   }, [code]);
 
-  const { loadSharedCart, addToCart, setSelectedClient, clearCart } = useApp();
+  const { loadSharedCart: loadSharedCartAction, addToCart, setSelectedClient, clearCart } = useApp();
 
   const handleContinueToCheckout = async () => {
     if (!cart) return;
     
     try {
-      const result = await loadSharedCart(cart.code);
+      const result = await loadSharedCartAction(cart.code);
       
       if (result.success && result.cart) {
         // Set client in context
@@ -67,16 +77,16 @@ export default function SharedCart() {
         result.cart.items.forEach(item => {
           addToCart(
             {
-              id: item.product_id.toString(),
+              id: item.id.toString(),
               name: item.name,
-              category: '',
+              category: item.category || '',
               price: item.price,
-              stock: item.quantity,
-              image: '',
-              description: '',
+              stock: item.stock || 0,
+              image: item.image || '',
+              description: item.description || '',
               variations: item.vid ? [{
                 vid: item.vid?.toString() || '',
-                title: item.variation_name || '',
+                title: item.name, // Fallback to item name if variation name not found
                 stock: item.quantity,
                 price: item.price
               }] : undefined

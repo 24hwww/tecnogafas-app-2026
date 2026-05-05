@@ -311,6 +311,8 @@ export interface MessageWithAuthor extends Message {
   author?: Profile;
   reactions?: ReactionGroup[];
   is_read?: boolean;
+  pending?: boolean;
+  error?: string;
 }
 
 export interface ConversationWithDetails extends Conversation {
@@ -527,6 +529,7 @@ export interface ChatContextValue {
   onlineUsers: Set<string>;
   isConnected: boolean;
   isLoading: boolean;
+  hasMore: boolean;
   error: Error | null;
   
   // Acciones
@@ -544,4 +547,6 @@ export interface ChatContextValue {
   archiveConversation: (conversationId: string) => Promise<void>;
   pinConversation: (conversationId: string, pinned: boolean) => Promise<void>;
   muteConversation: (conversationId: string, muted: boolean) => Promise<void>;
+  loadMore: () => Promise<void>;
+  refresh: () => Promise<void>;
 }

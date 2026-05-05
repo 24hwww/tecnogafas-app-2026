@@ -34,6 +34,7 @@ interface AppContextType {
   markDraftAsSent: (draftId: string) => void;
   shareCart: () => Promise<{ success: boolean; code: string; message: string; link: string }>;
   loadSharedCart: (code: string) => Promise<{ success: boolean; cart: SharedCart | null; message: string }>;
+  syncPendingOrders: () => Promise<void>;
   sharedCarts: SharedCart[];
   primaryColor: string;
   fontSize: string;
@@ -604,80 +605,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await set('tecnogafas_drafts', updatedDrafts);
   };
 
-  // Cart sharing functions
   const shareCart = async () => {
     if (!selectedClient || cart.length === 0) {
-      return { success: false, code: '', message: 'No hay productos en el carrito', link: '' };
+      return { success: false, code: '', message: 'Carrito vacío o sin cliente', link: '' };
     }
 
     try {
-      // Generate 13-character alphanumeric code
-      const generateCartCode = () => {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let code = '';
-        for (let i = 0; i < 13; i++) {
-          code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return code;
-      };
-
-      const cartCode = generateCartCode();
-      const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
-
-      // Create shared cart object
-      const sharedCart: SharedCart = {
-        id: `shared_${Date.now()}`,
-        code: cartCode,
-        client: selectedClient,
-        items: [...cart],
-        total,
-        createdAt: new Date().toISOString(),
-        expiresAt: expiresAt.toISOString(),
-        isActive: true
-      };
-
-      // Save to Supabase
       const { supabase } = await import('./modules/chat/lib/supabase');
-      const { data, error } = await supabase
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+
+      const { data, error } = await (supabase as any)
         .from('shared_carts')
-        .insert([sharedCart])
-        .select();
+        .insert({
+          code,
+          client_id: selectedClient.id,
+          client_name: selectedClient.name,
+          items: cart,
+          seller_id: currentSeller?.id,
+          expires_at: expiresAt.toISOString(),
+          metadata: {
+            total: cart.reduce((acc, item) => acc + item.price * item.quantity, 0)
+          }
+        })
+        .select()
+        .single();
 
-      if (error) {
-        console.error('Error saving shared cart:', error);
-        return { success: false, code: '', message: 'Error al guardar carrito compartido', link: '' };
-      }
+      if (error) throw error;
 
-      // Save to local cache
-      const updatedSharedCarts = [sharedCart, ...sharedCarts.filter(c => c.id !== sharedCart.id)];
-      setSharedCarts(updatedSharedCarts);
-      await set('tecnogafas_shared_carts', updatedSharedCarts);
-
-      const shareLink = `${window.location.origin}/carrito/${cartCode}`;
-      
-      return { 
-        success: true, 
-        code: cartCode, 
-        message: 'Carrito guardado exitosamente', 
-        link: shareLink 
-      };
+      const link = `${window.location.origin}/shared-cart/${code}`;
+      return { success: true, code, message: 'Carrito compartido exitosamente', link };
 
     } catch (error) {
       console.error('Error sharing cart:', error);
-      return { success: false, code: '', message: 'Error al compartir carrito', link: '' };
+      return { success: false, code: '', message: 'Error al generar enlace compartido', link: '' };
     }
   };
 
-  const loadSharedCart = async (code: string) => {
+  const loadSharedCart = async (code: string): Promise<{ success: boolean; cart: SharedCart | null; message: string }> => {
     try {
-      // First check local cache
-      const cachedCart = sharedCarts.find(c => c.code === code && c.isActive && new Date(c.expiresAt) > new Date());
-      if (cachedCart) {
-        return { success: true, cart: cachedCart, message: 'Carrito cargado desde caché' };
-      }
-
-      // Check Supabase
       const { supabase } = await import('./modules/chat/lib/supabase');
       const { data, error } = await supabase
         .from('shared_carts')
@@ -690,17 +657,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return { success: false, cart: null, message: 'Carrito no encontrado o expirado' };
       }
 
+      const sharedCartData = data as any;
+
       // Check if expired
-      if (new Date(data.expires_at) < new Date()) {
+      if (new Date(sharedCartData.expires_at) < new Date()) {
         return { success: false, cart: null, message: 'Este carrito ha expirado' };
       }
 
+      const mappedCart: SharedCart = {
+        id: sharedCartData.id,
+        code: sharedCartData.code,
+        items: sharedCartData.items,
+        total: sharedCartData.metadata?.total || 0,
+        createdAt: sharedCartData.created_at,
+        expiresAt: sharedCartData.expires_at,
+        isActive: sharedCartData.is_active
+      };
+
       // Update local cache
-      const updatedSharedCarts = [data, ...sharedCarts.filter(c => c.id !== data.id)];
+      const updatedSharedCarts = [mappedCart, ...sharedCarts.filter(c => c.id !== mappedCart.id)];
       setSharedCarts(updatedSharedCarts);
       await set('tecnogafas_shared_carts', updatedSharedCarts);
 
-      return { success: true, cart: data, message: 'Carrito cargado exitosamente' };
+      return { success: true, cart: mappedCart, message: 'Carrito cargado exitosamente' };
 
     } catch (error) {
       console.error('Error loading shared cart:', error);
@@ -708,97 +687,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Efecto para actualizar tema automáticamente SOLO si no fue manual
+  useEffect(() => {
+    // Verificar si el tema fue seteado manualmente
+    const isManual = localStorage.getItem('tecnogafas_theme_manual') === 'true';
+    if (isManual) {
+      // No actualizar automáticamente si el usuario eligió manualmente
+      return;
+    }
+
+    const checkTheme = () => {
+      const autoTheme = detectBuenosAiresTheme();
+      const currentTheme = document.documentElement.getAttribute('data-theme') as 'light' | 'dark';
+      if (autoTheme !== currentTheme) {
+        setTheme(autoTheme);
+        document.documentElement.setAttribute('data-theme', autoTheme);
+        localStorage.setItem('tecnogafas_theme', autoTheme);
+      }
+    };
+
+    // Verificar inmediatamente y luego cada minuto
+    checkTheme();
+    const interval = setInterval(checkTheme, 60000);
+
+    return () => clearInterval(interval);
+  }, [detectBuenosAiresTheme]);
+
   // SSE desactivado temporalmente por problemas de conexión
   useEffect(() => {
-    console.log('🔕 SSE desactivado');
+    console.log(' SSE desactivado');
     return;
-    // Código SSE comentado temporalmente:
-    /*
-    let eventSource: EventSource | null = null;
-    console.log("DEBUG: globalPin en SSE init:", globalPin);
-
-    if (globalPin && isOnline) {
-      apiService.loginSeller(globalPin).then(seller => {
-        if (seller) {
-          setCurrentSeller(seller);
-          const lastId = localStorage.getItem('tecnogafas_last_event_id') || '';
-          const url = new URL('https://api.tecnogafas.com.ar/events/stream');
-          if (lastId) url.searchParams.set('last_id', lastId);
-          
-          // Crear EventSource con headers personalizados usando fetch API
-          const connectSSE = () => {
-            const headers: Record<string, string> = {};
-            if (seller?.id) {
-              headers['Authorization'] = `Bearer ${seller.id}`;
-            }
-            if (lastId) {
-              headers['Last-Event-ID'] = lastId;
-            }
-            
-            // Usar EventSource nativo (no soporta headers custom)
-            // Pero enviamos seller_id como query param para filtrado server-side
-            url.searchParams.set('seller_id', seller.id);
-            
-            eventSource = new EventSource(url.toString());
-            
-            eventSource.onopen = () => {
-              console.log('✅ SSE connected');
-              syncAll();
-            };
-            
-            eventSource.onmessage = (event) => {
-               if (event.lastEventId) {
-                 localStorage.setItem('tecnogafas_last_event_id', event.lastEventId);
-               }
-               try {
-                  const data = JSON.parse(event.data);
-                  const eventType = data.type || event.type;
-                  
-                  // Server now filters by user_id, no need for client-side filtering
-                  if (eventType === 'order' || eventType === 'sync') {
-                    syncAll();
-                  }
-                  if (eventType === 'notification' || eventType === 'message') {
-                    const eventId = data.id;
-                    // Skip if already shown (deduplication)
-                    if (eventId && hasNotificationBeenShown(eventId)) {
-                      console.log('🔕 SSE event already shown, skipping:', eventId);
-                    } else {
-                      if (eventId) markNotificationAsShown(eventId);
-                      setUnreadNotifications(prev => prev + 1);
-                      // Delay fetch to batch multiple rapid events
-                      setTimeout(fetchNotifications, 300);
-                    }
-                  }
-               } catch (e) {
-                 console.error('Error parsing SSE data:', e);
-               }
-            };
-            
-            eventSource.onerror = (err) => {
-              console.error('❌ SSE error:', err);
-              // Reconectar con backoff exponencial
-              setTimeout(() => {
-                if (globalPin && isOnline) {
-                  connectSSE();
-                }
-              }, 5000);
-            };
-          };
-          
-          connectSSE();
-        }
-      });
-    }
-    return () => {
-      eventSource?.close();
-    };
-    */
-  }, [globalPin, isOnline, syncAll, fetchNotifications, hasNotificationBeenShown, markNotificationAsShown]);
+  }, []);
 
   return (
     <AppContext.Provider value={{
-      supabaseUser, products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, sharedCarts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, theme, isOnline, connectionStatus, pendingOrdersCount, setNotifications, setSelectedClient,
+      supabaseUser, products, clients, orders, totalOrders, grandTotalOrders, dashboardOrders, sellers, cart, drafts, sharedCarts, isLoading, selectedClient, currentDraftId, primaryColor, fontSize, globalPin, currentSeller, apiError, onlineUsersCount, deployEvent, appVersionInfo, notifications, unreadNotifications, theme, isOnline, connectionStatus, setNotifications, setSelectedClient,
       addToCart, removeFromCart, updateCartQuantity, clearCart, saveDraft, loadDraft, markDraftAsSent, shareCart, loadSharedCart, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, setGlobalPin: updateGlobalPin, setApiError, setOnlineUsersCount, setTotalOrders, setDeployNotification, setUnreadNotifications, setTheme: updateTheme, fetchNotifications, sendNotification, fetchOrders, refreshData, forceRefresh, initializePushNotifications, clearAllCaches, hasNewVersion, currentAppVersion,
       markAllNotificationsAsRead, markNotificationAsShown, hasNotificationBeenShown,
       syncPendingOrders: async () => { if (globalPin) await syncPendingOrders(globalPin); }

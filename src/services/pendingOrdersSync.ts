@@ -356,13 +356,13 @@ async function markOrderCompleted(
 
 async function incrementAttempt(orderId: string, errorMessage: string): Promise<void> {
   // Fallback a update directo - primero obtener el conteo actual
-  const { data: current } = await (supabase as any)
+  const response = await (supabase as any)
     .from('pending_orders')
     .select('attempt_count')
     .eq('id', orderId)
-    .single() as Promise<{ data: { attempt_count: number } | null }>;
+    .single();
 
-  const currentRecord = current as { attempt_count: number } | null;
+  const currentRecord = response.data as { attempt_count: number } | null;
   const newCount = (currentRecord?.attempt_count || 0) + 1;
 
   await (supabase as any)

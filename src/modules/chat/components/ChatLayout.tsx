@@ -20,8 +20,7 @@ export function ChatLayout({ className = '' }: ChatLayoutProps) {
     activeConversation, 
     setActiveConversation, 
     conversations, 
-    isLoading, 
-    refresh
+    isLoading
   } = useChat();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,7 +30,7 @@ export function ChatLayout({ className = '' }: ChatLayoutProps) {
   );
 
   const handleRefresh = async () => {
-    await refresh();
+    // Refresh disabled until properly implemented
   };
 
   // Si hay una conversación activa, mostramos el chat

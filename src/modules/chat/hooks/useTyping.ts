@@ -59,10 +59,8 @@ export function useTyping({
 
           // Guardar en cache local
           await setTypingStatus({
-            id: '',
             conversation_id: conversationId,
             user_id: currentUserId,
-            started_at: now.toISOString(),
             expires_at: expiresAt.toISOString(),
           });
         } else {
