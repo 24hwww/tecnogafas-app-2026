@@ -13,9 +13,6 @@ export default function Settings() {
   useEffect(() => {
     if ('Notification' in window) {
       setPushEnabled(Notification.permission === 'granted');
-      if (Notification.permission === 'granted' && 'serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(console.error);
-      }
     }
   }, []);
 
@@ -25,16 +22,7 @@ export default function Settings() {
       return;
     }
     const perm = await Notification.requestPermission();
-    if (perm === 'granted') {
-      try {
-        await navigator.serviceWorker.register('/sw.js');
-        setPushEnabled(true);
-      } catch (err) {
-        console.error('Error registrando service worker:', err);
-      }
-    } else {
-      setPushEnabled(false);
-    }
+    setPushEnabled(perm === 'granted');
   };
 
   const handleSavePin = () => {
