@@ -23,11 +23,12 @@ export function useDataSync(
     setConnectionStatus?.('syncing');
     
     try {
-      const [p, c, o, s] = await Promise.all([
+      const [p, c, o, s, stats] = await Promise.all([
         apiService.getProducts(),
         apiService.getClients(),
         apiService.getOrders(1, 25, undefined),
         apiService.getSellers(),
+        apiService.getStats(),
       ]);
 
       // Sort orders by createdAt (post_date) descending - most recent first
@@ -39,9 +40,12 @@ export function useDataSync(
       setClients(c);
       setOrders(sortedOrders);
       setTotalOrders(o.total);
-      setGrandTotalOrders(o.total);
-      setDashboardOrders(sortedOrders.slice(0, 5));
-      setSellers(s);
+      // Usar estadísticas del API en tiempo real
+      setGrandTotalOrders(stats.data.total_orders);
+      setSellers(stats.data.total_sellers);
+      // Solo mostrar los primeros 5 pedidos en el dashboard
+      const dashboardOnlyOrders = sortedOrders.slice(0, 5);
+      setDashboardOrders(dashboardOnlyOrders);
 
       // Save to IndexedDB cache
       try {
@@ -72,7 +76,9 @@ export function useDataSync(
           setOrders(cachedOrders);
           setTotalOrders(cachedOrders.length);
           setGrandTotalOrders(cachedOrders.length);
-          setDashboardOrders(cachedOrders.slice(0, 5));
+          // Solo guardar los primeros 5 pedidos para el dashboard
+          const dashboardOnlyOrders = cachedOrders.slice(0, 5);
+          setDashboardOrders(dashboardOnlyOrders);
         }
         if (cachedSellers) setSellers(cachedSellers);
         

@@ -78,7 +78,7 @@ export default function Clients() {
         </div>
 
         <div className="space-y-3">
-          {isLoading ? (
+          {isLoading && clients.length === 0 ? (
             Array(6).fill(0).map((_, i) => <ClientSkeleton key={i} />)
           ) : (
             filteredClients.map((client) => {

@@ -1,29 +1,27 @@
 import { useState, useRef, useEffect } from 'react';
 import { useApp } from '../AppContext';
-import { Package, Clock, CheckCircle2, ChevronRight, Save, Send, X, FileText, Mail, Share2, Loader2, RotateCcw, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Save, Send, X, FileText, Mail, Share2, Loader2, RotateCcw, RefreshCw } from 'lucide-react';
+import { motion } from 'motion/react';
 import { formatCurrency, formatTimeBA, getRelativeTime, formatDateTimeBA } from '../lib/utils';
 import { OrderSkeleton } from '../components/Skeleton';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Order, DraftOrder } from '../types';
 import { toBlob } from 'html-to-image';
 import { PullToRefresh } from '../components/PullToRefresh';
-import { motion } from 'motion/react';
 
 import { apiService } from '../services/apiService';
 
 export default function Orders() {
-  const { orders, totalOrders, drafts, clients, sellers, isLoading, loadDraft, refreshData, globalPin, setGlobalPin, fetchOrders } = useApp();
+  const { orders, drafts, clients, sellers, isLoading, loadDraft, refreshData, globalPin, setGlobalPin, fetchOrders, clearCart, addToCart, setSelectedClient } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [sharingDraftId, setSharingDraftId] = useState<string | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
   
-  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSeller, setSelectedSeller] = useState<string>('');
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
-  const perPage = 25;
 
   // Helper para obtener nombre del vendedor por ID
   const getSellerName = (sellerId: string) => {
@@ -161,34 +159,50 @@ export default function Orders() {
           if (items.length === 0) {
             throw new Error('No hay productos válidos en el pedido');
           }
-          const orderData = {
-            iva: selectedOrder.rawData?.iva || 21,
-            discount: selectedOrder.rawData?.discount || 0,
-            recargo: selectedOrder.rawData?.recargo || 0,
-            methodpay: selectedOrder.rawData?.methodpay || '',
-            transport: selectedOrder.rawData?.transport || '',
-            commit: selectedOrder.rawData?.customer_note || '',
-            otheremail: '',
-            total_calc: selectedOrder.total
-          };
           
-          const res = await apiService.createOrder(selectedOrder.clientId, items, orderData, sellerInfo.id);
-          
-          if (res.success) {
-            setPinModalOpen(false);
-            alert('Pedido regenerado con éxito');
-            setSelectedOrder(null);
-            await fetchOrders(1, perPage); // Refresh
-          } else {
-            setActionFeedback({ message: res.message || 'Error al regenerar el pedido', type: 'error' });
+          // Find the client from the clients list
+          const client = clients.find(c => c.id === selectedOrder.clientId);
+          if (!client) {
+            throw new Error('Cliente no encontrado');
           }
-        } catch (e: any) {
-          setActionFeedback({ message: e.message || 'Error al regenerar', type: 'error' });
+          
+          // Clear current cart and set the client
+          console.log('🔄 Clearing cart...');
+          clearCart();
+          
+          console.log('👤 Setting client:', client);
+          setSelectedClient(client);
+          
+          // Add each item to cart
+          console.log('🛒 Adding items to cart:', items);
+          items.forEach(item => {
+            const product = {
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              vid: item.vid
+            };
+            console.log('📦 Adding product:', product);
+            addToCart(product, item.quantity);
+          });
+          
+          console.log('✅ Regeneration completed, navigating to /carrito');
+          
+          setPinModalOpen(false);
+          alert('Pedido regenerado en el carrito con éxito');
+          setSelectedOrder(null);
+          
+          // Navigate to cart page
+          navigate('/carrito');
+          
+        } catch (e: Error) {
+          setActionFeedback({ message: e.message || 'Error al regenerar el pedido', type: 'error' });
         } finally {
           setIsRegenerating(false);
         }
       }
-    } catch(e) {
+    } catch {
       setActionFeedback({ message: 'Error de conexión', type: 'error' });
     } finally {
       setIsActionLoading(false);

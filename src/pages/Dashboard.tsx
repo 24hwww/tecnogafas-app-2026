@@ -13,6 +13,9 @@ export default function Dashboard() {
   const [showDraftsModal, setShowDraftsModal] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
 
+  // Debug: Log para depurar isLoading
+  //console.log('🔄 Dashboard - isLoading:', isLoading);
+
   useEffect(() => {
     const checkCache = async () => {
       const cached = await get('tecnogafas_products');
@@ -20,6 +23,15 @@ export default function Dashboard() {
     };
     checkCache();
   }, []);
+
+  // Debug: Log para depurar valores de estadísticas
+  console.log('📊 Dashboard Stats:', {
+    sellers: sellers.length,
+    clients: clients.length,
+    products: products.length,
+    grandTotalOrders: grandTotalOrders,
+    dashboardOrders: dashboardOrders.length
+  });
 
   const stats = [
     { label: 'Vendedores', value: sellers.length, icon: Users, color: 'text-green-600' },
@@ -65,6 +77,8 @@ export default function Dashboard() {
               }
               await clearAllCaches();
               setHasCache(false);
+              // Recargar datos después de limpiar caché
+              await refreshData(false);
             }}
             disabled={isLoading}
             className={`p-2.5 rounded-full transition-colors ${isLoading ? 'animate-pulse' : ''} ${hasCache ? 'bg-error text-white' : 'hover:bg-surface-variant text-primary'}`}

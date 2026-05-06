@@ -65,7 +65,8 @@ export function useCacheManager(refreshData: (showLoading?: boolean) => Promise<
         await Promise.all(registrations.map(reg => reg.unregister()));
       }
 
-      window.location.reload();
+      // No recargar la página, dejar que refreshData() maneje la sincronización
+      // window.location.reload();
     } catch (error) {
       console.error('Error clearing caches:', error);
     }

@@ -153,6 +153,47 @@ export const apiService = {
     }));
   },
 
+  async getStats(): Promise<{
+    success: boolean;
+    data: {
+      total_orders: number;
+      total_clients: number;
+      total_products: number;
+      total_sellers: number;
+      recent_orders: number;
+      pending_orders: number;
+    };
+    message?: string;
+  }> {
+    const url = `${BASE_URL}/stats`;
+    
+    const res = await customFetch(url);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    
+    const json = await res.json() as { 
+      success?: boolean; 
+      data?: {
+        total_orders: number;
+        total_clients: number;
+        total_products: number;
+        total_sellers: number;
+        recent_orders: number;
+        pending_orders: number;
+      }; 
+      message?: string;
+    };
+    
+    if (!json.success) {
+      throw new Error(json.message || 'Error al obtener estadísticas');
+    }
+    
+    return {
+      success: json.success,
+      data: json.data!,
+      message: json.message
+    };
+  }
+
   async getOrders(page: number = 1, perPage: number = 25, sellerId?: number | string, customerId?: number | string): Promise<{ orders: Order[], total: number }> {
     let url = `${BASE_URL}/pedidos?page=${page}&per_page=${perPage}`;
     if (sellerId) url += `&seller_id=${sellerId}`;

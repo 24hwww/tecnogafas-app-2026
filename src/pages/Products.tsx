@@ -194,7 +194,7 @@ export default function Products() {
 
         {/* Product List */}
         <div className="space-y-3">
-          {isLoading ? (
+          {isLoading && products.length === 0 ? (
             Array(6).fill(0).map((_, i) => <ProductSkeleton key={i} />)
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-10 opacity-50 space-y-2">

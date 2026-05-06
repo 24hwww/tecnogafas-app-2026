@@ -456,10 +456,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (cachedDrafts) { setDrafts(cachedDrafts); }
         if (cachedSharedCarts) { setSharedCarts(cachedSharedCarts); }
         if (cachedOrdersData) { 
-          setOrders(cachedOrdersData); 
-          setTotalOrders(cachedOrdersData.length); 
-          setGrandTotalOrders(cachedOrdersData.length);
-          setDashboardOrders(cachedOrdersData.slice(0, 5));
+          // Para el dashboard, solo cargar los primeros 5 pedidos desde caché
+          const dashboardOnlyOrders = cachedOrdersData.slice(0, 5);
+          setOrders(dashboardOnlyOrders); 
+          setTotalOrders(dashboardOnlyOrders.length); 
+          setGrandTotalOrders(dashboardOnlyOrders.length);
+          setDashboardOrders(dashboardOnlyOrders);
           hasCache = true; 
         }
         if (cachedSellers) { setSellers(cachedSellers); hasCache = true; }
@@ -499,7 +501,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('tecnogafas_theme', autoTheme);
       }
 
-      await refreshData(!hasCache);
+      await refreshData(false); // No mostrar loading si hay caché
     };
 
     loadCachedAndRefresh();

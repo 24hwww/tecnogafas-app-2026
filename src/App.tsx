@@ -28,6 +28,7 @@ const QRScanner = lazy(() => import('./pages/QRScanner'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Settings = lazy(() => import('./pages/Settings'));
 const TestApiPage = lazy(() => import('./pages/TestApiPage'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 import ChatTest from './components/ChatTest';
 
 function AppInner() {
@@ -50,22 +51,38 @@ function AppInner() {
 
   return (
     <Layout>
-      <Suspense fallback={<div className="p-4 space-y-4"><Skeleton className="h-64 w-full" /><Skeleton className="h-20 w-full" /></div>}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/productos" element={<Products />} />
-          <Route path="/clientes" element={<Clients />} />
-          <Route path="/pedidos" element={<Orders />} />
-          <Route path="/carrito" element={<Cart />} />
-          <Route path="/carrito/:code" element={<SharedCart />} />
-          <Route path="/qr-scan" element={<QRScanner />} />
-          <Route path="/pago" element={<Checkout />} />
-          <Route path="/chat" element={<Chat />} />
-          <Route path="/configuracion" element={<Settings />} />
-          <Route path="/test" element={<TestApiPage />} />
-          <Route path="/test-chat" element={<ChatTest />}/>
-        </Routes>
-      </Suspense>
+      <Routes>
+            <Route path="/" element={
+              <Suspense fallback={null}>
+                <Dashboard />
+              </Suspense>
+            } />
+            <Route path="/carrito" element={
+              <Suspense fallback={null}>
+                <Cart />
+              </Suspense>
+            } />
+            <Route path="/carrito/:code" element={
+              <Suspense fallback={null}>
+                <SharedCart />
+              </Suspense>
+            } />
+          </Routes>
+        
+        <Suspense fallback={<div className="p-4 space-y-4"><Skeleton className="h-64 w-full" /><Skeleton className="h-20 w-full" /></div>}>
+          <Routes>
+            <Route path="/productos" element={<Products />} />
+            <Route path="/clientes" element={<Clients />} />
+            <Route path="/pedidos" element={<Orders />} />
+            <Route path="/qr-scan" element={<QRScanner />} />
+            <Route path="/pago" element={<Checkout />} />
+            <Route path="/chat" element={<Chat />} />
+            <Route path="/configuracion" element={<Settings />} />
+            <Route path="/test" element={<TestApiPage />} />
+            <Route path="/test-chat" element={<ChatTest />}/>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
     </Layout>
   );
 }

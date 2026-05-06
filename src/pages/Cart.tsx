@@ -15,6 +15,10 @@ export default function Cart() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
+  // Debug: Log para depurar qué datos recibe el Cart
+  console.log('Cart Component - cart:', cart);
+  console.log('Cart Component - selectedClient:', selectedClient);
+
   const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
   const handleConfirm = () => {
