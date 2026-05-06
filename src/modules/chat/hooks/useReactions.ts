@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase, channelManager } from '../lib/supabase';
 import type { MessageReaction, ReactionGroup } from '../types';
-import { getReactionsForMessage, addReaction as dbAddReaction, removeReaction as dbRemoveReaction } from '../stores/chatDatabase';
+import { getReactionsForMessage, addReaction as dbAddReaction, removeReaction as dbRemoveReaction } from '../../../stores/appDatabase';
 
 interface UseReactionsOptions {
   messageId: string | null;

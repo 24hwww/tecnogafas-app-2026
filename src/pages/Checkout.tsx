@@ -1,24 +1,29 @@
-import React, { useState } from 'react';
+import { useCart } from '../contexts/CartContext';
 import { useApp } from '../AppContext';
+import { useAuth } from '../contexts/AuthContext';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency, formatTimeBA, formatDateBA } from '../lib/utils';
+import { LastOrder, Seller } from '../types';
 import { apiService } from '../services/apiService';
 import { Check, X, ArrowLeft, Download, FileText, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 
 export default function Checkout() {
-  const { cart, selectedClient, clearCart, refreshData, saveDraft, drafts, currentDraftId, markDraftAsSent, globalPin, setGlobalPin } = useApp();
+  const { cart, selectedClient, clearCart, saveDraft, drafts, currentDraftId, markDraftAsSent } = useCart();
+  const { refreshData } = useApp();
+  const { globalPin, setGlobalPin } = useAuth();
   const navigate = useNavigate();
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [orderFeedback, setOrderFeedback] = useState<{title: string, message: string, type: 'error' | 'success', orderId?: string | number} | null>(null);
-  const [lastOrder, setLastOrder] = useState<any>(null);
+  const [lastOrder, setLastOrder] = useState<LastOrder | null>(null);
   const [isSendingOrder, setIsSendingOrder] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [sellerPin, setSellerPin] = useState('');
-  const [seller, setSeller] = useState<any>(null);
+  const [seller, setSeller] = useState<Seller | null>(null);
   const [pinError, setPinError] = useState('');
 
   const [form, setForm] = useState({
@@ -70,7 +75,7 @@ export default function Checkout() {
     try {
       const itemsToVerify = cart.map(item => {
         const baseProductId = parseInt(item.id.split('-')[0]);
-        const verificationItem: any = {
+        const verificationItem: Record<string, any> = {
           product_id: baseProductId,
           price: item.price,
           stock: item.quantity
@@ -85,7 +90,7 @@ export default function Checkout() {
       if (!verifyRes.success || (verifyRes.failed && verifyRes.failed > 0)) {
         const validationErrors: string[] = [];
         if (verifyRes.results) {
-           verifyRes.results.forEach((r: any) => {
+           verifyRes.results.forEach((r: Record<string, any>) => {
              if (r.status !== 'ok') {
                // Find original item in cart
                const originalItem = cart.find(c => {
@@ -308,7 +313,7 @@ export default function Checkout() {
     
     doc.text('Productos:', 20, 80);
     let y = 90;
-    lastOrder.items.forEach((item: any) => {
+    lastOrder.items.forEach((item: typeof lastOrder.items[0]) => {
       doc.text(`${item.name} x${item.quantity} - ${formatCurrency(item.price * item.quantity)}`, 30, y);
       y += 10;
     });

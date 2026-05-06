@@ -9,9 +9,7 @@ const PROXY_API_URL = '/api';
 const BASE_URL = Capacitor.isNativePlatform() ? REAL_API_URL : PROXY_API_URL;
 const FETCH_TIMEOUT = 30000; // 30 seconds
 
-let cachedProducts: Product[] | null = null;
-let cachedProductsTimestamp: number = 0;
-const CACHE_PRODUCTS_TTL = 5 * 60 * 1000; // 5 minutes
+// Se eliminó la caché en memoria para unificarla con Dexie en AppContext/DataSync
 
 interface ApiEvent {
   id?: number | string;
@@ -76,9 +74,6 @@ const customFetch = async (input: RequestInfo | URL, init?: RequestInit & { time
 export const apiService = {
   async getProducts(): Promise<Product[]> {
     const now = Date.now();
-    if (cachedProducts && (now - cachedProductsTimestamp < CACHE_PRODUCTS_TTL)) {
-      return cachedProducts;
-    }
 
     const res = await customFetch(`${BASE_URL}/productos`);
     if (!res.ok) throw new Error(`API error: ${res.status}`);
@@ -89,7 +84,7 @@ export const apiService = {
       variaciones?: string;
       filtros?: string;
     }> };
-    cachedProducts = (json.data || []).map((p) => {
+    const mappedProducts = (json.data || []).map((p) => {
       // Parse variations e.g. "variation_id:23726|Título:5508 - C1 - BLACK|Stock:6|Precio:58000;..."
       const variations = (p.variaciones || '').split(';').filter((v: string) => v.trim() !== '').map((v: string) => {
         let vid = '';
@@ -133,8 +128,7 @@ export const apiService = {
         variations
       };
     });
-    cachedProductsTimestamp = now;
-    return cachedProducts;
+    return mappedProducts;
   },
 
   async getClients(): Promise<Client[]> {
@@ -192,7 +186,7 @@ export const apiService = {
       data: json.data!,
       message: json.message
     };
-  }
+  },
 
   async getOrders(page: number = 1, perPage: number = 25, sellerId?: number | string, customerId?: number | string): Promise<{ orders: Order[], total: number }> {
     let url = `${BASE_URL}/pedidos?page=${page}&per_page=${perPage}`;
@@ -769,26 +763,26 @@ export const apiService = {
   // SUPABASE HELPERS (BRIDGE)
   // ============================================================================
 
-  async getSupabaseNotificationChannel(): Promise<{ data: { id: string } | null, error: any }> {
+  async getSupabaseNotificationChannel(): Promise<{ data: { id: string } | null, error: unknown }> {
     const { supabase } = await import('../modules/chat/lib/supabase');
     return supabase
       .from('conversations')
       .select('id')
       .eq('slug', 'notificaciones')
-      .single() as any;
+      .single() as { data: { id: string } | null, error: unknown };
   },
 
-  async getSupabaseMemberStatus(conversationId: string, userId: string): Promise<{ data: { unread_count: number } | null, error: any }> {
+  async getSupabaseMemberStatus(conversationId: string, userId: string): Promise<{ data: { unread_count: number } | null, error: unknown }> {
     const { supabase } = await import('../modules/chat/lib/supabase');
     return supabase
       .from('conversation_members')
       .select('unread_count')
       .eq('conversation_id', conversationId)
       .eq('user_id', userId)
-      .maybeSingle() as any;
+      .maybeSingle() as { data: { unread_count: number } | null, error: unknown };
   },
 
-  async subscribeToSupabaseTable(table: string, filter: string, callback: (payload: any) => void) {
+  async subscribeToSupabaseTable(table: string, filter: string, callback: (payload: Record<string, unknown>) => void) {
     const { channelManager } = await import('../modules/chat/lib/supabase');
     const channelName = `global-${table}`;
 
@@ -806,7 +800,7 @@ export const apiService = {
     return channel;
   },
 
-  async unsubscribeSupabase(channel: any) {
+  async unsubscribeSupabase(channel: unknown) {
     if (!channel) return;
     const { channelManager } = await import('../modules/chat/lib/supabase');
     await channelManager.removeChannel(channel);

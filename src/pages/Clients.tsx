@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
 import { useApp } from '../AppContext';
+import { useCart } from '../contexts/CartContext';
+import React, { useState } from 'react';
 import { UserPlus, Phone, MapPin, Check, Search, Edit2, X, RefreshCw, Building2, MapPinned, IdCard } from 'lucide-react';
 import { Client } from '../types';
 import { apiService } from '../services/apiService';
@@ -9,7 +10,8 @@ import { ClientSkeleton } from '../components/Skeleton';
 import { PullToRefresh } from '../components/PullToRefresh';
 
 export default function Clients() {
-  const { clients, selectedClient, setSelectedClient, refreshData, isLoading } = useApp();
+  const { clients, refreshData, isLoading } = useApp();
+  const { selectedClient, setSelectedClient } = useCart();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);

@@ -1,20 +1,25 @@
+import { useAuth } from '../contexts/AuthContext';
+import { useApp } from '../AppContext';
+import { AppNotification } from '../types';
+import { useNotificationsContext } from '../contexts/NotificationsContext';
 import { useEffect, useState } from 'react';
 import { Bell, Info, Loader2, Send, MessageSquare, Check, UserPlus, X, Clock, CheckCircle2 } from 'lucide-react';
 import { getRelativeTime, formatTimeBA } from '../lib/utils';
-import { useApp } from '../AppContext';
 import { apiService } from '../services/apiService';
 import { PinModal } from '../components/PinModal';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Notifications() {
-  const { globalPin, setGlobalPin, sellers, currentSeller, notifications, setNotifications, unreadNotifications, setUnreadNotifications, fetchNotifications, sendNotification, markAllNotificationsAsRead } = useApp();
+  const { globalPin, setGlobalPin, currentSeller } = useAuth();
+  const { sellers } = useApp();
+  const { notifications, setNotifications, unreadNotifications, setUnreadNotifications, fetchNotifications, sendNotification, markAllNotificationsAsRead } = useNotificationsContext();
   
   const [showSendForm, setShowSendForm] = useState(false);
   const [targetUser, setTargetUser] = useState('');
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [isAcking, setIsAcking] = useState<any[]>([]);
+  const [isAcking, setIsAcking] = useState<number[]>([]);
 
   const handleSend = async () => {
     const userId = parseInt(targetUser, 10);
@@ -133,7 +138,7 @@ export default function Notifications() {
             <p className="text-sm font-bold">No hay notificaciones</p>
           </div>
         ) : (
-          notifications.map((notif: any) => (
+          notifications.map((notif: AppNotification) => (
             <motion.div 
               key={notif.id}
               initial={{ opacity: 0, y: 10 }}

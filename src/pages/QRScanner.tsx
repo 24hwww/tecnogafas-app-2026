@@ -1,6 +1,6 @@
+import { useCart } from '../contexts/CartContext';
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useApp } from '../AppContext';
 import { CartItem } from '../types';
 
 interface QRData {
@@ -19,7 +19,7 @@ export default function QRScanner() {
   const [qrData, setQrData] = useState<QRData | null>(null);
   
   const navigate = useNavigate();
-  const { setCart, setSelectedClient, clearCart } = useApp();
+  const { setCart, setSelectedClient, clearCart } = useCart();
 
   useEffect(() => {
     const qrId = searchParams.get('id');
@@ -43,7 +43,13 @@ export default function QRScanner() {
         clearCart();
         setCart(data.items);
         if (data.client) {
-          setSelectedClient(data.client);
+          setSelectedClient({
+            id: 'qr-client',
+            name: data.client.name,
+            email: data.client.email || '',
+            phone: '',
+            address: ''
+          });
         }
         
         setIsLoading(false);

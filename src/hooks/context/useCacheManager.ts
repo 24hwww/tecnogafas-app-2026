@@ -1,17 +1,16 @@
 import { useCallback } from 'react';
-import { del } from 'idb-keyval';
+import { appDB } from '../../stores/appDatabase';
 
 export function useCacheManager(refreshData: (showLoading?: boolean) => Promise<void>) {
   const forceRefresh = useCallback(async (setIsLoading: (l: boolean) => void) => {
     setIsLoading(true);
     try {
-      const keysToClear = [
-        'tecnogafas_products', 
-        'tecnogafas_clients', 
-        'tecnogafas_orders', 
-        'tecnogafas_sellers'
-      ];
-      await Promise.all(keysToClear.map(key => del(key)));
+      await Promise.all([
+        appDB.products.clear(),
+        appDB.clients.clear(),
+        appDB.orders.clear(),
+        appDB.sellers.clear()
+      ]);
       await refreshData(false);
       if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations();
@@ -28,15 +27,17 @@ export function useCacheManager(refreshData: (showLoading?: boolean) => Promise<
 
   const clearAllCaches = useCallback(async () => {
     try {
-      // 1. Limpiar IndexedDB (idb-keyval)
-      const keysToClear = [
-        'tecnogafas_products',
-        'tecnogafas_clients',
-        'tecnogafas_orders',
-        'tecnogafas_sellers',
-        'tecnogafas_drafts'
-      ];
-      await Promise.all(keysToClear.map(key => del(key)));
+      // 1. Limpiar IndexedDB (Dexie)
+      await Promise.all([
+        appDB.products.clear(),
+        appDB.clients.clear(),
+        appDB.orders.clear(),
+        appDB.sellers.clear(),
+        appDB.drafts.clear(),
+        appDB.sharedCarts.clear(),
+        appDB.cart.clear(),
+        appDB.selectedClient.clear()
+      ]);
 
       // 2. Limpiar TODO el localStorage de la app
       localStorage.clear();
@@ -49,9 +50,9 @@ export function useCacheManager(refreshData: (showLoading?: boolean) => Promise<
         navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_ALL_CACHES' });
       }
 
-      // 5. Limpiar todas las bases de datos de IndexedDB
+      // 5. Limpiar todas las bases de datos de IndexedDB externas
       await indexedDB.deleteDatabase('tecnogafas-sync');
-      await indexedDB.deleteDatabase('keyval-store'); // idb-keyval default store
+      await indexedDB.deleteDatabase('keyval-store'); // Para asegurar que no queden datos antiguos de idb-keyval
 
       // 6. Limpiar Cache API del navegador
       if ('caches' in window) {

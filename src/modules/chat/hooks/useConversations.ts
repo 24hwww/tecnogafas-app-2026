@@ -17,7 +17,7 @@ import {
   getConversations,
   saveConversations,
   updateConversation,
-} from '../stores/chatDatabase';
+} from '../../../stores/appDatabase';
 
 interface UseConversationsReturn {
   conversations: ConversationWithDetails[];

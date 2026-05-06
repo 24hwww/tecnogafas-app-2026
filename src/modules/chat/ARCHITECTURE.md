@@ -21,7 +21,7 @@ src/modules/chat/
 │   ├── supabase.ts       # Cliente Supabase + Realtime
 │   └── dateUtils.ts      # Utilidades de fechas
 ├── stores/
-│   └── chatDatabase.ts   # Dexie IndexedDB
+│   └── appDatabase.ts   # Dexie IndexedDB
 ├── hooks/
 │   ├── useMessages.ts    # Mensajes + Realtime
 │   ├── useConversations.ts

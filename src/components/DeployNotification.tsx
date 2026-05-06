@@ -1,10 +1,10 @@
+import { useNotificationsContext } from '../contexts/NotificationsContext';
 import React from 'react';
-import { useApp } from '../AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { RefreshCw } from 'lucide-react';
 
 export function DeployNotification() {
-  const { deployEvent } = useApp();
+  const { deployEvent } = useNotificationsContext();
 
   return (
     <AnimatePresence>

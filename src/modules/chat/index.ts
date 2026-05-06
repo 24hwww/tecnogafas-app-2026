@@ -16,7 +16,7 @@ export { ChatProvider, useChat, ChatContext } from './providers/ChatProvider';
 
 // Database
 export {
-  chatDB,
+  appDB,
   saveConversations,
   getConversations,
   saveMessages,
@@ -24,7 +24,7 @@ export {
   addReaction,
   removeReaction,
   clearAllData,
-} from './stores/chatDatabase';
+} from '../../stores/appDatabase';
 
 // Supabase
 export { supabase, channelManager, cleanupSupabase } from './lib/supabase';

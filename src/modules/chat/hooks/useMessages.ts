@@ -23,7 +23,7 @@ import {
   addPendingOperation,
   getProfile,
   saveProfiles,
-} from '../stores/chatDatabase';
+} from '../../../stores/appDatabase';
 
 const MESSAGES_PER_PAGE = 50;
 

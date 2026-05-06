@@ -1,4 +1,5 @@
-import { useApp } from '../AppContext';
+import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Trash2, AlertCircle, ShoppingBag, User, Share2, Copy, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../lib/utils';
@@ -8,7 +9,8 @@ import { Seller } from '../types';
 import React from 'react';
 
 export default function Cart() {
-  const { cart, selectedClient, removeFromCart, updateCartQuantity, shareCart, globalPin, setGlobalPin, clearCart } = useApp();
+  const { cart, selectedClient, removeFromCart, updateCartQuantity, shareCart, clearCart } = useCart();
+  const { globalPin, setGlobalPin } = useAuth();
   const navigate = useNavigate();
   const [isSharing, setIsSharing] = useState(false);
   const [shareResult, setShareResult] = useState<{ success: boolean; code: string; message: string; link: string } | null>(null);

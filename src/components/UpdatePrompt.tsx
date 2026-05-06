@@ -1,8 +1,8 @@
+import { useApp } from '../AppContext';
 import React from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { RefreshCw, X, Trash2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useApp } from '../AppContext';
 
 export function UpdatePrompt() {
   const {

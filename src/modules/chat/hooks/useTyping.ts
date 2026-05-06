@@ -7,8 +7,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase, channelManager } from '../lib/supabase';
 import type { TypingStatus, Profile, TypingUser } from '../types';
-import { getTypingUsers, setTypingStatus, clearTypingStatus, cleanupExpiredTyping } from '../stores/chatDatabase';
-import { getProfile } from '../stores/chatDatabase';
+import { getTypingUsers, setTypingStatus, clearTypingStatus, cleanupExpiredTyping } from '../../../stores/appDatabase';
+import { getProfile } from '../../../stores/appDatabase';
 
 interface UseTypingOptions {
   conversationId: string | null;

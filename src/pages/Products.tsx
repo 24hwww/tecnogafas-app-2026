@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
 import { useApp } from '../AppContext';
+import { useCart } from '../contexts/CartContext';
+import { useState, useMemo } from 'react';
 import { ShoppingCart, Plus, Minus, Search, X, ChevronRight, Check, Filter } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Product, ProductVariation } from '../types';
@@ -8,7 +9,8 @@ import { ProductSkeleton } from '../components/Skeleton';
 import { PullToRefresh } from '../components/PullToRefresh';
 
 export default function Products() {
-  const { products, addToCart, cart, updateCartQuantity, isLoading, refreshData } = useApp();
+  const { products, isLoading, refreshData } = useApp();
+  const { addToCart, cart, updateCartQuantity } = useCart();
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [showZeroPrice, setShowZeroPrice] = useState(true);

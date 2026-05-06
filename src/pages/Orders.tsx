@@ -1,5 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useOrders } from '../contexts/OrdersContext';
+import { useCart } from '../contexts/CartContext';
 import { useApp } from '../AppContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useState, useRef, useEffect } from 'react';
 import { CheckCircle2, Save, Send, X, FileText, Mail, Share2, Loader2, RotateCcw, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatCurrency, formatTimeBA, getRelativeTime, formatDateTimeBA } from '../lib/utils';
@@ -12,7 +15,10 @@ import { PullToRefresh } from '../components/PullToRefresh';
 import { apiService } from '../services/apiService';
 
 export default function Orders() {
-  const { orders, drafts, clients, sellers, isLoading, loadDraft, refreshData, globalPin, setGlobalPin, fetchOrders, clearCart, addToCart, setSelectedClient } = useApp();
+  const { orders, fetchOrders } = useOrders();
+  const { drafts, loadDraft, clearCart, addToCart, setSelectedClient } = useCart();
+  const { clients, sellers, isLoading, refreshData } = useApp();
+  const { globalPin, setGlobalPin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -83,11 +89,7 @@ export default function Orders() {
   });
 
   // Debug log
-  useEffect(() => {
-    if (orders.length > 0) {
-      console.log('DEBUG: Primer pedido post_title:', orders[0].rawData?.post_title);
-    }
-  }, [orders]);
+
 
   const handleActionClick = async (type: 'pdf'|'email'|'status'|'regenerar') => {
     setActionType(type);
@@ -181,7 +183,10 @@ export default function Orders() {
               name: item.name,
               price: item.price,
               quantity: item.quantity,
-              vid: item.vid
+              vid: item.vid,
+              category: '',
+              stock: 0,
+              description: ''
             };
             console.log('📦 Adding product:', product);
             addToCart(product, item.quantity);
@@ -196,8 +201,9 @@ export default function Orders() {
           // Navigate to cart page
           navigate('/carrito');
           
-        } catch (e: Error) {
-          setActionFeedback({ message: e.message || 'Error al regenerar el pedido', type: 'error' });
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : 'Error al regenerar el pedido';
+          setActionFeedback({ message: msg, type: 'error' });
         } finally {
           setIsRegenerating(false);
         }

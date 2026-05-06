@@ -1,11 +1,13 @@
-import { useApp } from '../AppContext';
+import { useUI } from '../contexts/UIContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Settings as SettingsIcon, Bell, RefreshCw, Key, Eye, EyeOff, Smartphone, Palette, Sun, Moon, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { kodular } from '../lib/kodularBridge';
 import { cn } from '../lib/utils';
 
 export default function Settings() {
-  const { primaryColor, fontSize, globalPin, theme, setPrimaryColor, setFontSize, setGlobalPin, setTheme } = useApp();
+  const { primaryColor, fontSize, theme, setPrimaryColor, setFontSize, setTheme } = useUI();
+  const { globalPin, setGlobalPin } = useAuth();
   const [pinInput, setPinInput] = useState(globalPin || '');
   const [pushEnabled, setPushEnabled] = useState(false);
   const [showPin, setShowPin] = useState(false);

@@ -1,3 +1,45 @@
+import type { User } from '@supabase/supabase-js';
+
+export type SupabaseUser = User;
+
+export interface DeployEvent {
+  content?: {
+    message?: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
+export interface AppNotification {
+  id: number;
+  type: string;
+  content: {
+    title?: string;
+    body?: string;
+    [key: string]: any;
+  };
+  read: boolean;
+  created_at: string;
+  [key: string]: any;
+}
+
+export interface LastOrder {
+  client: Client;
+  items: CartItem[];
+  details: {
+    iva: number;
+    discount: number;
+    recargo: number;
+    methodpay: string;
+    transport: string;
+    commit: string;
+    otheremail: string;
+    [key: string]: any;
+  };
+  total: number;
+  date: string;
+}
+
 export interface ApiProduct {
   product_id?: number;
   pid?: number;

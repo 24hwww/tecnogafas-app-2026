@@ -16,13 +16,13 @@ import type {
   PendingOperation,
   SyncState,
 } from '../types';
-import type { CartItem, Client } from '../../../types';
+import type { CartItem, Client, Product, Seller, Order, DraftOrder, SharedCart } from '../../../types';
 
 // ============================================================================
 // DATABASE SCHEMA
 // ============================================================================
 
-export class ChatDatabase extends Dexie {
+export class AppDatabase extends Dexie {
   // Tablas tipadas
   profiles!: Table<Profile, string>;
   conversations!: Table<CachedConversation, string>;
@@ -37,9 +37,15 @@ export class ChatDatabase extends Dexie {
   // Tablas de la aplicación principal
   cart!: Table<CartItem, string>;
   selectedClient!: Table<Client, string>;
+  products!: Table<Product, string>;
+  clients!: Table<Client, string>;
+  sellers!: Table<Seller, string>;
+  orders!: Table<Order, string>;
+  drafts!: Table<DraftOrder, string>;
+  sharedCarts!: Table<SharedCart, string>;
 
   constructor() {
-    super('TecnoChatDB');
+    super('TecnoAppDB');
 
     this.version(2).stores({
       // Perfiles: indexados por id y username
@@ -74,6 +80,14 @@ export class ChatDatabase extends Dexie {
       
       // Cliente seleccionado: información del cliente actual
       selectedClient: 'id, name, email, phone',
+      
+      // App principal Data (Core)
+      products: 'id, category, name',
+      clients: 'id, email, phone, cuit, name',
+      sellers: 'id, name',
+      orders: 'id, clientId, status, createdAt, sellerId',
+      drafts: 'id, status, date',
+      sharedCarts: 'id, code, isActive, expiresAt',
     });
   }
 }
@@ -82,7 +96,7 @@ export class ChatDatabase extends Dexie {
 // INSTANCIA GLOBAL
 // ============================================================================
 
-export const chatDB = new ChatDatabase();
+export const appDB = new AppDatabase();
 
 // ============================================================================
 // HELPERS DE CONVERSACIONES
@@ -95,7 +109,7 @@ export async function saveConversations(
     ...c,
     synced_at: new Date().toISOString(),
   }));
-  await chatDB.conversations.bulkPut(withSyncTime);
+  await appDB.conversations.bulkPut(withSyncTime);
 }
 
 export async function getConversations(
@@ -105,7 +119,7 @@ export async function getConversations(
     offset?: number;
   } = {}
 ): Promise<CachedConversation[]> {
-  let collection = chatDB.conversations
+  let collection = appDB.conversations
     .orderBy('last_message_at')
     .reverse();
 
@@ -127,23 +141,23 @@ export async function getConversations(
 export async function getConversationById(
   id: string
 ): Promise<CachedConversation | undefined> {
-  return await chatDB.conversations.get(id);
+  return await appDB.conversations.get(id);
 }
 
 export async function updateConversation(
   id: string,
   updates: Partial<CachedConversation>
 ): Promise<void> {
-  await chatDB.conversations.update(id, {
+  await appDB.conversations.update(id, {
     ...updates,
     synced_at: new Date().toISOString(),
   });
 }
 
 export async function deleteConversation(id: string): Promise<void> {
-  await chatDB.conversations.delete(id);
+  await appDB.conversations.delete(id);
   // Limpiar mensajes relacionados
-  await chatDB.messages.where({ conversation_id: id }).delete();
+  await appDB.messages.where({ conversation_id: id }).delete();
 }
 
 // ============================================================================
@@ -162,7 +176,7 @@ export async function saveMessages(
     synced_at: new Date().toISOString(),
   }));
 
-  await chatDB.messages.bulkPut(withSyncTime);
+  await appDB.messages.bulkPut(withSyncTime);
 
   // Actualizar last_message_at de la conversación si es mensaje nuevo
   if (!options.prepend && messages.length > 0) {
@@ -170,7 +184,7 @@ export async function saveMessages(
       m.created_at > latest.created_at ? m : latest
     );
 
-    await chatDB.conversations.update(options.conversationId, {
+    await appDB.conversations.update(options.conversationId, {
       last_message_at: latest.created_at,
     });
   }
@@ -185,19 +199,19 @@ export async function getMessages(
     includePending?: boolean;
   } = {}
 ): Promise<CachedMessage[]> {
-  let query = chatDB.messages.where({ conversation_id: conversationId });
+  let query = appDB.messages.where({ conversation_id: conversationId });
 
   // Filtrar por rango de fechas
   if (options.before && options.after) {
-    query = chatDB.messages
+    query = appDB.messages
       .where('[conversation_id+created_at]')
       .between([conversationId, options.after], [conversationId, options.before], true, true);
   } else if (options.before) {
-    query = chatDB.messages
+    query = appDB.messages
       .where('[conversation_id+created_at]')
       .between([conversationId, ''], [conversationId, options.before], true, true);
   } else if (options.after) {
-    query = chatDB.messages
+    query = appDB.messages
       .where('[conversation_id+created_at]')
       .above([conversationId, options.after]);
   }
@@ -219,7 +233,7 @@ export async function getMessages(
 export async function getMessageById(
   id: string
 ): Promise<CachedMessage | undefined> {
-  return await chatDB.messages.get(id);
+  return await appDB.messages.get(id);
 }
 
 export async function savePendingMessage(
@@ -232,7 +246,7 @@ export async function savePendingMessage(
     pending: true,
     synced_at: new Date().toISOString(),
   };
-  await chatDB.messages.add(pendingMessage);
+  await appDB.messages.add(pendingMessage);
   return id;
 }
 
@@ -240,8 +254,8 @@ export async function markMessageAsSent(
   tempId: string,
   realMessage: Message
 ): Promise<void> {
-  await chatDB.messages.delete(tempId);
-  await chatDB.messages.add({
+  await appDB.messages.delete(tempId);
+  await appDB.messages.add({
     ...realMessage,
     synced_at: new Date().toISOString(),
   });
@@ -251,21 +265,21 @@ export async function markMessageAsFailed(
   id: string,
   error: string
 ): Promise<void> {
-  await chatDB.messages.update(id, {
+  await appDB.messages.update(id, {
     pending: false,
     error,
   });
 }
 
 export async function deleteMessage(id: string): Promise<void> {
-  await chatDB.messages.delete(id);
+  await appDB.messages.delete(id);
 }
 
 export async function clearOldMessages(
   conversationId: string,
   keepCount: number = 500
 ): Promise<number> {
-  const messages = await chatDB.messages
+  const messages = await appDB.messages
     .where({ conversation_id: conversationId })
     .sortBy('created_at');
 
@@ -274,7 +288,7 @@ export async function clearOldMessages(
   const toDelete = messages.slice(0, messages.length - keepCount);
   const ids = toDelete.map((m) => m.id);
 
-  await chatDB.messages.bulkDelete(ids);
+  await appDB.messages.bulkDelete(ids);
   return toDelete.length;
 }
 
@@ -285,7 +299,7 @@ export async function clearOldMessages(
 export async function saveReactions(
   reactions: MessageReaction[]
 ): Promise<void> {
-  await chatDB.reactions.bulkPut(reactions);
+  await appDB.reactions.bulkPut(reactions);
 }
 
 export async function addReaction(
@@ -297,13 +311,13 @@ export async function addReaction(
     return;
   }
 
-  const existing = await chatDB.reactions
+  const existing = await appDB.reactions
     .where('[message_id+user_id+emoji]')
     .equals([reaction.message_id, reaction.user_id, reaction.emoji])
     .first();
 
   if (!existing) {
-    await chatDB.reactions.add({
+    await appDB.reactions.add({
       ...reaction,
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
@@ -322,20 +336,20 @@ export async function removeReaction(
     return;
   }
 
-  const reaction = await chatDB.reactions
+  const reaction = await appDB.reactions
     .where('[message_id+user_id+emoji]')
     .equals([messageId, userId, emoji])
     .first();
 
   if (reaction) {
-    await chatDB.reactions.delete(reaction.id);
+    await appDB.reactions.delete(reaction.id);
   }
 }
 
 export async function getReactionsForMessage(
   messageId: string
 ): Promise<MessageReaction[]> {
-  return await chatDB.reactions.where({ message_id: messageId }).toArray();
+  return await appDB.reactions.where({ message_id: messageId }).toArray();
 }
 
 // ============================================================================
@@ -343,20 +357,20 @@ export async function getReactionsForMessage(
 // ============================================================================
 
 export async function saveProfiles(profiles: Profile[]): Promise<void> {
-  await chatDB.profiles.bulkPut(profiles);
+  await appDB.profiles.bulkPut(profiles);
 }
 
 export async function getProfile(
   userId: string
 ): Promise<Profile | undefined> {
-  return await chatDB.profiles.get(userId);
+  return await appDB.profiles.get(userId);
 }
 
 export async function updateProfile(
   userId: string,
   updates: Partial<Profile>
 ): Promise<void> {
-  await chatDB.profiles.update(userId, updates);
+  await appDB.profiles.update(userId, updates);
 }
 
 // ============================================================================
@@ -366,7 +380,7 @@ export async function updateProfile(
 export async function setTypingStatus(
   status: Omit<TypingStatus, 'id' | 'started_at'>
 ): Promise<void> {
-  const existing = await chatDB.typingStatus
+  const existing = await appDB.typingStatus
     .where({ conversation_id: status.conversation_id, user_id: status.user_id })
     .first();
 
@@ -377,19 +391,19 @@ export async function setTypingStatus(
     started_at: now.toISOString(),
   };
 
-  await chatDB.typingStatus.put(newStatus);
+  await appDB.typingStatus.put(newStatus);
 }
 
 export async function clearTypingStatus(
   conversationId: string,
   userId: string
 ): Promise<void> {
-  const existing = await chatDB.typingStatus
+  const existing = await appDB.typingStatus
     .where({ conversation_id: conversationId, user_id: userId })
     .first();
 
   if (existing) {
-    await chatDB.typingStatus.delete(existing.id);
+    await appDB.typingStatus.delete(existing.id);
   }
 }
 
@@ -398,7 +412,7 @@ export async function getTypingUsers(
   currentUserId: string
 ): Promise<TypingStatus[]> {
   const now = new Date().toISOString();
-  return await chatDB.typingStatus
+  return await appDB.typingStatus
     .where({ conversation_id: conversationId })
     .filter((t) => t.user_id !== currentUserId && t.expires_at > now)
     .toArray();
@@ -406,13 +420,13 @@ export async function getTypingUsers(
 
 export async function cleanupExpiredTyping(): Promise<number> {
   const now = new Date().toISOString();
-  const expired = await chatDB.typingStatus
+  const expired = await appDB.typingStatus
     .where('expires_at')
     .below(now)
     .toArray();
 
   const ids = expired.map((t) => t.id);
-  await chatDB.typingStatus.bulkDelete(ids);
+  await appDB.typingStatus.bulkDelete(ids);
   return expired.length;
 }
 
@@ -423,18 +437,18 @@ export async function cleanupExpiredTyping(): Promise<number> {
 export async function savePresence(
   presence: UserPresence
 ): Promise<void> {
-  await chatDB.userPresence.put(presence);
+  await appDB.userPresence.put(presence);
 }
 
 export async function getPresence(
   userId: string
 ): Promise<UserPresence | undefined> {
-  return await chatDB.userPresence.get(userId);
+  return await appDB.userPresence.get(userId);
 }
 
 export async function getOnlineUsers(): Promise<string[]> {
   const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-  const online = await chatDB.userPresence
+  const online = await appDB.userPresence
     .where('last_active_at')
     .above(fiveMinutesAgo)
     .toArray();
@@ -446,13 +460,13 @@ export async function getOnlineUsers(): Promise<string[]> {
 // ============================================================================
 
 export async function getSyncState(): Promise<SyncState | undefined> {
-  return await chatDB.syncState.get(1);
+  return await appDB.syncState.get(1);
 }
 
 export async function saveSyncState(
   updates: Partial<SyncState>
 ): Promise<void> {
-  const existing = await chatDB.syncState.get(1);
+  const existing = await appDB.syncState.get(1);
   const state: SyncState & { id?: number } = {
     last_sync_at: new Date().toISOString(),
     conversations_synced: [],
@@ -462,7 +476,7 @@ export async function saveSyncState(
     ...updates,
     id: 1,
   };
-  await chatDB.syncState.put(state);
+  await appDB.syncState.put(state);
 }
 
 export async function markConversationAsSynced(
@@ -489,29 +503,29 @@ export async function addPendingOperation(
     id,
     created_at: new Date().toISOString(),
   };
-  await chatDB.pendingOperations.add(pendingOp);
+  await appDB.pendingOperations.add(pendingOp);
   return id;
 }
 
 export async function getPendingOperations(): Promise<PendingOperation[]> {
-  return await chatDB.pendingOperations.orderBy('created_at').toArray();
+  return await appDB.pendingOperations.orderBy('created_at').toArray();
 }
 
 export async function removePendingOperation(id: string): Promise<void> {
-  await chatDB.pendingOperations.delete(id);
+  await appDB.pendingOperations.delete(id);
 }
 
 export async function incrementRetryCount(id: string): Promise<void> {
-  const op = await chatDB.pendingOperations.get(id);
+  const op = await appDB.pendingOperations.get(id);
   if (op) {
-    await chatDB.pendingOperations.update(id, {
+    await appDB.pendingOperations.update(id, {
       retry_count: op.retry_count + 1,
     });
   }
 }
 
 export async function clearPendingOperations(): Promise<void> {
-  await chatDB.pendingOperations.clear();
+  await appDB.pendingOperations.clear();
 }
 
 // ============================================================================
@@ -519,7 +533,7 @@ export async function clearPendingOperations(): Promise<void> {
 // ============================================================================
 
 export async function clearAllData(): Promise<void> {
-  await chatDB.delete();
+  await appDB.delete();
 }
 
 export async function exportData(): Promise<{
@@ -528,9 +542,9 @@ export async function exportData(): Promise<{
   profiles: Profile[];
 }> {
   const [conversations, messages, profiles] = await Promise.all([
-    chatDB.conversations.toArray(),
-    chatDB.messages.toArray(),
-    chatDB.profiles.toArray(),
+    appDB.conversations.toArray(),
+    appDB.messages.toArray(),
+    appDB.profiles.toArray(),
   ]);
 
   return { conversations, messages, profiles };
@@ -541,8 +555,8 @@ export async function getDatabaseSize(): Promise<{
   messages: number;
   totalBytes: number;
 }> {
-  const conversations = await chatDB.conversations.count();
-  const messages = await chatDB.messages.count();
+  const conversations = await appDB.conversations.count();
+  const messages = await appDB.messages.count();
 
   // Estimación aproximada (no es 100% precisa pero útil)
   const convBytes = conversations * 500; // ~500 bytes por conversación
@@ -557,7 +571,7 @@ export async function getDatabaseSize(): Promise<{
 
 export async function vacuumDatabase(): Promise<void> {
   // Limpiar mensajes antiguos de todas las conversaciones
-  const conversations = await chatDB.conversations.toArray();
+  const conversations = await appDB.conversations.toArray();
   let deletedCount = 0;
 
   for (const conv of conversations) {
@@ -569,11 +583,11 @@ export async function vacuumDatabase(): Promise<void> {
 
   // Limpiar operaciones pendientes muy antiguas (>24h)
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const oldOps = await chatDB.pendingOperations
+  const oldOps = await appDB.pendingOperations
     .where('created_at')
     .below(oneDayAgo)
     .toArray();
-  await chatDB.pendingOperations.bulkDelete(oldOps.map((o) => o.id));
+  await appDB.pendingOperations.bulkDelete(oldOps.map((o) => o.id));
 
   console.log(`[ChatDB] Vacuumed ${deletedCount} old messages`);
 }

@@ -1,13 +1,17 @@
+import { useApp } from '../AppContext';
+import { useOrders } from '../contexts/OrdersContext';
+import { useCart } from '../contexts/CartContext';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { get } from 'idb-keyval';
-import { useApp } from '../AppContext';
+import { appDB } from '../stores/appDatabase';
 import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity, Zap, Download, Smartphone, AlertTriangle, Mail, Trash2 } from 'lucide-react';
 import { formatCurrency, getRelativeTime, formatTimeBA, cn } from '../lib/utils';
 import { Skeleton } from '../components/Skeleton';
 
 export default function Dashboard() {
-  const { products, clients, grandTotalOrders, dashboardOrders, sellers, refreshData, forceRefresh, clearAllCaches, isLoading, appVersionInfo, drafts } = useApp();
+  const { products, clients, sellers, refreshData, forceRefresh, clearAllCaches, isLoading, appVersionInfo } = useApp();
+  const { grandTotalOrders, dashboardOrders } = useOrders();
+  const { drafts } = useCart();
   const navigate = useNavigate();
   const [hasCache, setHasCache] = useState(false);
   const [showDraftsModal, setShowDraftsModal] = useState(false);
@@ -18,20 +22,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     const checkCache = async () => {
-      const cached = await get('tecnogafas_products');
-      setHasCache(!!cached);
+      try {
+        const count = await appDB.products.count();
+        setHasCache(count > 0);
+      } catch (e) {
+        setHasCache(false);
+      }
     };
     checkCache();
   }, []);
 
-  // Debug: Log para depurar valores de estadísticas
-  console.log('📊 Dashboard Stats:', {
-    sellers: sellers.length,
-    clients: clients.length,
-    products: products.length,
-    grandTotalOrders: grandTotalOrders,
-    dashboardOrders: dashboardOrders.length
-  });
 
   const stats = [
     { label: 'Vendedores', value: sellers.length, icon: Users, color: 'text-green-600' },

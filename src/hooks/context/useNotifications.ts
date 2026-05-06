@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
 import { apiService } from '../../services/apiService';
 
-import { Seller } from '../../types';
+import { Seller, AppNotification } from '../../types';
 
 // Events/notificaciones desactivadas temporalmente junto con SSE
-export function useNotifications(_globalPin: string | null, _currentSeller: Seller | null, setNotifications: (n: any[]) => void, setUnreadNotifications: (c: number) => void) {
+export function useNotifications(_globalPin: string | null, _currentSeller: Seller | null, setNotifications: (n: AppNotification[]) => void, setUnreadNotifications: (c: number) => void) {
   // Desactivado temporalmente - retorna silenciosamente para evitar spam en consola
   const fetchNotifications = useCallback(async () => {
     setNotifications([]);
@@ -26,7 +26,7 @@ export function useNotifications(_globalPin: string | null, _currentSeller: Sell
         // Fallback a método antiguo si el nuevo falla
         const data = await apiService.getEvents(undefined, globalPin);
         const currentUserId = parseInt(currentSeller.id, 10);
-        const filtered = data.filter((n: any) => n.user_id === 0 || n.user_id === currentUserId);
+        const filtered = data.filter((n: AppNotification) => n.user_id === 0 || n.user_id === currentUserId);
         setNotifications(filtered);
         const unread = await apiService.getUnreadCount(globalPin);
         setUnreadNotifications(unread);

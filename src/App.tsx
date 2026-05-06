@@ -1,35 +1,40 @@
+import { UIProvider } from './contexts/UIContext';
+import { ConnectionProvider } from './contexts/ConnectionContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { OrdersProvider } from './contexts/OrdersContext';
+import { CartProvider } from './contexts/CartContext';
+import { NotificationsProvider } from './contexts/NotificationsContext';
+import { useAuth } from './contexts/AuthContext';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Analytics } from "@vercel/analytics/react";
-import { AppProvider, useApp } from './AppContext';
+import { AppProvider } from "./AppContext";
 import { ThemeWrapper } from './components/ThemeWrapper';
 import { Layout } from './components/Layout';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { DeployNotification } from './components/DeployNotification';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { lazy, Suspense, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useAndroidBack } from './hooks/useAndroidBack';
 import { kodular } from './lib/kodularBridge';
-import { Skeleton } from './components/Skeleton';
 import { ChatProvider } from './modules/chat';
+import { Analytics } from '@vercel/analytics/react';
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Products = lazy(() => import('./pages/Products'));
-const Clients = lazy(() => import('./pages/Clients'));
-const Orders = lazy(() => import('./pages/Orders'));
-const Cart = lazy(() => import('./pages/Cart'));
-const Checkout = lazy(() => import('./pages/Checkout'));
-const SharedCart = lazy(() => import('./pages/SharedCart'));
-const QRScanner = lazy(() => import('./pages/QRScanner'));
-const Chat = lazy(() => import('./pages/Chat'));
-const Settings = lazy(() => import('./pages/Settings'));
-const TestApiPage = lazy(() => import('./pages/TestApiPage'));
-const NotFound = lazy(() => import('./pages/NotFound'));
-import ChatTest from './components/ChatTest';
+import Dashboard from './pages/Dashboard';
+import Products from './pages/Products';
+import Clients from './pages/Clients';
+import Orders from './pages/Orders';
+import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
+import SharedCart from './pages/SharedCart';
+import QRScanner from './pages/QRScanner';
+import Chat from './pages/Chat';
+import Settings from './pages/Settings';
+import NotFound from './pages/NotFound';
+import Notifications from './pages/Notifications';
 
 function AppInner() {
   useAndroidBack();
@@ -52,43 +57,25 @@ function AppInner() {
   return (
     <Layout>
       <Routes>
-            <Route path="/" element={
-              <Suspense fallback={null}>
-                <Dashboard />
-              </Suspense>
-            } />
-            <Route path="/carrito" element={
-              <Suspense fallback={null}>
-                <Cart />
-              </Suspense>
-            } />
-            <Route path="/carrito/:code" element={
-              <Suspense fallback={null}>
-                <SharedCart />
-              </Suspense>
-            } />
-          </Routes>
-        
-        <Suspense fallback={<div className="p-4 space-y-4"><Skeleton className="h-64 w-full" /><Skeleton className="h-20 w-full" /></div>}>
-          <Routes>
-            <Route path="/productos" element={<Products />} />
-            <Route path="/clientes" element={<Clients />} />
-            <Route path="/pedidos" element={<Orders />} />
-            <Route path="/qr-scan" element={<QRScanner />} />
-            <Route path="/pago" element={<Checkout />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/configuracion" element={<Settings />} />
-            <Route path="/test" element={<TestApiPage />} />
-            <Route path="/test-chat" element={<ChatTest />}/>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/carrito" element={<Cart />} />
+        <Route path="/carrito/:code" element={<SharedCart />} />
+        <Route path="/productos" element={<Products />} />
+        <Route path="/clientes" element={<Clients />} />
+        <Route path="/pedidos" element={<Orders />} />
+        <Route path="/qr-scan" element={<QRScanner />} />
+        <Route path="/pago" element={<Checkout />} />
+        <Route path="/chat" element={<Chat />} />
+        <Route path="/configuracion" element={<Settings />} />
+        <Route path="/notificaciones" element={<Notifications />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
     </Layout>
   );
 }
 
 function AuthenticatedApp() {
-  const { supabaseUser } = useApp();
+  const { supabaseUser } = useAuth();
   return (
     <ChatProvider currentUserId={supabaseUser?.id || null} currentUser={supabaseUser ? { id: supabaseUser.id, username: supabaseUser.email } : null}>
        <AppInner />
@@ -96,18 +83,29 @@ function AuthenticatedApp() {
   );
 }
 
-// ...
 export default function App() {
   return (
     <ErrorBoundary>
-      <AppProvider>
-        <ThemeWrapper>
-          <Router>
-            <AuthenticatedApp />
-          </Router>
-          {/* ... */}
-        </ThemeWrapper>
-      </AppProvider>
+      <UIProvider>
+        <ConnectionProvider>
+          <AuthProvider>
+            <OrdersProvider>
+              <CartProvider>
+                <NotificationsProvider>
+                  <AppProvider>
+                    <ThemeWrapper>
+                      <Router>
+                        <AuthenticatedApp />
+                        <Analytics />
+                      </Router>
+                    </ThemeWrapper>
+                  </AppProvider>
+                </NotificationsProvider>
+              </CartProvider>
+            </OrdersProvider>
+          </AuthProvider>
+        </ConnectionProvider>
+      </UIProvider>
     </ErrorBoundary>
   );
 }

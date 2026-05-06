@@ -1,9 +1,9 @@
+import { useCart } from '../contexts/CartContext';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ShoppingBag, AlertCircle, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { SharedCart as SharedCartType } from '../types';
-import { useApp } from '../AppContext';
 
 export default function SharedCart() {
   const { code } = useParams<{ code: string }>();
@@ -57,7 +57,7 @@ export default function SharedCart() {
     loadSharedCart();
   }, [code]);
 
-  const { loadSharedCart: loadSharedCartAction, addToCart, setSelectedClient, clearCart } = useApp();
+  const { loadSharedCart: loadSharedCartAction, addToCart, setSelectedClient, clearCart } = useCart();
 
   const handleContinueToCheckout = async () => {
     if (!cart) return;

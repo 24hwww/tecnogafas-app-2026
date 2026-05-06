@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { apiService } from '../../services/apiService';
-import { set, get } from 'idb-keyval';
+import { appDB } from '../../stores/appDatabase';
 import { Product, Client, Order, Seller } from '../../types';
 
 export function useDataSync(
@@ -23,7 +23,7 @@ export function useDataSync(
     setConnectionStatus?.('syncing');
     
     try {
-      const [p, c, o, s, stats] = await Promise.all([
+      const results = await Promise.allSettled([
         apiService.getProducts(),
         apiService.getClients(),
         apiService.getOrders(1, 25, undefined),
@@ -31,61 +31,88 @@ export function useDataSync(
         apiService.getStats(),
       ]);
 
-      // Sort orders by createdAt (post_date) descending - most recent first
-      const sortedOrders = [...o.orders].sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+      const [pRes, cRes, oRes, sRes, statsRes] = results;
+      let hasErrors = false;
 
-      setProducts(p);
-      setClients(c);
-      setOrders(sortedOrders);
-      setTotalOrders(o.total);
-      // Usar estadísticas del API en tiempo real
-      setGrandTotalOrders(stats.data.total_orders);
-      setSellers(stats.data.total_sellers);
-      // Solo mostrar los primeros 5 pedidos en el dashboard
-      const dashboardOnlyOrders = sortedOrders.slice(0, 5);
-      setDashboardOrders(dashboardOnlyOrders);
+      // 1. Productos
+      if (pRes.status === 'fulfilled') {
+        setProducts(pRes.value);
+        appDB.products.clear().then(() => appDB.products.bulkAdd(pRes.value)).catch(console.warn);
+      } else {
+        hasErrors = true;
+        console.error('Error fetching products:', pRes.reason);
+        try {
+          const cached = await appDB.products.toArray();
+          if (cached.length > 0) setProducts(cached);
+        } catch(e) { console.error('Cache error products:', e); }
+      }
 
-      // Save to IndexedDB cache
-      try {
-        await set('tecnogafas_products', p);
-        await set('tecnogafas_clients', c);
+      // 2. Clientes
+      if (cRes.status === 'fulfilled') {
+        setClients(cRes.value);
+        appDB.clients.clear().then(() => appDB.clients.bulkAdd(cRes.value)).catch(console.warn);
+      } else {
+        hasErrors = true;
+        console.error('Error fetching clients:', cRes.reason);
+        try {
+          const cached = await appDB.clients.toArray();
+          if (cached.length > 0) setClients(cached);
+        } catch(e) { console.error('Cache error clients:', e); }
+      }
+
+      // 3. Pedidos
+      let ordersCountFallback = 0;
+      if (oRes.status === 'fulfilled') {
+        const sortedOrders = [...oRes.value.orders].sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setOrders(sortedOrders);
+        setTotalOrders(oRes.value.total);
+        ordersCountFallback = oRes.value.total;
+        setDashboardOrders(sortedOrders.slice(0, 5));
+        
         const cachedOrders = sortedOrders.map(({ rawData, ...rest }: any) => rest);
-        await set('tecnogafas_orders', cachedOrders);
-        await set('tecnogafas_sellers', s);
-      } catch (cacheError) {
-        console.warn('Failed to save to local storage cache', cacheError);
+        appDB.orders.clear().then(() => appDB.orders.bulkAdd(cachedOrders)).catch(console.warn);
+      } else {
+        hasErrors = true;
+        console.error('Error fetching orders:', oRes.reason);
+        try {
+          const cached = await appDB.orders.toArray();
+          if (cached.length > 0) {
+            setOrders(cached);
+            setTotalOrders(cached.length);
+            ordersCountFallback = cached.length;
+            setDashboardOrders(cached.slice(0, 5));
+          }
+        } catch(e) { console.error('Cache error orders:', e); }
       }
-      
-      setConnectionStatus?.('online');
+
+      // 4. Vendedores
+      if (sRes.status === 'fulfilled') {
+        setSellers(sRes.value);
+        appDB.sellers.clear().then(() => appDB.sellers.bulkAdd(sRes.value)).catch(console.warn);
+      } else {
+        hasErrors = true;
+        console.error('Error fetching sellers:', sRes.reason);
+        try {
+          const cached = await appDB.sellers.toArray();
+          if (cached.length > 0) setSellers(cached);
+        } catch(e) { console.error('Cache error sellers:', e); }
+      }
+
+      // 5. Estadísticas
+      if (statsRes.status === 'fulfilled') {
+        setGrandTotalOrders(statsRes.value.data.total_orders);
+      } else {
+        hasErrors = true;
+        console.error('Error fetching stats:', statsRes.reason);
+        setGrandTotalOrders(ordersCountFallback);
+      }
+
+      setConnectionStatus?.(hasErrors ? 'error' : 'online');
     } catch (error) {
-      console.error('Failed to fetch data, using cached data if available', error);
+      console.error('Fatal error during sync process:', error);
       setConnectionStatus?.('error');
-      
-      // Load from cache if API fails
-      try {
-        const cachedProducts = await get<Product[]>('tecnogafas_products');
-        const cachedClients = await get<Client[]>('tecnogafas_clients');
-        const cachedOrders = await get<Order[]>('tecnogafas_orders');
-        const cachedSellers = await get<Seller[]>('tecnogafas_sellers');
-        
-        if (cachedProducts) setProducts(cachedProducts);
-        if (cachedClients) setClients(cachedClients);
-        if (cachedOrders) {
-          setOrders(cachedOrders);
-          setTotalOrders(cachedOrders.length);
-          setGrandTotalOrders(cachedOrders.length);
-          // Solo guardar los primeros 5 pedidos para el dashboard
-          const dashboardOnlyOrders = cachedOrders.slice(0, 5);
-          setDashboardOrders(dashboardOnlyOrders);
-        }
-        if (cachedSellers) setSellers(cachedSellers);
-        
-        console.log('📦 Loaded data from cache after API error');
-      } catch (cacheError) {
-        console.error('Failed to load from cache', cacheError);
-      }
     } finally {
       if (showLoading) setIsLoading(false);
     }

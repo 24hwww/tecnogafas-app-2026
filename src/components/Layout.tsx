@@ -1,8 +1,11 @@
+import { useCart } from '../contexts/CartContext';
+import { useNotificationsContext } from '../contexts/NotificationsContext';
+import { useApp } from '../AppContext';
+import { useConnection } from '../contexts/ConnectionContext';
 import { ReactNode, useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { House, Package, Users, ClipboardList, ShoppingCart, Menu, X, MessageCircle, Settings, RefreshCw, ScanLine } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { useApp } from '../AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 
 const navItems = [
@@ -17,7 +20,10 @@ const navItems = [
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { cart, unreadNotifications, isLoading, apiError, onlineUsersCount, connectionStatus } = useApp();
+  const { cart } = useCart();
+  const { unreadNotifications } = useNotificationsContext();
+  const { isLoading, apiError } = useApp();
+  const { onlineUsersCount, connectionStatus } = useConnection();
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
