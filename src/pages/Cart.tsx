@@ -1,15 +1,19 @@
 import { useApp } from '../AppContext';
-import { Trash2, AlertCircle, ShoppingBag, User, Share2, Copy } from 'lucide-react';
+import { Trash2, AlertCircle, ShoppingBag, User, Share2, Copy, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../lib/utils';
 import { useState } from 'react';
+import { PinModal } from '../components/PinModal';
+import { Seller } from '../types';
 import React from 'react';
 
 export default function Cart() {
-  const { cart, selectedClient, removeFromCart, updateCartQuantity, shareCart } = useApp();
+  const { cart, selectedClient, removeFromCart, updateCartQuantity, shareCart, globalPin, setGlobalPin, clearCart } = useApp();
   const navigate = useNavigate();
   const [isSharing, setIsSharing] = useState(false);
   const [shareResult, setShareResult] = useState<{ success: boolean; code: string; message: string; link: string } | null>(null);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
@@ -23,6 +27,16 @@ export default function Cart() {
       return;
     }
 
+    // Check if PIN is already validated
+    if (!globalPin) {
+      setIsPinModalOpen(true);
+      return;
+    }
+
+    executeShareCart();
+  };
+
+  const executeShareCart = async () => {
     setIsSharing(true);
     try {
       const result = await shareCart();
@@ -56,9 +70,169 @@ export default function Cart() {
     }
   };
 
+  const handlePinSuccess = async (seller: Seller, pin: string) => {
+    setGlobalPin(pin);
+    setIsPinModalOpen(false);
+    await executeShareCart();
+  };
+
+  const handleClearCart = () => {
+    if (cart.length === 0) return;
+    
+    if (confirm('¿Estás seguro de que quieres limpiar todo el carrito? Esta acción no se puede deshacer.')) {
+      clearCart();
+      alert('Carrito limpiado exitosamente');
+    }
+  };
+
+  const generateCartImage = async () => {
+    if (cart.length === 0) return;
+    
+    setIsGeneratingImage(true);
+    try {
+      // Importar librerías dinámicamente
+      const jsPDF = (await import('jspdf')).jsPDF;
+      const html2canvas = (await import('html2canvas')).default;
+      const QRCode = (await import('qrcode')).default;
+      
+      // Generar código QR único para el carrito
+      const cartId = `cart_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const qrCodeData = {
+        id: cartId,
+        client: selectedClient ? { name: selectedClient.name, email: selectedClient.email } : null,
+        items: cart,
+        total: total,
+        date: new Date().toISOString(),
+        version: '1.0'
+      };
+      
+      // Guardar QR data en localStorage para recuperación después
+      localStorage.setItem(`qr_cart_${cartId}`, JSON.stringify(qrCodeData));
+      
+      // Generar QR code
+      const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(qrCodeData), {
+        width: 150,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      // Generar HTML del carrito
+      const currentDate = new Date().toLocaleDateString('es-AR');
+      const cartItemsHtml = cart.map(item => `
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #000; font-size: 12px;">${item.name}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #000; font-size: 12px;">${formatCurrency(item.price)} c/u × ${item.quantity}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #000; font-size: 12px; text-align: right; font-weight: bold;">${formatCurrency(item.price * item.quantity)}</td>
+        </tr>
+      `).join('');
+      
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; background: white;">
+          <div style="text-align: center; margin-bottom: 25px;">
+            <h1 style="margin: 0; color: #000; font-size: 20px; font-weight: bold;">PEDIDO TECNOGAFAS</h1>
+            <p style="margin: 5px 0; color: #000; font-size: 12px;">${currentDate}</p>
+          </div>
+          
+          ${selectedClient ? `
+          <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #000;">
+            <h2 style="margin: 0 0 8px 0; color: #000; font-size: 16px; font-weight: bold;">CLIENTE</h2>
+            <p style="margin: 0; font-weight: bold; color: #000; font-size: 14px;">${selectedClient.name}</p>
+            ${selectedClient.email ? `<p style="margin: 5px 0 0 0; color: #000; font-size: 12px;">${selectedClient.email}</p>` : ''}
+          </div>
+          ` : ''}
+          
+          <div style="margin-bottom: 20px;">
+            <h2 style="margin: 0 0 12px 0; color: #000; font-size: 16px; font-weight: bold;">PRODUCTOS</h2>
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
+              <thead>
+                <tr>
+                  <th style="padding: 8px; border: 1px solid #000; text-align: left; font-size: 12px;">Producto</th>
+                  <th style="padding: 8px; border: 1px solid #000; text-align: left; font-size: 12px;">Cantidad</th>
+                  <th style="padding: 8px; border: 1px solid #000; text-align: right; font-size: 12px;">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${cartItemsHtml}
+              </tbody>
+            </table>
+          </div>
+          
+          <div style="text-align: right; margin-top: 20px; padding: 15px; border-top: 2px solid #000;">
+            <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #000;">TOTAL: ${formatCurrency(total)}</h2>
+          </div>
+          
+          <div style="text-align: center; margin-top: 30px; padding: 20px; border: 2px dashed #000;">
+            <h3 style="margin: 0 0 10px 0; color: #000; font-size: 14px; font-weight: bold;">ESCANEAR PARA RECUPERAR PEDIDO</h3>
+            <img src="${qrCodeDataUrl}" alt="QR Code" style="width: 150px; height: 150px;" />
+            <p style="margin: 10px 0 0 0; color: #000; font-size: 12px;">ID: ${cartId}</p>
+            <p style="margin: 5px 0; color: #666; font-size: 10px;">Escanea este código QR con la app para recuperar este pedido</p>
+          </div>
+        </div>
+      `;
+      
+      // Generar PDF con jsPDF
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      // Convertir HTML a canvas y luego a imagen para el PDF
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '-9999px';
+      document.body.appendChild(tempDiv);
+      
+      // Generar canvas del contenido
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      
+      // Agregar imagen al PDF
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 190; // Ancho en mm para A4
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+      
+      // Descargar PDF
+      pdf.save(`pedido-tecnogafas-${Date.now()}.pdf`);
+      
+      // Limpiar
+      document.body.removeChild(tempDiv);
+      
+      alert('PDF del pedido generado y descargado');
+      
+    } catch (error) {
+      console.error('Error generating cart PDF:', error);
+      alert('Error al generar el PDF del pedido');
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-24">
-      <h2 id="cart-title" className="text-2xl font-bold">Carrito</h2>
+      <div className="flex items-center justify-between">
+        <h2 id="cart-title" className="text-2xl font-bold">Carrito</h2>
+        {cart.length > 0 && (
+          <button 
+            id="cart-clear-all-btn"
+            onClick={handleClearCart}
+            className="text-sm text-red-500 hover:text-red-600 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
+          >
+            <Trash2 size={16} />
+            Limpiar todo
+          </button>
+        )}
+      </div>
 
       {/* Selected Client Section */}
       <div className="m3-card !bg-primary-container/20 border-primary/20">
@@ -171,12 +345,31 @@ export default function Cart() {
               <React.Fragment>
                 <div className="space-y-3">
                   <p className="text-red-600 font-medium">{shareResult.message}</p>
-                  <button 
-                    onClick={() => setShareResult(null)}
-                    className="w-full m3-button-filled mt-4"
-                  >
-                    Cerrar
-                  </button>
+                  <div className="space-y-2">
+                    <button 
+                      onClick={generateCartImage}
+                      disabled={isGeneratingImage || cart.length === 0}
+                      className="w-full m3-button-outlined flex items-center justify-center gap-2"
+                    >
+                      {isGeneratingImage ? (
+                        <>
+                          <div className="inline-block animate-spin rounded-full border-2 border-primary/20 border-t-primary/20 h-4 w-4"></div>
+                          Generando PDF...
+                        </>
+                      ) : (
+                        <>
+                          <Camera size={16} />
+                          Generar PDF del pedido
+                        </>
+                      )}
+                    </button>
+                    <button 
+                      onClick={() => setShareResult(null)}
+                      className="w-full m3-button-filled"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
                 </div>
               </React.Fragment>
             )}
@@ -219,6 +412,12 @@ export default function Cart() {
           </button>
         </div>
       </div>
+    {/* PIN Modal */}
+      <PinModal
+        isOpen={isPinModalOpen}
+        onClose={() => setIsPinModalOpen(false)}
+        onSuccess={handlePinSuccess}
+      />
     </div>
   );
 }

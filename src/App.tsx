@@ -24,6 +24,7 @@ const Orders = lazy(() => import('./pages/Orders'));
 const Cart = lazy(() => import('./pages/Cart'));
 const Checkout = lazy(() => import('./pages/Checkout'));
 const SharedCart = lazy(() => import('./pages/SharedCart'));
+const QRScanner = lazy(() => import('./pages/QRScanner'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Settings = lazy(() => import('./pages/Settings'));
 const TestApiPage = lazy(() => import('./pages/TestApiPage'));
@@ -57,6 +58,7 @@ function AppInner() {
           <Route path="/pedidos" element={<Orders />} />
           <Route path="/carrito" element={<Cart />} />
           <Route path="/carrito/:code" element={<SharedCart />} />
+          <Route path="/qr-scan" element={<QRScanner />} />
           <Route path="/pago" element={<Checkout />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/configuracion" element={<Settings />} />

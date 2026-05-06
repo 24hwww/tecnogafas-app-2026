@@ -759,3 +759,23 @@ enum one_time_token_type {
 
   @@schema("auth")
 }
+
+model shared_carts {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String   @unique
+  client_id   String
+  client_name String
+  items       Json     @default("[]")
+  seller_id   String?
+  expires_at  DateTime @db.Timestamptz(6)
+  is_active   Boolean  @default(true)
+  metadata    Json     @default("{}")
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([code], map: "idx_shared_carts_code")
+  @@index([expires_at], map: "idx_shared_carts_expires_at")
+  @@index([is_active], map: "idx_shared_carts_is_active")
+  @@index([client_id], map: "idx_shared_carts_client_id")
+  @@schema("public")
+}

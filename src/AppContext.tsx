@@ -88,6 +88,73 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [drafts, setDrafts] = useState<DraftOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+
+  // Cargar datos desde Dexie al iniciar
+  useEffect(() => {
+    const loadFromDexie = async () => {
+      try {
+        const { chatDB } = await import('./modules/chat/stores/chatDatabase');
+        
+        // Cargar carrito
+        const cartItems = await chatDB.cart.toArray();
+        if (cartItems.length > 0) {
+          setCart(cartItems);
+        }
+        
+        // Cargar cliente seleccionado
+        const clients = await chatDB.selectedClient.toArray();
+        if (clients.length > 0) {
+          setSelectedClient(clients[0]);
+        }
+      } catch (e) {
+        console.error('Error loading data from Dexie:', e);
+      }
+    };
+    
+    loadFromDexie();
+  }, []);
+
+  // Guardar carrito en Dexie cuando cambie
+  useEffect(() => {
+    const saveCartToDexie = async () => {
+      try {
+        const { chatDB } = await import('./modules/chat/stores/chatDatabase');
+        
+        // Limpiar carrito existente
+        await chatDB.cart.clear();
+        
+        // Guardar items actuales
+        if (cart.length > 0) {
+          await chatDB.cart.bulkAdd(cart);
+        }
+      } catch (e) {
+        console.error('Error saving cart to Dexie:', e);
+      }
+    };
+    
+    saveCartToDexie();
+  }, [cart]);
+
+  // Guardar cliente seleccionado en Dexie cuando cambie
+  useEffect(() => {
+    const saveClientToDexie = async () => {
+      try {
+        const { chatDB } = await import('./modules/chat/stores/chatDatabase');
+        
+        // Limpiar cliente existente
+        await chatDB.selectedClient.clear();
+        
+        // Guardar cliente actual
+        if (selectedClient) {
+          await chatDB.selectedClient.add(selectedClient);
+        }
+      } catch (e) {
+        console.error('Error saving selected client to Dexie:', e);
+      }
+    };
+    
+    saveClientToDexie();
+  }, [selectedClient]);
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [primaryColor, setPrimaryColor] = useState('#0A5DFF');
   const [fontSize, setFontSize] = useState('16px');

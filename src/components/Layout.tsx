@@ -1,6 +1,6 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { House, Package, Users, ClipboardList, ShoppingCart, Menu, X, MessageCircle, Settings, RefreshCw } from 'lucide-react';
+import { House, Package, Users, ClipboardList, ShoppingCart, Menu, X, MessageCircle, Settings, RefreshCw, ScanLine } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useApp } from '../AppContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -11,6 +11,7 @@ const navItems = [
   { path: '/clientes', label: 'Clientes', icon: Users },
   { path: '/pedidos', label: 'Pedidos', icon: ClipboardList },
   { path: '/carrito', label: 'Carrito', icon: ShoppingCart },
+  { path: '/qr-scan', label: 'Escanear QR', icon: ScanLine },
   { path: '/chat', label: 'Chat', icon: MessageCircle },
   { path: '/configuracion', label: 'Configuración', icon: Settings },
 ];

@@ -16,6 +16,7 @@ import type {
   PendingOperation,
   SyncState,
 } from '../types';
+import type { CartItem, Client } from '../../../types';
 
 // ============================================================================
 // DATABASE SCHEMA
@@ -32,6 +33,10 @@ export class ChatDatabase extends Dexie {
   userPresence!: Table<UserPresence, string>;
   pendingOperations!: Table<PendingOperation, string>;
   syncState!: Table<SyncState, number>; // Solo 1 registro (id = 1)
+  
+  // Tablas de la aplicación principal
+  cart!: Table<CartItem, string>;
+  selectedClient!: Table<Client, string>;
 
   constructor() {
     super('TecnoChatDB');
@@ -63,6 +68,12 @@ export class ChatDatabase extends Dexie {
       
       // Estado de sync: solo 1 registro
       syncState: '++id',
+      
+      // Carrito: items del carrito de compras
+      cart: 'id, name, price, quantity, category',
+      
+      // Cliente seleccionado: información del cliente actual
+      selectedClient: 'id, name, email, phone',
     });
   }
 }
