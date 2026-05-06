@@ -104,8 +104,8 @@ export function useDataSync(
       if (statsRes.status === 'fulfilled') {
         setGrandTotalOrders(statsRes.value.data.total_orders);
       } else {
-        hasErrors = true;
-        console.error('Error fetching stats:', statsRes.reason);
+        // No marcamos hasErrors para estadísticas ya que es secundario
+        console.warn('Stats endpoint not available (404), using fallback');
         setGrandTotalOrders(ordersCountFallback);
       }
 

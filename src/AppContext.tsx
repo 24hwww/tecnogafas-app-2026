@@ -97,6 +97,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       await refreshData(false);
+      setIsLoading(false);
     };
 
     loadCachedAndRefresh();
