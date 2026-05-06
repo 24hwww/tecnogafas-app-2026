@@ -197,7 +197,7 @@ export default function Orders() {
 
   const handleLoadDraft = (id: string) => {
     loadDraft(id);
-    navigate('/checkout');
+    navigate('/pago');
   };
 
   const handleShareDraft = async (draft: DraftOrder) => {
