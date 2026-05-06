@@ -1,16 +1,20 @@
-import { useCallback } from 'react';
-import { apiService } from '../../services/apiService';
+import { useCallback } from "react";
 
-import { Seller } from '../../types';
+import type { Seller } from "../../types";
 
 // Events/notificaciones desactivadas temporalmente junto con SSE
-export function useNotifications(_globalPin: string | null, _currentSeller: Seller | null, setNotifications: (n: any[]) => void, setUnreadNotifications: (c: number) => void) {
-  // Desactivado temporalmente - retorna silenciosamente para evitar spam en consola
-  const fetchNotifications = useCallback(async () => {
-    setNotifications([]);
-    setUnreadNotifications(0);
-    return;
-    /* Código comentado temporalmente:
+export function useNotifications(
+	_globalPin: string | null,
+	_currentSeller: Seller | null,
+	setNotifications: (n: any[]) => void,
+	setUnreadNotifications: (c: number) => void,
+) {
+	// Desactivado temporalmente - retorna silenciosamente para evitar spam en consola
+	const fetchNotifications = useCallback(async () => {
+		setNotifications([]);
+		setUnreadNotifications(0);
+		return;
+		/* Código comentado temporalmente:
     if (!globalPin || !currentSeller) return;
     try {
       console.log('📡 Syncing notifications from server...');
@@ -35,12 +39,19 @@ export function useNotifications(_globalPin: string | null, _currentSeller: Sell
       console.warn('Notification sync paused:', e instanceof Error ? e.message : String(e));
     }
     */
-  }, [setNotifications, setUnreadNotifications]);
+	}, [setNotifications, setUnreadNotifications]);
 
-  // Desactivado temporalmente - retorna silenciosamente
-  const sendNotification = useCallback(async (_toUserId: number, _content: string, _type: 'message' | 'notification' = 'notification', _currentSellerId?: string, _currentSellerName?: string) => {
-    return false;
-    /* Código comentado temporalmente:
+	// Desactivado temporalmente - retorna silenciosamente
+	const sendNotification = useCallback(
+		async (
+			_toUserId: number,
+			_content: string,
+			_type: "message" | "notification" = "notification",
+			_currentSellerId?: string,
+			_currentSellerName?: string,
+		) => {
+			return false;
+			/* Código comentado temporalmente:
     if (!globalPin || !currentSellerId) {
         console.error('Missing globalPin or currentSellerId');
         return false;
@@ -73,7 +84,9 @@ export function useNotifications(_globalPin: string | null, _currentSeller: Sell
       return false;
     }
     */
-  }, []);
+		},
+		[],
+	);
 
-  return { fetchNotifications, sendNotification };
+	return { fetchNotifications, sendNotification };
 }

@@ -2,39 +2,34 @@
 // CHAT MODULE - Exports
 // ============================================================================
 
-// Types
-export * from './types';
-
+export { ChatInput } from "./components/ChatInput";
+// Components
+export { ChatLayout } from "./components/ChatLayout";
+export { ChatList } from "./components/ChatList";
+export { ChatMessageList } from "./components/ChatMessageList";
+export { MessageBubble } from "./components/MessageBubble";
+export { NotificationMessage } from "./components/NotificationMessage";
+export { OrderMessageCard } from "./components/OrderMessageCard";
+export { TypingIndicator } from "./components/TypingIndicator";
+export { useConversations } from "./hooks/useConversations";
 // Hooks
-export { useMessages } from './hooks/useMessages';
-export { useConversations } from './hooks/useConversations';
-export { useReactions } from './hooks/useReactions';
-export { useTyping } from './hooks/useTyping';
-
+export { useMessages } from "./hooks/useMessages";
+export { useReactions } from "./hooks/useReactions";
+export { useTyping } from "./hooks/useTyping";
+// Supabase
+export { channelManager, cleanupSupabase, supabase } from "./lib/supabase";
 // Provider
-export { ChatProvider, useChat, ChatContext } from './providers/ChatProvider';
-
+export { ChatContext, ChatProvider, useChat } from "./providers/ChatProvider";
 // Database
 export {
-  chatDB,
-  saveConversations,
-  getConversations,
-  saveMessages,
-  getMessages,
-  addReaction,
-  removeReaction,
-  clearAllData,
-} from './stores/chatDatabase';
-
-// Supabase
-export { supabase, channelManager, cleanupSupabase } from './lib/supabase';
-
-// Components
-export { ChatLayout } from './components/ChatLayout';
-export { ChatList } from './components/ChatList';
-export { ChatMessageList } from './components/ChatMessageList';
-export { MessageBubble } from './components/MessageBubble';
-export { ChatInput } from './components/ChatInput';
-export { TypingIndicator } from './components/TypingIndicator';
-export { OrderMessageCard } from './components/OrderMessageCard';
-export { NotificationMessage } from './components/NotificationMessage';
+	addReaction,
+	chatDB,
+	clearAllData,
+	getConversations,
+	getMessages,
+	removeReaction,
+	saveConversations,
+	saveMessages,
+} from "./stores/chatDatabase";
+// Types
+export * from "./types";

@@ -1,253 +1,211 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { get } from 'idb-keyval';
-import { useApp } from '../AppContext';
-import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity, Zap, Download, Smartphone, AlertTriangle, Mail, Trash2 } from 'lucide-react';
-import { formatCurrency, getRelativeTime, formatTimeBA, cn } from '../lib/utils';
-import { Skeleton } from '../components/Skeleton';
+import { get } from "idb-keyval";
+import {
+	AlertTriangle,
+	Download,
+	Package,
+	RefreshCw,
+	ShoppingBag,
+	Smartphone,
+	TrendingUp,
+	Users,
+	Zap,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useApp } from "../AppContext";
+import { Skeleton } from "../components/Skeleton";
+import { cn, formatCurrency, formatTimeBA } from "../lib/utils";
 
 export default function Dashboard() {
-  const { products, clients, grandTotalOrders, dashboardOrders, sellers, refreshData, forceRefresh, clearAllCaches, isLoading, appVersionInfo, drafts } = useApp();
-  const navigate = useNavigate();
-  const [hasCache, setHasCache] = useState(false);
-  const [showDraftsModal, setShowDraftsModal] = useState(false);
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
+	const {
+		products,
+		clients,
+		grandTotalOrders,
+		dashboardOrders,
+		sellers,
+		refreshData,
+		clearAllCaches,
+		isLoading,
+		appVersionInfo,
+		drafts,
+	} = useApp();
+	const navigate = useNavigate();
+	const [hasCache, setHasCache] = useState(false);
+	const [showDraftsModal, setShowDraftsModal] = useState(false);
 
-  useEffect(() => {
-    const checkCache = async () => {
-      const cached = await get('tecnogafas_products');
-      setHasCache(!!cached);
-    };
-    checkCache();
-  }, []);
+	useEffect(() => {
+		const checkCache = async () => {
+			const cached = await get("tecnogafas_products");
+			setHasCache(!!cached);
+		};
+		checkCache();
+	}, []);
 
-  const stats = [
-    { label: 'Vendedores', value: sellers.length, icon: Users, color: 'text-green-600' },
-    { label: 'Clientes', value: clients.length, icon: TrendingUp, color: 'text-blue-600' },
-    { label: 'Productos', value: products.length, icon: Package, color: 'text-purple-600' },
-    { label: 'Pedidos', value: grandTotalOrders, icon: ShoppingBag, color: 'text-orange-600' },
-  ];
+	const stats = [
+		{
+			label: "Vendedores",
+			value: sellers.length,
+			icon: Users,
+			color: "text-green-600",
+		},
+		{
+			label: "Clientes",
+			value: clients.length,
+			icon: TrendingUp,
+			color: "text-blue-600",
+		},
+		{
+			label: "Productos",
+			value: products.length,
+			icon: Package,
+			color: "text-purple-600",
+		},
+		{
+			label: "Pedidos",
+			value: grandTotalOrders,
+			icon: ShoppingBag,
+			color: "text-orange-600",
+		},
+	];
 
-  // Helper para obtener nombre del vendedor por ID
-  const getSellerName = (sellerId: string) => {
-    const seller = sellers.find(s => s.id === sellerId);
-    return seller?.name || 'Vendedor desconocido';
-  };
+	const getSellerName = (sellerId: string) =>
+		sellers.find((s) => s.id === sellerId)?.name || "Vendedor desconocido";
+	const _getOrderNumber = (title: string) => {
+		const match = title.match(/#(\d+)/);
+		return match ? `#${match[1]}` : "";
+	};
 
-  // Helper para extraer número de pedido del título (formato: "Pedido #12345" o similar)
-  const getOrderNumber = (title: string) => {
-    const match = title.match(/#(\d+)/);
-    return match ? `#${match[1]}` : '';
-  };
+	return (
+		<div className="space-y-6">
+			<div className="flex items-center justify-between">
+				<h2 className="text-3xl font-bold">Inicio</h2>
+				<div className="flex gap-2">
+					<Button
+						onClick={() => refreshData()}
+						variant="outline"
+						size="icon"
+						className="rounded-xl"
+					>
+						<RefreshCw size={20} className={cn(isLoading && "animate-spin")} />
+					</Button>
+					<Button
+						onClick={() =>
+							drafts.filter((d) => d.status === "no enviado").length > 0
+								? setShowDraftsModal(true)
+								: clearAllCaches()
+						}
+						variant={hasCache ? "destructive" : "outline"}
+						size="icon"
+						className="rounded-xl"
+					>
+						<Zap size={20} />
+					</Button>
+				</div>
+			</div>
 
-  return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <h2 id="dashboard-title" className="text-h2">Inicio</h2>
-        <div className="flex gap-1">
-          <button 
-            id="dashboard-refresh-btn"
-            onClick={() => refreshData()} 
-            disabled={isLoading}
-            className={`p-2.5 hover:bg-surface-variant rounded-full transition-all ${isLoading ? 'animate-spin' : ''}`}
-            title="Sincronizar"
-          >
-            <RefreshCw size={20} className="text-primary" />
-          </button>
-          <button
-            id="dashboard-force-refresh-btn"
-            onClick={async () => {
-              // Verificar si hay borradores pendientes
-              const pendingDrafts = drafts.filter(d => d.status === 'no enviado');
-              if (pendingDrafts.length > 0) {
-                setShowDraftsModal(true);
-                return;
-              }
-              await clearAllCaches();
-              setHasCache(false);
-            }}
-            disabled={isLoading}
-            className={`p-2.5 rounded-full transition-colors ${isLoading ? 'animate-pulse' : ''} ${hasCache ? 'bg-error text-white' : 'hover:bg-surface-variant text-primary'}`}
-            title={hasCache ? "Limpiar Caché" : "Caché vacía"}
-          >
-            <Zap size={20} />
-          </button>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        {stats.map((stat, i) => (
-          <div key={stat.label} className="m3-card !items-start space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300" style={{ animationDelay: `${i * 75}ms` }}>
-            <div className="flex justify-between items-center w-full">
-              <span className="text-label">{stat.label}</span>
-              <div className={cn("p-1.5 rounded-lg bg-surface-variant/50", stat.color.replace('text-', 'text-'))}>
-                <stat.icon size={16} />
-              </div>
-            </div>
-            <div className="space-y-1 w-full">
-              {isLoading ? (
-                <Skeleton className="h-9 w-20 mb-1" />
-              ) : (
-                <span className="text-3xl font-black tracking-tight text-on-surface">{stat.value}</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+			<div className="grid grid-cols-2 gap-4">
+				{stats.map((stat) => (
+					<Card key={stat.label} className="card-premium p-4">
+						<div className="flex items-center justify-between mb-2">
+							<span className="text-[10px] font-bold uppercase text-muted-foreground">
+								{stat.label}
+							</span>
+							<div className={cn("p-1.5 rounded-lg bg-secondary", stat.color)}>
+								<stat.icon size={14} />
+							</div>
+						</div>
+						<div className="text-2xl font-black">
+							{isLoading ? <Skeleton className="h-6 w-12" /> : stat.value}
+						</div>
+					</Card>
+				))}
+			</div>
 
-      <div className="space-y-4">
-        <div className="flex justify-between items-end">
-          <h3 id="dashboard-orders-title" className="text-h3">Pedidos Recientes</h3>
-          <button 
-            id="dashboard-view-all-orders-btn"
-            onClick={() => navigate('/pedidos')}
-            className="text-xs font-bold text-primary hover:underline"
-          >
-            Ver todos
-          </button>
-        </div>
-        
-        <div className="m3-card !p-0 overflow-hidden divide-y divide-outline/5">
-          {isLoading ? (
-            <div className="p-4 space-y-4">
-              {Array(4).fill(0).map((_, i) => (
-                <div key={i} className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="w-10 h-10 rounded-full" />
-                    <div className="space-y-2">
-                      <Skeleton className="w-32 h-4" />
-                      <Skeleton className="w-20 h-3" />
-                    </div>
-                  </div>
-                  <Skeleton className="w-16 h-4" />
-                </div>
-              ))}
-            </div>
-          ) : dashboardOrders.length === 0 ? (
-            <div className="text-center py-10 px-4">
-              <ShoppingBag className="mx-auto text-on-surface-variant/20 mb-3" size={48} />
-              <p className="text-body-sm">No hay pedidos registrados.</p>
-            </div>
-          ) : (
-            dashboardOrders.slice(0, 5).map((order) => (
-              <div 
-                key={order.id} 
-                className="flex justify-between items-center p-4 hover:bg-surface-variant/30 transition-colors cursor-pointer group"
-                onClick={() => navigate('/pedidos')}
-              >
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="w-10 h-10 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center font-bold shrink-0">
-                    {order.clientName.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-sm text-on-surface truncate">{order.clientName}</p>
-                      {order.rawData?.post_title && getOrderNumber(order.rawData.post_title) && (
-                        <span className="text-[0.65rem] bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded-md font-mono font-bold">
-                          {getOrderNumber(order.rawData.post_title)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <p className="text-[0.65rem] text-on-surface-variant font-medium uppercase tracking-tighter">
-                        {new Date(order.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })} • {formatTimeBA(order.createdAt)} HS
-                      </p>
-                      <p className="text-[0.6rem] text-on-surface-variant/70 italic">
-                        Por {getSellerName(order.sellerId)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="font-bold text-sm text-primary">{formatCurrency(order.total || 0)}</p>
-                  <p className="text-[0.6rem] font-bold uppercase tracking-wider text-success">Guardado</p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+			<div className="space-y-4">
+				<div className="flex justify-between items-center">
+					<h3 className="text-xl font-bold">Pedidos Recientes</h3>
+					<Button
+						variant="link"
+						onClick={() => navigate("/pedidos")}
+						className="text-xs font-bold text-primary"
+					>
+						Ver todos
+					</Button>
+				</div>
+				<Card className="card-premium overflow-hidden">
+					{dashboardOrders.slice(0, 5).map((order) => (
+						<div
+							key={order.id}
+							className="flex justify-between items-center p-4 border-b last:border-0 hover:bg-secondary/50 cursor-pointer"
+							onClick={() => navigate("/pedidos")}
+						>
+							<div className="flex items-center gap-3">
+								<div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-bold text-sm">
+									{order.clientName.charAt(0)}
+								</div>
+								<div>
+									<p className="font-bold text-sm">{order.clientName}</p>
+									<p className="text-[10px] text-muted-foreground uppercase">
+										{formatTimeBA(order.createdAt)} •{" "}
+										{getSellerName(order.sellerId)}
+									</p>
+								</div>
+							</div>
+							<p className="font-bold text-primary">
+								{formatCurrency(order.total || 0)}
+							</p>
+						</div>
+					))}
+				</Card>
+			</div>
 
-      {appVersionInfo && appVersionInfo.success && (
-        <div className="m3-card !bg-primary/5 border-primary/20">
-          <div className="flex items-center gap-5">
-            <div className="bg-primary-container p-4 rounded-2xl text-on-primary-container shadow-sm">
-              <Smartphone size={28} />
-            </div>
-            <div className="flex-1">
-              <h3 id="dashboard-download-apk-title" className="text-base font-bold text-on-surface">Nueva Versión Disponible</h3>
-              <p className="text-body-sm mb-3">Actualiza a la versión {appVersionInfo.version} para obtener las últimas mejoras.</p>
-              <a 
-                id="dashboard-download-apk-btn"
-                href={appVersionInfo.apk_url}
-                className="m3-button-filled !py-2 !text-xs w-full"
-              >
-                <Download size={16} />
-                Descargar APK
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
+			{appVersionInfo?.success && (
+				<Card className="card-premium p-4 flex gap-4 items-center border-l-4 border-primary">
+					<Smartphone size={32} className="text-primary" />
+					<div className="flex-1">
+						<h4 className="font-bold">
+							Nueva Versión {appVersionInfo.version}
+						</h4>
+						<Button size="sm" className="w-full mt-2" asChild>
+							<a href={appVersionInfo.apk_url}>
+								<Download size={16} className="mr-2" /> Actualizar
+							</a>
+						</Button>
+					</div>
+				</Card>
+			)}
 
-      {/* Modal de confirmación para borradores */}
-      {showDraftsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="m3-card max-w-md w-full animate-in fade-in zoom-in duration-200">
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mx-auto">
-                <AlertTriangle size={32} className="text-error" />
-              </div>
-              
-              <h3 className="text-xl font-bold text-on-surface">
-                Pedidos en Borrador
-              </h3>
-              
-              <p className="text-body text-on-surface-variant">
-                Tienes <strong>{drafts.filter(d => d.status === 'no enviado').length} pedido(s)</strong> en borrador que aún no han sido enviados.
-              </p>
-              
-              <p className="text-sm text-on-surface-variant/70">
-                Si limpias el caché, estos pedidos se perderán permanentemente.
-              </p>
-
-              <div className="flex flex-col gap-3 pt-4">
-                <button
-                  onClick={() => {
-                    setShowDraftsModal(false);
-                    navigate('/pedidos', { state: { highlightDrafts: true } });
-                  }}
-                  className="m3-button-filled w-full flex items-center justify-center gap-2"
-                >
-                  <Mail size={18} />
-                  Ir a Pedidos para Enviar
-                </button>
-                
-                <button
-                  onClick={async () => {
-                    setShowDraftsModal(false);
-                    await clearAllCaches();
-                    setHasCache(false);
-                  }}
-                  disabled={isSendingEmail}
-                  className="m3-button-outlined w-full flex items-center justify-center gap-2 text-error border-error/30 hover:bg-error/5"
-                >
-                  <Trash2 size={18} />
-                  Limpiar de Todos Modos
-                </button>
-                
-                <button
-                  onClick={() => setShowDraftsModal(false)}
-                  className="text-sm font-medium text-on-surface-variant hover:text-on-surface py-2"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-
-  );
+			<Dialog open={showDraftsModal} onOpenChange={setShowDraftsModal}>
+				<DialogContent className="rounded-3xl p-6 text-center">
+					<AlertTriangle size={48} className="mx-auto text-destructive mb-4" />
+					<h3 className="text-lg font-bold">¿Limpiar datos?</h3>
+					<p className="text-sm text-muted-foreground mb-6">
+						Hay borradores pendientes. Si limpias el caché, se perderán.
+					</p>
+					<div className="flex flex-col gap-2">
+						<Button
+							onClick={() => {
+								setShowDraftsModal(false);
+								navigate("/pedidos");
+							}}
+						>
+							Ir a Pedidos
+						</Button>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setShowDraftsModal(false);
+								clearAllCaches();
+							}}
+						>
+							Limpiar igual
+						</Button>
+					</div>
+				</DialogContent>
+			</Dialog>
+		</div>
+	);
 }

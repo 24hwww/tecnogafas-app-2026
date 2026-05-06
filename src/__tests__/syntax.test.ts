@@ -1,1 +1,3 @@
-test('Sintaxis: Carga de AppProvider', () => { expect(true).toBe(true); });
+test("Sintaxis: Carga de AppProvider", () => {
+	expect(true).toBe(true);
+});

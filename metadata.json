@@ -1,6 +1,6 @@
 {
-  "name": "Tecnogafas pedidos app",
-  "description": "Aplicativo de gestión para TecnoGafas con módulos de dashboard, productos, clientes, pedidos y carrito.",
-  "requestFramePermissions": [],
-  "majorCapabilities": []
+	"name": "Tecnogafas pedidos app",
+	"description": "Aplicativo de gestión para TecnoGafas con módulos de dashboard, productos, clientes, pedidos y carrito.",
+	"requestFramePermissions": [],
+	"majorCapabilities": []
 }

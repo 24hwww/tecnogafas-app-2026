@@ -3,23 +3,28 @@
 // Indicador de "escribiendo..." con debounce
 // ============================================================================
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import { supabase, channelManager } from '../lib/supabase';
-import type { TypingStatus, Profile, TypingUser } from '../types';
-import { getTypingUsers, setTypingStatus, clearTypingStatus, cleanupExpiredTyping } from '../stores/chatDatabase';
-import { getProfile } from '../stores/chatDatabase';
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { channelManager, supabase } from "../lib/supabase";
+import {
+	cleanupExpiredTyping,
+	clearTypingStatus,
+	getProfile,
+	getTypingUsers,
+	setTypingStatus,
+} from "../stores/chatDatabase";
+import type { TypingStatus, TypingUser } from "../types";
 
 interface UseTypingOptions {
-  conversationId: string | null;
-  currentUserId: string | null;
+	conversationId: string | null;
+	currentUserId: string | null;
 }
 
 interface UseTypingReturn {
-  typingUsers: TypingUser[];
-  startTyping: () => void;
-  stopTyping: () => void;
-  isTyping: boolean;
+	typingUsers: TypingUser[];
+	startTyping: () => void;
+	stopTyping: () => void;
+	isTyping: boolean;
 }
 
 const TYPING_DEBOUNCE = 300; // ms antes de enviar "typing"
@@ -27,257 +32,273 @@ const TYPING_DURATION = 30000; // 30 segundos de duración
 const TYPING_CLEANUP_INTERVAL = 10000; // Limpiar cada 10 segundos
 
 export function useTyping({
-  conversationId,
-  currentUserId,
+	conversationId,
+	currentUserId,
 }: UseTypingOptions): UseTypingReturn {
-  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
-  
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const cleanupIntervalRef = useRef<NodeJS.Timeout | null>(null);
+	const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+	const [isTyping, setIsTyping] = useState(false);
 
-  // ============================================================================
-  // ENVIAR ESTADO DE TYPING
-  // ============================================================================
+	const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const debounceRef = useRef<NodeJS.Timeout | null>(null);
+	const cleanupIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const sendTypingStatus = useCallback(
-    async (isTypingNow: boolean) => {
-      if (!conversationId || !currentUserId) return;
+	// ============================================================================
+	// ENVIAR ESTADO DE TYPING
+	// ============================================================================
 
-      const now = new Date();
-      const expiresAt = new Date(now.getTime() + TYPING_DURATION);
+	const sendTypingStatus = useCallback(
+		async (isTypingNow: boolean) => {
+			if (!conversationId || !currentUserId) return;
 
-      try {
-        if (isTypingNow) {
-          await supabase.from('typing_status').upsert([{
-            conversation_id: conversationId,
-            user_id: currentUserId,
-            started_at: now.toISOString(),
-            expires_at: expiresAt.toISOString(),
-          }] as unknown as never[]);
+			const now = new Date();
+			const expiresAt = new Date(now.getTime() + TYPING_DURATION);
 
-          // Guardar en cache local
-          await setTypingStatus({
-            conversation_id: conversationId,
-            user_id: currentUserId,
-            expires_at: expiresAt.toISOString(),
-          });
-        } else {
-          await supabase
-            .from('typing_status')
-            .delete()
-            .eq('conversation_id', conversationId)
-            .eq('user_id', currentUserId);
+			try {
+				if (isTypingNow) {
+					await supabase.from("typing_status").upsert([
+						{
+							conversation_id: conversationId,
+							user_id: currentUserId,
+							started_at: now.toISOString(),
+							expires_at: expiresAt.toISOString(),
+						},
+					] as unknown as never[]);
 
-          await clearTypingStatus(conversationId, currentUserId);
-        }
-      } catch (err) {
-        // Silencioso - no es crítico
-        console.debug('[useTyping] Error:', err);
-      }
-    },
-    [conversationId, currentUserId]
-  );
+					// Guardar en cache local
+					await setTypingStatus({
+						conversation_id: conversationId,
+						user_id: currentUserId,
+						expires_at: expiresAt.toISOString(),
+					});
+				} else {
+					await supabase
+						.from("typing_status")
+						.delete()
+						.eq("conversation_id", conversationId)
+						.eq("user_id", currentUserId);
 
-  // ============================================================================
-  // INICIAR TYPING (con debounce)
-  // ============================================================================
+					await clearTypingStatus(conversationId, currentUserId);
+				}
+			} catch (err) {
+				// Silencioso - no es crítico
+				console.debug("[useTyping] Error:", err);
+			}
+		},
+		[conversationId, currentUserId],
+	);
 
-  const startTyping = useCallback(() => {
-    if (!conversationId || !currentUserId) return;
+	// ============================================================================
+	// INICIAR TYPING (con debounce)
+	// ============================================================================
 
-    setIsTyping(true);
+	const startTyping = useCallback(() => {
+		if (!conversationId || !currentUserId) return;
 
-    // Clear debounce
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
+		setIsTyping(true);
 
-    // Debounce antes de enviar
-    debounceRef.current = setTimeout(() => {
-      sendTypingStatus(true);
-    }, TYPING_DEBOUNCE);
+		// Clear debounce
+		if (debounceRef.current) {
+			clearTimeout(debounceRef.current);
+		}
 
-    // Auto-stop después de inactividad
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    typingTimeoutRef.current = setTimeout(() => {
-      stopTyping();
-    }, 5000); // Stop si no escribe por 5 segundos
-  }, [conversationId, currentUserId, sendTypingStatus]);
+		// Debounce antes de enviar
+		debounceRef.current = setTimeout(() => {
+			sendTypingStatus(true);
+		}, TYPING_DEBOUNCE);
 
-  // ============================================================================
-  // DETENER TYPING
-  // ============================================================================
+		// Auto-stop después de inactividad
+		if (typingTimeoutRef.current) {
+			clearTimeout(typingTimeoutRef.current);
+		}
+		typingTimeoutRef.current = setTimeout(() => {
+			stopTyping();
+		}, 5000); // Stop si no escribe por 5 segundos
+	}, [conversationId, currentUserId, sendTypingStatus, stopTyping]);
 
-  const stopTyping = useCallback(() => {
-    setIsTyping(false);
+	// ============================================================================
+	// DETENER TYPING
+	// ============================================================================
 
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    }
+	const stopTyping = useCallback(() => {
+		setIsTyping(false);
 
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = null;
-    }
+		if (debounceRef.current) {
+			clearTimeout(debounceRef.current);
+			debounceRef.current = null;
+		}
 
-    sendTypingStatus(false);
-  }, [sendTypingStatus]);
+		if (typingTimeoutRef.current) {
+			clearTimeout(typingTimeoutRef.current);
+			typingTimeoutRef.current = null;
+		}
 
-  // ============================================================================
-  // CARGAR USUARIOS ESCRIBIENDO
-  // ============================================================================
+		sendTypingStatus(false);
+	}, [sendTypingStatus]);
 
-  const loadTypingUsers = useCallback(async () => {
-    if (!conversationId || !currentUserId) {
-      setTypingUsers([]);
-      return;
-    }
+	// ============================================================================
+	// CARGAR USUARIOS ESCRIBIENDO
+	// ============================================================================
 
-    try {
-      // Limpiar expirados
-      await cleanupExpiredTyping();
+	const loadTypingUsers = useCallback(async () => {
+		if (!conversationId || !currentUserId) {
+			setTypingUsers([]);
+			return;
+		}
 
-      // Cargar desde cache
-      const cached = await getTypingUsers(conversationId, currentUserId);
-      if (cached.length > 0) {
-        const enriched = await enrichTypingUsers(cached);
-        setTypingUsers(enriched);
-      }
+		try {
+			// Limpiar expirados
+			await cleanupExpiredTyping();
 
-      // Fetch desde servidor
-      const now = new Date().toISOString();
-      const { data, error } = await supabase
-        .from('typing_status')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .neq('user_id', currentUserId)
-        .gt('expires_at', now);
+			// Cargar desde cache
+			const cached = await getTypingUsers(conversationId, currentUserId);
+			if (cached.length > 0) {
+				const enriched = await enrichTypingUsers(cached);
+				setTypingUsers(enriched);
+			}
 
-      if (error) throw error;
+			// Fetch desde servidor
+			const now = new Date().toISOString();
+			const { data, error } = await supabase
+				.from("typing_status")
+				.select("*")
+				.eq("conversation_id", conversationId)
+				.neq("user_id", currentUserId)
+				.gt("expires_at", now);
 
-      if (data) {
-        const enriched = await enrichTypingUsers(data as TypingStatus[]);
-        setTypingUsers(enriched);
-      }
-    } catch (err) {
-      console.debug('[useTyping] Error loading:', err);
-    }
-  }, [conversationId, currentUserId]);
+			if (error) throw error;
 
-  // ============================================================================
-  // ENRIQUECER USUARIOS CON PERFILES
-  // ============================================================================
+			if (data) {
+				const enriched = await enrichTypingUsers(data as TypingStatus[]);
+				setTypingUsers(enriched);
+			}
+		} catch (err) {
+			console.debug("[useTyping] Error loading:", err);
+		}
+	}, [conversationId, currentUserId, enrichTypingUsers]);
 
-  const enrichTypingUsers = async (statuses: TypingStatus[]): Promise<TypingUser[]> => {
-    const userIds = [...new Set(statuses.map((s) => s.user_id))];
-    const profiles = await Promise.all(userIds.map((id) => getProfile(id)));
-    const profileMap = new Map(profiles.filter(Boolean).map((p) => [p!.id, p!]));
+	// ============================================================================
+	// ENRIQUECER USUARIOS CON PERFILES
+	// ============================================================================
 
-    return statuses.map((s) => ({
-      ...s,
-      user: profileMap.get(s.user_id),
-    }));
-  };
+	const enrichTypingUsers = async (
+		statuses: TypingStatus[],
+	): Promise<TypingUser[]> => {
+		const userIds = [...new Set(statuses.map((s) => s.user_id))];
+		const profiles = await Promise.all(userIds.map((id) => getProfile(id)));
+		const profileMap = new Map(
+			profiles.filter(Boolean).map((p) => [p?.id, p!]),
+		);
 
-  // ============================================================================
-  // REALTIME SUBSCRIPTION
-  // ============================================================================
+		return statuses.map((s) => ({
+			...s,
+			user: profileMap.get(s.user_id),
+		}));
+	};
 
-  useEffect(() => {
-    if (!conversationId || !currentUserId) return;
+	// ============================================================================
+	// REALTIME SUBSCRIPTION
+	// ============================================================================
 
-    const channelName = `typing:${conversationId}`;
-    const channel = channelManager.getChannel(channelName);
+	useEffect(() => {
+		if (!conversationId || !currentUserId) return;
 
-    // @ts-ignore
-    if (channel.state === 'closed' || channel.state === 'errored') {
-      channel
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'typing_status',
-            filter: `conversation_id=eq.${conversationId}`,
-          },
-          async (payload: RealtimePostgresChangesPayload<TypingStatus>) => {
-            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              const status = payload.new;
-              if (status.user_id === currentUserId) return;
+		const channelName = `typing:${conversationId}`;
+		const channel = channelManager.getChannel(channelName);
 
-              const profile = await getProfile(status.user_id);
-              setTypingUsers((prev) => {
-                const filtered = prev.filter((u) => u.user_id !== status.user_id);
-                return [...filtered, { ...status, user: profile }];
-              });
-            } else if (payload.eventType === 'DELETE') {
-              const deleted = payload.old;
-              setTypingUsers((prev) => prev.filter((u) => u.user_id !== deleted.user_id));
-            }
-          }
-        );
-    }
+		// @ts-expect-error
+		if (channel.state === "closed" || channel.state === "errored") {
+			channel.on(
+				"postgres_changes",
+				{
+					event: "*",
+					schema: "public",
+					table: "typing_status",
+					filter: `conversation_id=eq.${conversationId}`,
+				},
+				async (payload: RealtimePostgresChangesPayload<TypingStatus>) => {
+					if (
+						payload.eventType === "INSERT" ||
+						payload.eventType === "UPDATE"
+					) {
+						const status = payload.new;
+						if (status.user_id === currentUserId) return;
 
-    channelManager.subscribe(channelName, {
-      onError: (err) => {
-        console.debug('[Realtime] Typing error:', err);
-      },
-    });
+						const profile = await getProfile(status.user_id);
+						setTypingUsers((prev) => {
+							const filtered = prev.filter((u) => u.user_id !== status.user_id);
+							return [...filtered, { ...status, user: profile }];
+						});
+					} else if (payload.eventType === "DELETE") {
+						const deleted = payload.old;
+						setTypingUsers((prev) =>
+							prev.filter((u) => u.user_id !== deleted.user_id),
+						);
+					}
+				},
+			);
+		}
 
-    return () => {
-      channelManager.unsubscribe(channelName);
-    };
-  }, [conversationId, currentUserId]);
+		channelManager.subscribe(channelName, {
+			onError: (err) => {
+				console.debug("[Realtime] Typing error:", err);
+			},
+		});
 
-  // ============================================================================
-  // CLEANUP EXPIRADOS PERIÓDICO
-  // ============================================================================
+		return () => {
+			channelManager.unsubscribe(channelName);
+		};
+	}, [conversationId, currentUserId]);
 
-  useEffect(() => {
-    if (!conversationId) return;
+	// ============================================================================
+	// CLEANUP EXPIRADOS PERIÓDICO
+	// ============================================================================
 
-    cleanupIntervalRef.current = setInterval(() => {
-      cleanupExpiredTyping();
-      loadTypingUsers();
-    }, TYPING_CLEANUP_INTERVAL);
+	useEffect(() => {
+		if (!conversationId) return;
 
-    return () => {
-      if (cleanupIntervalRef.current) {
-        clearInterval(cleanupIntervalRef.current);
-      }
-    };
-  }, [conversationId, loadTypingUsers]);
+		cleanupIntervalRef.current = setInterval(() => {
+			cleanupExpiredTyping();
+			loadTypingUsers();
+		}, TYPING_CLEANUP_INTERVAL);
 
-  // ============================================================================
-  // CARGA INICIAL Y CLEANUP
-  // ============================================================================
+		return () => {
+			if (cleanupIntervalRef.current) {
+				clearInterval(cleanupIntervalRef.current);
+			}
+		};
+	}, [conversationId, loadTypingUsers]);
 
-  useEffect(() => {
-    if (conversationId && currentUserId) {
-      loadTypingUsers();
-    } else {
-      setTypingUsers([]);
-    }
+	// ============================================================================
+	// CARGA INICIAL Y CLEANUP
+	// ============================================================================
 
-    return () => {
-      // Limpiar typing al desmontar
-      if (isTyping && conversationId && currentUserId) {
-        sendTypingStatus(false);
-      }
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [conversationId, currentUserId, loadTypingUsers]);
+	useEffect(() => {
+		if (conversationId && currentUserId) {
+			loadTypingUsers();
+		} else {
+			setTypingUsers([]);
+		}
 
-  return {
-    typingUsers,
-    startTyping,
-    stopTyping,
-    isTyping,
-  };
+		return () => {
+			// Limpiar typing al desmontar
+			if (isTyping && conversationId && currentUserId) {
+				sendTypingStatus(false);
+			}
+			if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+			if (debounceRef.current) clearTimeout(debounceRef.current);
+		};
+	}, [
+		conversationId,
+		currentUserId,
+		loadTypingUsers,
+		sendTypingStatus,
+		isTyping,
+	]);
+
+	return {
+		typingUsers,
+		startTyping,
+		stopTyping,
+		isTyping,
+	};
 }

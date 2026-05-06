@@ -1,101 +1,101 @@
 {
-  "name": "Tecnogafas Pedidos",
-  "short_name": "Tecnogafas",
-  "description": "Aplicación de ventas y gestión de pedidos para Tecnogafas",
-  "start_url": "/",
-  "id": "com.tecnogafas.pedidospwa",
-  "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
-  "background_color": "#FDFBFF",
-  "theme_color": "#6750A4",
-  "orientation": "portrait-primary",
-  "scope": "/",
-  "lang": "es-AR",
-  "dir": "ltr",
-  "icons": [
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Nuevo Pedido",
-      "short_name": "Pedido",
-      "description": "Crear un nuevo pedido",
-      "url": "/productos",
-      "icons": [{ "src": "/icon-512.png", "sizes": "512x512" }]
-    },
-    {
-      "name": "Ver Carrito",
-      "short_name": "Carrito",
-      "description": "Revisar carrito actual",
-      "url": "/carrito",
-      "icons": [{ "src": "/icon-512.png", "sizes": "512x512" }]
-    }
-  ],
-  "categories": ["business", "productivity", "shopping"],
-  "launch_handler": {
-    "client_mode": "navigate-existing"
-  },
-  "file_handlers": [
-    {
-      "action": "/",
-      "accept": {
-        "text/csv": [".csv"]
-      }
-    }
-  ],
-  "protocol_handlers": [
-    {
-      "protocol": "web+tecnogafas",
-      "url": "/?open=%s"
-    }
-  ],
-  "prefer_related_applications": false,
-  "related_applications": [
-    {
-      "platform": "play",
-      "url": "https://play.google.com/store/apps/details?id=com.tecnogafas.pedidospwa",
-      "id": "com.tecnogafas.pedidospwa"
-    }
-  ],
-  "share_target": {
-    "action": "/",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url",
-      "files": [
-        {
-          "name": "files",
-          "accept": ["image/*", ".pdf", ".doc", ".docx", ".xls", ".xlsx"]
-        }
-      ]
-    }
-  },
-  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
-  "note_taking": {
-    "new_note_url": "/nueva-nota"
-  },
-  "widgets": [
-    {
-      "name": "Tecnogafas",
-      "description": "Accesos rápidos",
-      "tag": "tecnogafas-widget",
-      "template_url": "widget.html",
-      "ms_ac_template": "widget.json",
-      "data": "widget_data.json",
-      "type": "application/json",
-      "auth": false,
-      "update": 86400
-    }
-  ]
+	"name": "Tecnogafas Pedidos",
+	"short_name": "Tecnogafas",
+	"description": "Aplicación de ventas y gestión de pedidos para Tecnogafas",
+	"start_url": "/",
+	"id": "com.tecnogafas.pedidospwa",
+	"display": "standalone",
+	"display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+	"background_color": "#FDFBFF",
+	"theme_color": "#6750A4",
+	"orientation": "portrait-primary",
+	"scope": "/",
+	"lang": "es-AR",
+	"dir": "ltr",
+	"icons": [
+		{
+			"src": "/icon-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "any maskable"
+		}
+	],
+	"shortcuts": [
+		{
+			"name": "Nuevo Pedido",
+			"short_name": "Pedido",
+			"description": "Crear un nuevo pedido",
+			"url": "/productos",
+			"icons": [{ "src": "/icon-512.png", "sizes": "512x512" }]
+		},
+		{
+			"name": "Ver Carrito",
+			"short_name": "Carrito",
+			"description": "Revisar carrito actual",
+			"url": "/carrito",
+			"icons": [{ "src": "/icon-512.png", "sizes": "512x512" }]
+		}
+	],
+	"categories": ["business", "productivity", "shopping"],
+	"launch_handler": {
+		"client_mode": "navigate-existing"
+	},
+	"file_handlers": [
+		{
+			"action": "/",
+			"accept": {
+				"text/csv": [".csv"]
+			}
+		}
+	],
+	"protocol_handlers": [
+		{
+			"protocol": "web+tecnogafas",
+			"url": "/?open=%s"
+		}
+	],
+	"prefer_related_applications": false,
+	"related_applications": [
+		{
+			"platform": "play",
+			"url": "https://play.google.com/store/apps/details?id=com.tecnogafas.pedidospwa",
+			"id": "com.tecnogafas.pedidospwa"
+		}
+	],
+	"share_target": {
+		"action": "/",
+		"method": "POST",
+		"enctype": "multipart/form-data",
+		"params": {
+			"title": "title",
+			"text": "text",
+			"url": "url",
+			"files": [
+				{
+					"name": "files",
+					"accept": ["image/*", ".pdf", ".doc", ".docx", ".xls", ".xlsx"]
+				}
+			]
+		}
+	},
+	"iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+	"edge_side_panel": {
+		"preferred_width": 400
+	},
+	"note_taking": {
+		"new_note_url": "/nueva-nota"
+	},
+	"widgets": [
+		{
+			"name": "Tecnogafas",
+			"description": "Accesos rápidos",
+			"tag": "tecnogafas-widget",
+			"template_url": "widget.html",
+			"ms_ac_template": "widget.json",
+			"data": "widget_data.json",
+			"type": "application/json",
+			"auth": false,
+			"update": 86400
+		}
+	]
 }
