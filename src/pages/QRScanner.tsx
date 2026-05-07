@@ -81,12 +81,6 @@ export default function QRScanner() {
     <div className="flex flex-col min-h-[80vh] max-w-2xl mx-auto py-8">
       {/* Header */}
       <div className="flex items-center gap-4 mb-10">
-        <button
-          onClick={() => navigate(-1)}
-          className="btn btn-ghost btn-square rounded-2xl bg-[var(--color-surface-800)]"
-        >
-          <ArrowLeft size={20} />
-        </button>
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Escáner QR</h2>
           <p className="text-sm text-[var(--color-text-muted)]">Carga pedidos automáticamente</p>

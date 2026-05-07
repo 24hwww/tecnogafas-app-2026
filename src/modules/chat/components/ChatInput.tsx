@@ -24,12 +24,12 @@ function sanitizeContent(input: string): string {
 }
 
 export function ChatInput() {
-  const { sendMessage, activeConversation, currentUser } = useChat();
+  const { sendMessage, activeConversation } = useChat();
   const [content, setContent] = useState('');
   const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const canSend = activeConversation?.id && currentUser?.id && content.trim();
+  const canSend = activeConversation?.id && content.trim();
 
   const handleInput = () => {
     const textarea = textareaRef.current;
@@ -48,7 +48,7 @@ export function ChatInput() {
 
   const handleSubmit = async () => {
     const trimmed = content.trim();
-    if (!trimmed || trimmed.length > MAX_LENGTH || !activeConversation?.id || !currentUser?.id)
+    if (!trimmed || trimmed.length > MAX_LENGTH || !activeConversation?.id)
       return;
 
     setIsSending(true);
@@ -87,7 +87,7 @@ export function ChatInput() {
         maxLength={MAX_LENGTH}
         className="flex-1 px-2 py-3 bg-transparent resize-none outline-none text-sm text-base-content placeholder:text-[var(--color-text-muted)]/50 max-h-[120px] min-h-[44px]"
         rows={1}
-        disabled={isSending || !activeConversation?.id || !currentUser?.id}
+        disabled={isSending || !activeConversation?.id}
       />
 
       {/* Send Button */}

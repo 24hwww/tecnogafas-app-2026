@@ -662,6 +662,54 @@ export const apiService = {
       if (!msg && typeof data === 'string') msg = data;
       if (!msg) msg = res.ok ? 'Pedido creado con éxito' : 'Error al crear el pedido';
 
+      // Si el pedido se creó exitosamente, enviar notificación al chat
+      if (res.ok && (data?.order_id || data?.data?.order_id)) {
+        try {
+          const { createOrderNotification } = await import('./chatNotificationService');
+          
+          // Obtener información del vendedor
+          const sellerInfo: Seller = {
+            id: sellerId,
+            name: localStorage.getItem('seller_name') || 'Vendedor',
+          };
+
+          // Crear objeto Order para la notificación
+          const orderForNotification: Order = {
+            id: (data?.order_id || data?.data?.order_id)?.toString() || 'unknown',
+            clientId: clientId.toString(),
+            clientName: fullClient?.name || 'Cliente',
+            items: items.map(item => ({
+              productId: item.id.toString(),
+              productName: item.name || 'Producto',
+              quantity: item.quantity,
+              price: item.price,
+              vid: item.vid,
+            })),
+            total: items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+            status: 'Pendiente',
+            createdAt: new Date().toISOString(),
+            sellerId: sellerId,
+            sellerName: sellerInfo.name,
+            rawData: {} as ApiOrder,
+          };
+
+          // Enviar notificación asíncronamente (no bloquear la respuesta)
+          createOrderNotification(orderForNotification, sellerInfo).catch(err => {
+            console.error('[API] Error al enviar notificación de pedido:', err);
+          });
+
+          // Actualizar estadísticas locales
+          try {
+            const { incrementOrderStats } = await import('./statsService');
+            incrementOrderStats();
+          } catch (statsError) {
+            console.error('[API] Error al actualizar estadísticas:', statsError);
+          }
+        } catch (notificationError) {
+          console.error('[API] Error al inicializar servicio de notificaciones:', notificationError);
+        }
+      }
+
       return {
         success: res.ok,
         message: msg,

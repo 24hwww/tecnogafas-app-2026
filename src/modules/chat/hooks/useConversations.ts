@@ -43,12 +43,6 @@ export function useConversations(currentUserId: string | null): UseConversations
   // ============================================================================
 
   const loadConversations = useCallback(async () => {
-    if (!currentUserId) {
-      setConversations([]);
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
 
@@ -59,114 +53,160 @@ export function useConversations(currentUserId: string | null): UseConversations
         setConversations(cached as ConversationWithDetails[]);
       }
 
-      // 2. Fetch desde servidor
-      const { data: serverConvs, error: serverError } = await supabase
-        .from('conversation_members')
-        .select(`
-          *,
-          conversation:conversations(*)
-        `)
-        .eq('user_id', currentUserId)
-        .order('updated_at', { foreignTable: 'conversations', ascending: false });
+      // 2. Fetch desde servidor - diferente para usuarios autenticados vs no autenticados
+      let serverConvs, serverError;
+      
+      if (currentUserId) {
+        // Usuario autenticado: cargar sus conversaciones
+        const result = await supabase
+          .from('conversation_members')
+          .select(`
+            *,
+            conversation:conversations(*)
+          `)
+          .eq('user_id', currentUserId)
+          .order('updated_at', { foreignTable: 'conversations', ascending: false });
+        serverConvs = result.data;
+        serverError = result.error;
+      } else {
+        // Usuario no autenticado: cargar solo conversaciones públicas
+        const result = await supabase
+          .from('conversations')
+          .select('*')
+          .eq('is_private', false)
+          .order('updated_at', { ascending: false });
+        serverConvs = result.data;
+        serverError = result.error;
+      }
 
       if (serverError) throw serverError;
 
       let formatted: ConversationWithDetails[] = [];
 
       if (serverConvs && serverConvs.length > 0) {
-        formatted = (
-          serverConvs as unknown as Array<{
-            conversation: Conversation;
-            unread_count: number;
-            last_read_at: string;
-            role: ConversationMember['role'];
-            is_muted: boolean;
-            is_pinned: boolean;
-          }>
-        ).map((cm) => ({
-          ...cm.conversation,
-          member: cm as unknown as ConversationMember,
-          unread_count: cm.unread_count,
-          last_read_at: cm.last_read_at,
-          user_role: cm.role,
-          is_muted: cm.is_muted,
-          is_pinned: cm.is_pinned,
-        }));
+        if (currentUserId) {
+          // Usuario autenticado: formatear desde conversation_members
+          formatted = (
+            serverConvs as unknown as Array<{
+              conversation: Conversation;
+              unread_count: number;
+              last_read_at: string;
+              role: ConversationMember['role'];
+              is_muted: boolean;
+              is_pinned: boolean;
+            }>
+          ).map((cm) => ({
+            ...cm.conversation,
+            member: cm as unknown as ConversationMember,
+            unread_count: cm.unread_count,
+            last_read_at: cm.last_read_at,
+            user_role: cm.role,
+            is_muted: cm.is_muted,
+            is_pinned: cm.is_pinned,
+          }));
+        } else {
+          // Usuario no autenticado: formatear directamente desde conversations
+          formatted = (serverConvs as Conversation[]).map((conv) => ({
+            ...conv,
+            member: {
+              id: 'guest',
+              conversation_id: conv.id,
+              user_id: null,
+              role: 'member' as MemberRole,
+              joined_at: new Date().toISOString(),
+              last_read_at: new Date().toISOString(),
+              unread_count: 0,
+              is_muted: false,
+              is_pinned: false,
+              notifications: { all: true, mentions: true, replies: true },
+              metadata: {},
+              created_at: conv.created_at,
+              updated_at: conv.updated_at,
+            },
+            unread_count: 0,
+            last_read_at: new Date().toISOString(),
+            user_role: 'member' as MemberRole,
+            is_muted: false,
+            is_pinned: false,
+          }));
+        }
       }
 
-      // 3. SIEMPRE asegurar canal #notificaciones público
-      const hasNotif = formatted.some((c) => c.slug === 'notificaciones');
-      if (!hasNotif) {
-        try {
-          const { data: notifConv } = await supabase
-            .from('conversations')
-            .select('id')
-            .eq('slug', 'notificaciones')
-            .maybeSingle();
-
-          if (notifConv) {
-            await supabase.from('conversation_members').insert([
-              {
-                conversation_id: (notifConv as { id: string }).id,
-                user_id: currentUserId,
-              },
-            ] as unknown as never[]);
-          } else {
-            const { data: newConv } = await supabase
+      // 3. Para usuarios autenticados, asegurar canal #notificaciones público
+      if (currentUserId) {
+        const hasNotif = formatted.some((c) => c.slug === 'notificaciones');
+        if (!hasNotif) {
+          try {
+            const { data: notifConv } = await supabase
               .from('conversations')
-              .insert([
-                {
-                  type: 'channel',
-                  name: 'Notificaciones',
-                  slug: 'notificaciones',
-                  description: 'Canal de notificaciones del sistema',
-                  is_private: false,
-                  created_by: currentUserId,
-                },
-              ] as unknown as never[])
-              .select()
-              .single();
+              .select('id')
+              .eq('slug', 'notificaciones')
+              .maybeSingle();
 
-            if (newConv) {
+            if (notifConv) {
               await supabase.from('conversation_members').insert([
                 {
-                  conversation_id: (newConv as { id: string }).id,
+                  conversation_id: (notifConv as { id: string }).id,
                   user_id: currentUserId,
-                  role: 'owner' as MemberRole,
                 },
               ] as unknown as never[]);
+            } else {
+              const { data: newConv } = await supabase
+                .from('conversations')
+                .insert([
+                  {
+                    type: 'channel',
+                    name: 'Notificaciones',
+                    slug: 'notificaciones',
+                    description: 'Canal de notificaciones del sistema',
+                    is_private: false,
+                    created_by: currentUserId,
+                  },
+                ] as unknown as never[])
+                .select()
+                .single();
+
+              if (newConv) {
+                await supabase.from('conversation_members').insert([
+                  {
+                    conversation_id: (newConv as { id: string }).id,
+                    user_id: currentUserId,
+                    role: 'owner' as MemberRole,
+                  },
+                ] as unknown as never[]);
+              }
             }
-          }
 
-          // Recargar conversaciones tras unirse/crear
-          const { data: reloaded } = await supabase
-            .from('conversation_members')
-            .select(`*, conversation:conversations(*)`)
-            .eq('user_id', currentUserId)
-            .order('updated_at', { foreignTable: 'conversations', ascending: false });
+            // Recargar conversaciones tras unirse/crear
+            const { data: reloaded } = await supabase
+              .from('conversation_members')
+              .select(`*, conversation:conversations(*)`)
+              .eq('user_id', currentUserId)
+              .order('updated_at', { foreignTable: 'conversations', ascending: false });
 
-          if (reloaded && reloaded.length > 0) {
-            formatted = (
-              reloaded as unknown as Array<{
-                conversation: Conversation;
-                unread_count: number;
-                last_read_at: string;
-                role: ConversationMember['role'];
-                is_muted: boolean;
-                is_pinned: boolean;
-              }>
-            ).map((cm) => ({
-              ...cm.conversation,
-              member: cm as unknown as ConversationMember,
-              unread_count: cm.unread_count,
-              last_read_at: cm.last_read_at,
-              user_role: cm.role,
-              is_muted: cm.is_muted,
-              is_pinned: cm.is_pinned,
-            }));
+            if (reloaded && reloaded.length > 0) {
+              formatted = (
+                reloaded as unknown as Array<{
+                  conversation: Conversation;
+                  unread_count: number;
+                  last_read_at: string;
+                  role: ConversationMember['role'];
+                  is_muted: boolean;
+                  is_pinned: boolean;
+                }>
+              ).map((cm) => ({
+                ...cm.conversation,
+                member: cm as unknown as ConversationMember,
+                unread_count: cm.unread_count,
+                last_read_at: cm.last_read_at,
+                user_role: cm.role,
+                is_muted: cm.is_muted,
+                is_pinned: cm.is_pinned,
+              }));
+            }
+          } catch (ensureErr) {
+            console.error('Error ensuring notifications channel:', ensureErr);
           }
-        } catch (ensureErr) {
-          console.error('Error ensuring notifications channel:', ensureErr);
         }
       }
 
@@ -402,13 +442,11 @@ export function useConversations(currentUserId: string | null): UseConversations
   // ============================================================================
 
   useEffect(() => {
-    if (!currentUserId) return;
-
     const channelName = 'conversations';
     const channel = channelManager.getChannel(channelName);
 
     // Escuchar cambios en conversaciones, con guardas de seguridad
-    // @ts-expect-error
+    // @ts-expect-error Supabase realtime types are not fully compatible
     if (channel.state === 'closed' || channel.state === 'errored') {
       channel
         .on(
@@ -427,8 +465,11 @@ export function useConversations(currentUserId: string | null): UseConversations
               await updateConversation(updated.id, updated);
             }
           },
-        )
-        .on(
+        );
+      
+      // Solo para usuarios autenticados: escuchar cambios en membresías
+      if (currentUserId) {
+        channel.on(
           'postgres_changes',
           {
             event: '*',
@@ -441,6 +482,7 @@ export function useConversations(currentUserId: string | null): UseConversations
             await loadConversations();
           },
         );
+      }
     }
 
     channelManager.subscribe(channelName, {

@@ -183,60 +183,98 @@ export default function Orders() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 id="orders-title" className="text-3xl font-black tracking-tight">Pedidos</h2>
-            <p className="text-sm text-[var(--color-text-muted)] mt-1">Gestión y seguimiento de ventas</p>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">Gestión y seguimiento de pedidos</p>
           </div>
-          <div className="flex items-center gap-2 bg-[var(--color-surface-800)] p-1 rounded-2xl border border-[var(--color-border)]">
-             <div className="px-4 py-2 flex flex-col items-center border-r border-[var(--color-border)]">
-                <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Total</span>
-                <span className="text-lg font-black text-primary">{orders.length}</span>
-             </div>
-             <div className="px-4 py-2 flex flex-col items-center">
-                <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Pendientes</span>
-                <span className="text-lg font-black text-warning">
-                   {orders.filter(o => o.status.toLowerCase().includes('pend')).length}
-                </span>
-             </div>
-          </div>
+
         </div>
 
-        {/* Filters Section */}
-        <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-3xl p-6 shadow-xl space-y-4">
-          <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] group-focus-within:text-primary transition-colors" size={20} />
+        {/* Filters Section - New Minimalist Layout */}
+        <div className="space-y-6">
+          {/* Search Bar */}
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
+              <Search size={18} className="text-[var(--color-text-muted)]" />
+            </div>
             <input
               id="orders-search-input"
               type="text"
-              placeholder="Buscar por cliente o número..."
-              className="w-full pl-12 pr-4 py-4 bg-[var(--color-surface-900)] rounded-2xl border border-[var(--color-border)] focus:ring-2 focus:ring-primary/20 outline-none font-medium text-sm transition-all"
+              placeholder="Buscar pedidos..."
+              className="w-full pl-12 pr-4 py-3.5 bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-xl focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm placeholder:text-[var(--color-text-muted)]/50 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-[var(--color-surface-700)] transition-colors"
+              >
+                <X size={14} className="text-[var(--color-text-muted)]" />
+              </button>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="form-control">
-               <label className="label py-1"><span className="label-text text-[10px] font-bold uppercase tracking-widest opacity-60">Vendedor</span></label>
-               <select
-                 className="select select-bordered bg-[var(--color-surface-900)] rounded-2xl h-12"
-                 value={selectedSeller}
-                 onChange={(e) => setSelectedSeller(e.target.value)}
-               >
-                 <option value="">Todos los Vendedores</option>
-                 {sellers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-               </select>
+          {/* Filter Pills */}
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex items-center gap-2 px-4 py-2 bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-xl">
+              <User size={14} className="text-[var(--color-text-muted)]" />
+              <select
+                className="bg-transparent border-none outline-none text-sm font-medium min-w-[120px]"
+                value={selectedSeller}
+                onChange={(e) => setSelectedSeller(e.target.value)}
+              >
+                <option value="">Vendedor</option>
+                {sellers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
             </div>
-            <div className="form-control">
-               <label className="label py-1"><span className="label-text text-[10px] font-bold uppercase tracking-widest opacity-60">Cliente</span></label>
-               <select
-                 className="select select-bordered bg-[var(--color-surface-900)] rounded-2xl h-12"
-                 value={selectedCustomer}
-                 onChange={(e) => setSelectedCustomer(e.target.value)}
-               >
-                 <option value="">Todos los Clientes</option>
-                 {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-               </select>
+
+            <div className="flex items-center gap-2 px-4 py-2 bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-xl">
+              <Tag size={14} className="text-[var(--color-text-muted)]" />
+              <select
+                className="bg-transparent border-none outline-none text-sm font-medium min-w-[120px]"
+                value={selectedCustomer}
+                onChange={(e) => setSelectedCustomer(e.target.value)}
+              >
+                <option value="">Cliente</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+
+            {/* Results Counter */}
+            <div className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg">
+              <span className="text-xs font-bold text-primary">{filteredOrders.length}</span>
+              <span className="text-xs text-primary/70">resultados</span>
             </div>
           </div>
+
+          {/* Active Filters Bar */}
+          {(searchTerm || selectedSeller || selectedCustomer) && (
+            <div className="flex items-center justify-between p-3 bg-[var(--color-surface-800)]/50 border border-[var(--color-border)]/50 rounded-xl">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-[var(--color-text-muted)]">Filtros activos:</span>
+                {searchTerm && (
+                  <span className="px-2 py-1 bg-[var(--color-surface-700)] rounded text-xs font-medium">
+                    "{searchTerm}"
+                  </span>
+                )}
+                {selectedSeller && (
+                  <span className="px-2 py-1 bg-[var(--color-surface-700)] rounded text-xs font-medium">
+                    {sellers.find(s => s.id === selectedSeller)?.name}
+                  </span>
+                )}
+                {selectedCustomer && (
+                  <span className="px-2 py-1 bg-[var(--color-surface-700)] rounded text-xs font-medium">
+                    {clients.find(c => c.id === selectedCustomer)?.name}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => { setSearchTerm(''); setSelectedSeller(''); setSelectedCustomer(''); }}
+                className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+              >
+                Limpiar todo
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Orders List */}

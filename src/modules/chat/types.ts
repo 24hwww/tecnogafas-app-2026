@@ -461,6 +461,24 @@ export interface PendingOperation {
   retry_count: number;
 }
 
+export interface LocalMessage {
+  id: string;
+  conversation_id: string;
+  content: string;
+  type: MessageType;
+  metadata: Record<string, unknown>;
+  attachments: Omit<Attachment, 'id'>[];
+  created_at: string;
+  is_authenticated: boolean;
+  user_display_name?: string;
+}
+
+export interface UnauthenticatedMessageQueue {
+  id: string;
+  messages: LocalMessage[];
+  created_at: string;
+}
+
 export interface SyncState {
   last_sync_at: string;
   conversations_synced: string[];

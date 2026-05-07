@@ -8,22 +8,29 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   addPendingOperation,
   deleteMessage,
+  getLocalMessages,
   getMessages,
   getProfile,
   markMessageAsFailed,
   markMessageAsSent,
+  saveLocalMessage,
   saveMessages,
   savePendingMessage,
   saveProfiles,
+  syncQueuedMessages,
 } from '../../../stores/appDatabase';
 import { channelManager, supabase } from '../lib/supabase';
 import type {
+  Attachment,
   CachedMessage,
+  LocalMessage,
   Message,
   MessageWithAuthor,
+  MessageType,
   SendMessageInput,
   UpdateMessageInput,
 } from '../types';
+import { UserStatus } from '../types';
 
 const MESSAGES_PER_PAGE = 50;
 
@@ -81,8 +88,14 @@ export function useMessages({
           includePending: true,
         });
 
+        // 2. Cargar mensajes locales de usuarios no autenticados
+        const localMessages = await getLocalMessages(conversationId);
+
+        // Combinar mensajes cache y locales
+        const allMessages = [...cached, ...localMessages];
+
         // Enriquecer con perfiles del cache
-        const enriched = await enrichMessagesWithAuthors(cached);
+        const enriched = await enrichMessagesWithAuthors(allMessages);
 
         if (!loadMore) {
           setMessages(enriched.reverse()); // Más nuevo al final
@@ -161,10 +174,31 @@ export function useMessages({
     const profiles = await Promise.all(userIds.map((id) => getProfile(id as string)));
     const profileMap = new Map(profiles.filter(Boolean).map((p) => [p!.id, p!]));
 
-    return msgs.map((m) => ({
-      ...m,
-      author: m.user_id ? profileMap.get(m.user_id) : undefined,
-    }));
+    return msgs.map((m) => {
+      // Handle guest users (local messages)
+      if (!m.user_id) {
+        return {
+          ...m,
+          author: {
+            id: 'guest',
+            username: 'invitado',
+            display_name: 'Invitado',
+            avatar_url: null,
+            status: UserStatus.OFFLINE,
+            status_message: null,
+            last_seen_at: m.created_at,
+            metadata: {},
+            created_at: m.created_at,
+            updated_at: m.updated_at,
+          },
+        };
+      }
+      
+      return {
+        ...m,
+        author: profileMap.get(m.user_id),
+      };
+    });
   };
 
   // ============================================================================
@@ -186,14 +220,73 @@ export function useMessages({
 
   const sendMessage = useCallback(
     async (input: Omit<SendMessageInput, 'conversation_id'>) => {
-      if (!conversationId || !currentUserId) {
-        throw new Error('No active conversation or user');
+      if (!conversationId) {
+        throw new Error('No active conversation');
       }
 
       const tempId = crypto.randomUUID();
       const now = new Date().toISOString();
 
-      // 1. Crear mensaje optimista
+      // Si no hay usuario autenticado, guardar localmente
+      if (!currentUserId) {
+        const localMessage: Omit<LocalMessage, 'id'> = {
+          conversation_id: conversationId,
+          content: input.content,
+          type: (input.type || 'text') as MessageType,
+          metadata: input.metadata || {},
+          attachments: (input.attachments || []) as Omit<Attachment, 'id'>[],
+          created_at: now,
+          is_authenticated: false,
+          user_display_name: 'Invitado',
+        };
+
+        const messageId = await saveLocalMessage(localMessage);
+        
+        // Agregar a la UI inmediatamente
+        const messageWithAuthor: MessageWithAuthor = {
+          id: messageId,
+          conversation_id: localMessage.conversation_id,
+          parent_id: input.parent_id || null,
+          user_id: null,
+          type: localMessage.type,
+          content: localMessage.content,
+          content_html: null,
+          metadata: localMessage.metadata,
+          order_data: null,
+          alert_data: null,
+          attachments: localMessage.attachments.map(att => ({
+            ...att,
+            id: crypto.randomUUID(),
+          })),
+          reply_count: 0,
+          reaction_count: 0,
+          is_edited: false,
+          is_deleted: false,
+          edited_at: null,
+          deleted_at: null,
+          deleted_by: null,
+          created_at: now,
+          updated_at: now,
+          pending: false,
+          author: {
+            id: 'guest',
+            username: 'invitado',
+            display_name: 'Invitado',
+            avatar_url: null,
+            status: UserStatus.OFFLINE,
+            status_message: null,
+            last_seen_at: now,
+            metadata: {},
+            created_at: now,
+            updated_at: now,
+          },
+        };
+
+        setMessages((prev) => [...prev, messageWithAuthor]);
+        return;
+      }
+
+      // 1. Crear mensaje optimista para usuarios autenticados
       const optimisticMessage: MessageWithAuthor = {
         id: tempId,
         conversation_id: conversationId,
@@ -439,6 +532,51 @@ export function useMessages({
   }, [conversationId]);
 
   // ============================================================================
+  // SINCRONIZAR MENSAJES EN COLA CUANDO USUARIO SE AUTENTICA
+  // ============================================================================
+
+  const syncQueuedMessagesOnAuth = useCallback(async () => {
+    if (!currentUserId || !conversationId) return;
+
+    try {
+      const queuedMessages = await syncQueuedMessages(currentUserId, conversationId);
+      
+      // Enviar mensajes encolados a Supabase
+      for (const queuedMessage of queuedMessages) {
+        try {
+          const { data, error } = await (supabase as any)
+            .from('messages')
+            .insert({
+              conversation_id: queuedMessage.conversation_id,
+              type: queuedMessage.type,
+              content: queuedMessage.content,
+              metadata: queuedMessage.metadata,
+              attachments: queuedMessage.attachments,
+            })
+            .select(`
+              *,
+              author:profiles!messages_user_id_fkey(*)
+            `)
+            .single();
+
+          if (error) throw error;
+
+          // Reemplazar mensaje local con el real en la UI
+          setMessages((prev) => 
+            prev.map((m) => 
+              m.id === queuedMessage.id ? (data as MessageWithAuthor) : m
+            )
+          );
+        } catch (err) {
+          console.error('[Chat] Failed to sync queued message:', err);
+        }
+      }
+    } catch (err) {
+      console.error('[Chat] Failed to sync queued messages:', err);
+    }
+  }, [currentUserId, conversationId]);
+
+  // ============================================================================
   // CARGA INICIAL
   // ============================================================================
 
@@ -456,6 +594,13 @@ export function useMessages({
       isMounted.current = false;
     };
   }, [conversationId, loadMessages]);
+
+  // Sincronizar mensajes cuando el usuario se autentica
+  useEffect(() => {
+    if (currentUserId && conversationId) {
+      syncQueuedMessagesOnAuth();
+    }
+  }, [currentUserId, conversationId, syncQueuedMessagesOnAuth]);
 
   return {
     messages,

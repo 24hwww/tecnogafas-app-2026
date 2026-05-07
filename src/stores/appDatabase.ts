@@ -17,12 +17,14 @@ import type {
   CachedConversation,
   CachedMessage,
   ConversationMember,
+  LocalMessage,
   Message,
   MessageReaction,
   PendingOperation,
   Profile,
   SyncState,
   TypingStatus,
+  UnauthenticatedMessageQueue,
   UserPresence,
 } from '../types';
 
@@ -41,6 +43,8 @@ export class AppDatabase extends Dexie {
   userPresence!: Table<UserPresence, string>;
   pendingOperations!: Table<PendingOperation, string>;
   syncState!: Table<SyncState, number>; // Solo 1 registro (id = 1)
+  localMessages!: Table<LocalMessage, string>;
+  unauthenticatedQueue!: Table<UnauthenticatedMessageQueue, string>;
 
   // Tablas de la aplicación principal
   cart!: Table<CartItem, string>;
@@ -55,7 +59,7 @@ export class AppDatabase extends Dexie {
   constructor() {
     super('TecnoAppDB');
 
-    this.version(2).stores({
+    this.version(3).stores({
       // Perfiles: indexados por id y username
       profiles: 'id, username, status, last_seen_at',
 
@@ -83,6 +87,12 @@ export class AppDatabase extends Dexie {
 
       // Estado de sync: solo 1 registro
       syncState: '++id',
+
+      // Mensajes locales para usuarios no autenticados
+      localMessages: 'id, conversation_id, created_at, is_authenticated',
+
+      // Cola de mensajes no autenticados
+      unauthenticatedQueue: 'id, created_at',
 
       // Carrito: items del carrito de compras
       cart: 'id, name, price, quantity, category',
@@ -549,5 +559,98 @@ export async function vacuumDatabase(): Promise<void> {
   const oldOps = await appDB.pendingOperations.where('created_at').below(oneDayAgo).toArray();
   await appDB.pendingOperations.bulkDelete(oldOps.map((o) => o.id));
 
-  console.log(`[ChatDB] Vacuumed ${deletedCount} old messages`);
+  // Limpiar mensajes locales no autenticados antiguos (>7 días)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const oldLocalMessages = await appDB.localMessages.where('created_at').below(sevenDaysAgo).toArray();
+  await appDB.localMessages.bulkDelete(oldLocalMessages.map((m) => m.id));
+
+  console.log(`[ChatDB] Vacuumed ${deletedCount} old messages and ${oldLocalMessages.length} local messages`);
+}
+
+// ============================================================================
+// HELPERS DE MENSAJES LOCALES (USUARIOS NO AUTENTICADOS)
+// ============================================================================
+
+export async function saveLocalMessage(message: Omit<LocalMessage, 'id'>): Promise<string> {
+  const id = crypto.randomUUID();
+  const localMessage: LocalMessage = {
+    ...message,
+    id,
+  };
+  await appDB.localMessages.add(localMessage);
+  
+  // Actualizar o crear la cola de mensajes no autenticados
+  await updateUnauthenticatedQueue(message.conversation_id, localMessage);
+  
+  return id;
+}
+
+export async function getLocalMessages(conversationId: string): Promise<LocalMessage[]> {
+  return await appDB.localMessages
+    .where({ conversation_id: conversationId })
+    .sortBy('created_at');
+}
+
+export async function updateUnauthenticatedQueue(conversationId: string, message: LocalMessage): Promise<void> {
+  const queueId = 'unauthenticated_queue';
+  
+  const existingQueue = await appDB.unauthenticatedQueue.get(queueId);
+  
+  if (existingQueue) {
+    // Agregar mensaje a la cola existente
+    const updatedQueue: UnauthenticatedMessageQueue = {
+      ...existingQueue,
+      messages: [...existingQueue.messages, message],
+    };
+    await appDB.unauthenticatedQueue.update(queueId, updatedQueue);
+  } else {
+    // Crear nueva cola
+    const newQueue: UnauthenticatedMessageQueue = {
+      id: queueId,
+      messages: [message],
+      created_at: new Date().toISOString(),
+    };
+    await appDB.unauthenticatedQueue.add(newQueue);
+  }
+}
+
+export async function getUnauthenticatedQueue(): Promise<UnauthenticatedMessageQueue | undefined> {
+  return await appDB.unauthenticatedQueue.get('unauthenticated_queue');
+}
+
+export async function clearUnauthenticatedQueue(): Promise<void> {
+  await appDB.unauthenticatedQueue.delete('unauthenticated_queue');
+  await appDB.localMessages.clear();
+}
+
+export async function syncQueuedMessages(userId: string, conversationId: string): Promise<LocalMessage[]> {
+  const queue = await getUnauthenticatedQueue();
+  if (!queue) return [];
+  
+  // Filtrar mensajes de esta conversación que no estén autenticados
+  const messagesToSync = queue.messages.filter(
+    msg => msg.conversation_id === conversationId && !msg.is_authenticated
+  );
+  
+  // Marcar mensajes como autenticados
+  for (const message of messagesToSync) {
+    await appDB.localMessages.update(message.id, {
+      is_authenticated: true,
+    });
+  }
+  
+  // Actualizar la cola
+  const remainingMessages = queue.messages.filter(
+    msg => !(msg.conversation_id === conversationId && !msg.is_authenticated)
+  );
+  
+  if (remainingMessages.length === 0) {
+    await clearUnauthenticatedQueue();
+  } else {
+    await appDB.unauthenticatedQueue.update('unauthenticated_queue', {
+      messages: remainingMessages,
+    });
+  }
+  
+  return messagesToSync;
 }
