@@ -10,6 +10,24 @@ interface LocalStats {
   total_sellers: number;
   recent_orders: number;
   pending_orders: number;
+  pedidos_ultimas_24h: number;
+  items_ultimas_24h: number;
+  pedidos_mes_actual: number;
+  items_mes_actual: number;
+  productos_mas_pedidos_24h: Array<{
+    product_id: number;
+    variation_id: number;
+    name: string;
+    total_quantity: number;
+    order_count: number;
+  }>;
+  productos_mas_pedidos_mes: Array<{
+    product_id: number;
+    variation_id: number;
+    name: string;
+    total_quantity: number;
+    order_count: number;
+  }>;
 }
 
 /**
@@ -93,6 +111,12 @@ function getLocalStats(): LocalStats {
     total_sellers: 0,
     recent_orders: 0,
     pending_orders: 0,
+    pedidos_ultimas_24h: 0,
+    items_ultimas_24h: 0,
+    pedidos_mes_actual: 0,
+    items_mes_actual: 0,
+    productos_mas_pedidos_24h: [],
+    productos_mas_pedidos_mes: [],
   };
 }
 
@@ -118,12 +142,18 @@ export async function syncStatsWithServer(): Promise<void> {
     const serverStats = await apiService.getStats();
     if (serverStats.success) {
       const localStats: LocalStats = {
-        total_orders: serverStats.data.total_orders,
-        total_clients: serverStats.data.total_clients,
-        total_products: serverStats.data.total_products,
-        total_sellers: serverStats.data.total_sellers,
-        recent_orders: serverStats.data.recent_orders || 0,
-        pending_orders: serverStats.data.pending_orders || 0,
+        total_orders: serverStats.data.total_pedidos || 0,
+        total_clients: serverStats.data.total_clientes || 0,
+        total_products: serverStats.data.total_productos || 0,
+        total_sellers: serverStats.data.total_usuarios || 0,
+        recent_orders: serverStats.data.pedidos_ultimas_24h || 0,
+        pending_orders: 0,
+        pedidos_ultimas_24h: serverStats.data.pedidos_ultimas_24h || 0,
+        items_ultimas_24h: serverStats.data.items_ultimas_24h || 0,
+        pedidos_mes_actual: serverStats.data.pedidos_mes_actual || 0,
+        items_mes_actual: serverStats.data.items_mes_actual || 0,
+        productos_mas_pedidos_24h: serverStats.data.productos_mas_pedidos_24h || [],
+        productos_mas_pedidos_mes: serverStats.data.productos_mas_pedidos_mes || [],
       };
 
       saveLocalStats(localStats);

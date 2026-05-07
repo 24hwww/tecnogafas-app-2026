@@ -215,7 +215,7 @@ export default function Cart() {
             onClick={() => navigate('/clientes')}
             className={cn(
               "btn btn-sm rounded-xl",
-              selectedClient ? "btn-ghost text-primary" : "btn-warning"
+              selectedClient ? "btn-ghost text-primary" : "btn-warning text-white"
             )}
           >
             {selectedClient ? 'Cambiar' : 'Asignar'}

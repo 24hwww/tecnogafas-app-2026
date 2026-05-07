@@ -169,12 +169,28 @@ export const apiService = {
   async getStats(): Promise<{
     success: boolean;
     data: {
-      total_orders: number;
-      total_clients: number;
-      total_products: number;
-      total_sellers: number;
-      recent_orders: number;
-      pending_orders: number;
+      total_clientes: number;
+      total_usuarios: number;
+      total_productos: number;
+      total_pedidos: number;
+      pedidos_ultimas_24h: number;
+      items_ultimas_24h: number;
+      pedidos_mes_actual: number;
+      items_mes_actual: number;
+      productos_mas_pedidos_24h: Array<{
+        product_id: number;
+        variation_id: number;
+        name: string;
+        total_quantity: number;
+        order_count: number;
+      }>;
+      productos_mas_pedidos_mes: Array<{
+        product_id: number;
+        variation_id: number;
+        name: string;
+        total_quantity: number;
+        order_count: number;
+      }>;
     };
     message?: string;
   }> {
@@ -186,10 +202,28 @@ export const apiService = {
     const json = (await res.json()) as {
       success?: boolean;
       data?: {
-        total_pedidos: number;
         total_clientes: number;
-        total_productos: number;
         total_usuarios: number;
+        total_productos: number;
+        total_pedidos: number;
+        pedidos_ultimas_24h: number;
+        items_ultimas_24h: number;
+        pedidos_mes_actual: number;
+        items_mes_actual: number;
+        productos_mas_pedidos_24h: Array<{
+          product_id: number;
+          variation_id: number;
+          name: string;
+          total_quantity: number;
+          order_count: number;
+        }>;
+        productos_mas_pedidos_mes: Array<{
+          product_id: number;
+          variation_id: number;
+          name: string;
+          total_quantity: number;
+          order_count: number;
+        }>;
       };
       message?: string;
     };
@@ -200,13 +234,17 @@ export const apiService = {
 
     return {
       success: json.success,
-      data: {
-        total_orders: json.data?.total_pedidos || 0,
-        total_clients: json.data?.total_clientes || 0,
-        total_products: json.data?.total_productos || 0,
-        total_sellers: json.data?.total_usuarios || 0,
-        recent_orders: 0,
-        pending_orders: 0,
+      data: json.data || {
+        total_clientes: 0,
+        total_usuarios: 0,
+        total_productos: 0,
+        total_pedidos: 0,
+        pedidos_ultimas_24h: 0,
+        items_ultimas_24h: 0,
+        pedidos_mes_actual: 0,
+        items_mes_actual: 0,
+        productos_mas_pedidos_24h: [],
+        productos_mas_pedidos_mes: [],
       },
       message: json.message,
     };

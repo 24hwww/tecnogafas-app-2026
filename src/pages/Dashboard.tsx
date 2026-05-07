@@ -10,11 +10,15 @@ import {
   TrendingUp,
   Users,
   Zap,
+  BarChart3,
+  Clock,
+  Calendar,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { Skeleton } from '../components/ui/Skeleton';
+import { AnimatedStatNumber } from '../components/ui/AnimatedStatNumber';
 import { useCart } from '../contexts/CartContext';
 import { useOrders } from '../contexts/OrdersContext';
 import { cn, formatCurrency, formatTimeBA, getAnimationProps } from '../lib/utils';
@@ -66,7 +70,6 @@ export default function Dashboard() {
     clients,
     sellers,
     refreshData,
-    forceRefresh,
     clearAllCaches,
     isLoading,
     appVersionInfo,
@@ -76,25 +79,105 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [hasCache, setHasCache] = useState(false);
   const [showDraftsModal, setShowDraftsModal] = useState(false);
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [serverStats, setServerStats] = useState<{
+    total_clientes?: number;
+    total_usuarios?: number;
+    total_productos?: number;
+    total_pedidos?: number;
+    pedidos_ultimas_24h?: number;
+    items_ultimas_24h?: number;
+    pedidos_mes_actual?: number;
+    items_mes_actual?: number;
+    productos_mas_pedidos_24h?: Array<{
+      product_id: number;
+      variation_id: number;
+      name: string;
+      total_quantity: number;
+      order_count: number;
+    }>;
+    productos_mas_pedidos_mes?: Array<{
+      product_id: number;
+      variation_id: number;
+      name: string;
+      total_quantity: number;
+      order_count: number;
+    }>;
+  } | null>(null);
+  const [isRefreshingStats, setIsRefreshingStats] = useState(false);
+  const [lastStatsUpdate, setLastStatsUpdate] = useState<Date | null>(null);
+
+  // Load server stats function
+  const loadServerStats = async (showLoading = false) => {
+    try {
+      if (showLoading) setIsRefreshingStats(true);
+      const { apiService } = await import('../services/apiService');
+      const stats = await apiService.getStats();
+      if (stats.success) {
+        setServerStats(stats.data);
+        setLastStatsUpdate(new Date());
+        console.log('[Dashboard] Estadísticas actualizadas:', new Date().toLocaleTimeString('es-AR'));
+      }
+    } catch (error) {
+      console.error('Error loading server stats:', error);
+    } finally {
+      if (showLoading) setIsRefreshingStats(false);
+    }
+  };
 
   useEffect(() => {
     const checkCache = async () => {
       try {
         const count = await appDB.products.count();
         setHasCache(count > 0);
-      } catch (e) {
+      } catch {
         setHasCache(false);
       }
     };
     checkCache();
+
+    // Initial load
+    loadServerStats();
+    
+    // Set up automatic refresh every 5 minutes
+    const interval = setInterval(() => {
+      loadServerStats();
+    }, 5 * 60 * 1000); // 5 minutes
+    
+    return () => clearInterval(interval);
   }, []);
 
   const stats = [
-    { label: 'Vendedores', value: sellers.length, icon: Users, color: 'text-emerald-400 bg-emerald-500/10' },
-    { label: 'Clientes', value: clients.length, icon: TrendingUp, color: 'text-sky-400 bg-sky-500/10' },
-    { label: 'Productos', value: products.length, icon: Package, color: 'text-violet-400 bg-violet-500/10' },
-    { label: 'Pedidos', value: grandTotalOrders, icon: ShoppingBag, color: 'text-amber-400 bg-amber-500/10' },
+    { label: 'Vendedores', value: serverStats?.total_usuarios || sellers.length, icon: Users, color: 'text-emerald-400 bg-emerald-500/10' },
+    { label: 'Clientes', value: serverStats?.total_clientes || clients.length, icon: TrendingUp, color: 'text-sky-400 bg-sky-500/10' },
+    { label: 'Productos', value: serverStats?.total_productos || products.length, icon: Package, color: 'text-violet-400 bg-violet-500/10' },
+    { label: 'Pedidos', value: serverStats?.total_pedidos || grandTotalOrders, icon: ShoppingBag, color: 'text-amber-400 bg-amber-500/10' },
+  ];
+
+  const newStats = [
+    { 
+      label: 'Pedidos 24h', 
+      value: serverStats?.pedidos_ultimas_24h || 0, 
+      icon: Clock, 
+      color: 'text-orange-400 bg-orange-500/10' 
+    },
+    { 
+      label: 'Items 24h', 
+      value: serverStats?.items_ultimas_24h || 0, 
+      icon: BarChart3, 
+      color: 'text-pink-400 bg-pink-500/10' 
+    },
+    { 
+      label: 'Pedidos Mes', 
+      value: serverStats?.pedidos_mes_actual || 0, 
+      icon: Calendar, 
+      color: 'text-indigo-400 bg-indigo-500/10' 
+    },
+    { 
+      label: 'Items Mes', 
+      value: serverStats?.items_mes_actual || 0, 
+      icon: Package, 
+      color: 'text-teal-400 bg-teal-500/10' 
+    },
   ];
 
   const getSellerName = (sellerId: string) => {
@@ -116,8 +199,17 @@ export default function Dashboard() {
           <p className="text-sm text-[var(--color-text-muted)] mt-1">Panel principal de gestión</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" className="btn btn-ghost btn-square btn-sm border border-[var(--color-border)]" onClick={() => refreshData()} disabled={isLoading} title="Sincronizar">
-            <RefreshCw size={16} className={cn(isLoading && 'animate-spin')} />
+          <button 
+            type="button" 
+            className="btn btn-ghost btn-square btn-sm border border-[var(--color-border)]" 
+            onClick={async () => {
+              await refreshData();
+              await loadServerStats(true);
+            }} 
+            disabled={isLoading || isRefreshingStats} 
+            title="Sincronizar datos y estadísticas"
+          >
+            <RefreshCw size={16} className={cn((isLoading || isRefreshingStats) && 'animate-spin')} />
           </button>
           <button
             type="button"
@@ -128,8 +220,9 @@ export default function Dashboard() {
               await clearAllCaches();
               setHasCache(false);
               await refreshData(false);
+              await loadServerStats(true);
             }}
-            disabled={isLoading}
+            disabled={isLoading || isRefreshingStats}
             title={hasCache ? 'Limpiar Caché' : 'Caché vacía'}
           >
             <Zap size={16} />
@@ -141,22 +234,71 @@ export default function Dashboard() {
       {isLoading ? (
         <StatsSkeleton />
       ) : (
-        <motion.div {...getAnimationProps('slide')} className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-          {stats.map((stat, i) => (
-            <motion.div key={stat.label} {...getAnimationProps('scale')} transition={{ delay: i * 0.06 }}>
-              <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-4 hover:border-primary/30 transition-all duration-200">
-                <div className="flex justify-between items-start w-full">
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-[var(--color-text-muted)]">{stat.label}</p>
-                    <p className="text-2xl font-bold tracking-tight">{stat.value}</p>
-                  </div>
-                  <div className={cn('p-2.5 rounded-xl', stat.color)}>
-                    <stat.icon size={18} />
+        <motion.div {...getAnimationProps('slide')} className="space-y-6">
+          {/* Original Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+            {stats.map((stat, i) => (
+              <motion.div key={stat.label} {...getAnimationProps('scale')} transition={{ delay: i * 0.06 }}>
+                <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-4 hover:border-primary/30 transition-all duration-200">
+                  <div className="flex justify-between items-start w-full">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-[var(--color-text-muted)]">{stat.label}</p>
+                      <AnimatedStatNumber 
+                        value={stat.value} 
+                        className="text-2xl font-bold tracking-tight"
+                      />
+                    </div>
+                    <div className={cn('p-2.5 rounded-xl', stat.color)}>
+                      <stat.icon size={18} />
+                    </div>
                   </div>
                 </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* New Stats with Charts */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
+                  {lastStatsUpdate && (
+                    <span className="ml-2 text-xs text-gray-400">
+                      Actualizado: {lastStatsUpdate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </p>
               </div>
-            </motion.div>
-          ))}
+              {isRefreshingStats && (
+                <div className="flex items-center gap-2 text-xs text-blue-400">
+                  <RefreshCw size={12} className="animate-spin" />
+                  <span>Actualizando estadísticas...</span>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+              {newStats.map((stat, i) => (
+                <motion.div key={stat.label} {...getAnimationProps('scale')} transition={{ delay: i * 0.06 }}>
+                  <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-4 hover:border-primary/30 transition-all duration-200">
+                    <div className="flex justify-between items-start w-full">
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-[var(--color-text-muted)]">{stat.label}</p>
+                        <AnimatedStatNumber 
+                          value={stat.value} 
+                          className="text-2xl font-bold tracking-tight"
+                        />
+                      </div>
+                      <div className={cn('p-2.5 rounded-xl', stat.color)}>
+                        <stat.icon size={18} />
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+                      </div>
         </motion.div>
       )}
 
