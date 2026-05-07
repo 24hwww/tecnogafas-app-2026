@@ -23,9 +23,11 @@ export function MessageBubble({ message, isCurrentUser, isConsecutive }: Message
 
   if (isSystem) {
     return (
-      <div className="flex flex-col items-center py-2 px-4 opacity-70">
-        <p className="text-xs text-center italic break-words max-w-full">{message.content}</p>
-        <span className="text-[10px] mt-0.5">{formatDistanceToNow(message.created_at)}</span>
+      <div className="flex justify-center py-3 px-4 opacity-70">
+        <div className="bg-base-200/50 rounded-lg px-4 py-3 max-w-md text-center">
+          <p className="text-sm text-center italic break-words">{message.content}</p>
+          <span className="text-xs text-base-500 mt-2">{formatDistanceToNow(message.created_at)}</span>
+        </div>
       </div>
     );
   }
@@ -33,38 +35,45 @@ export function MessageBubble({ message, isCurrentUser, isConsecutive }: Message
   return (
     <div
       className={`
-        flex flex-col mb-4 px-2
-        ${isCurrentUser ? 'items-end' : 'items-start'}
+        flex mb-6 px-3
+        ${isCurrentUser ? 'justify-end' : 'justify-start'}
       `}
     >
-      {/* Autor */}
-      <span className="text-[11px] font-bold text-primary mb-0.5 px-1 uppercase tracking-wider">
-        {isCurrentUser
-          ? 'Tú'
-          : message.author?.display_name || message.author?.username || 'Usuario'}
-      </span>
+      {/* Autor y timestamp */}
+      <div className="flex items-baseline gap-2 mb-2">
+        <span className="text-xs font-bold text-primary px-2 py-1 bg-base-100 rounded-full">
+          {isCurrentUser
+            ? 'Tú'
+            : message.author?.display_name || message.author?.username || 'Usuario'}
+        </span>
+        <span className="text-[10px] opacity-60">
+          {formatDistanceToNow(message.created_at)}
+        </span>
+      </div>
 
       {/* Texto del Mensaje */}
       <div
         className={`
-          max-w-[90%] px-3 py-2 rounded-lg text-sm
+          max-w-[80%] px-4 py-3 rounded-xl text-sm shadow-sm
           ${
             isCurrentUser
-              ? 'bg-primary/10 border-r-2 border-primary text-right'
-              : 'bg-base-100-container border-l-2 border-primary-container text-left'
+              ? 'bg-primary text-primary-foreground rounded-br-2xl ml-auto'
+              : 'bg-base-100 border border-base-300 rounded-bl-2xl mr-auto'
           }
           ${message.is_deleted ? 'opacity-50 italic' : ''}
         `}
       >
-        <p className="whitespace-pre-wrap break-words">
+        <p className="whitespace-pre-wrap break-words leading-relaxed text-base">
           {message.is_deleted ? 'Mensaje eliminado' : message.content}
         </p>
       </div>
 
-      {/* Tiempo transcurrido */}
-      <span className="text-[10px] opacity-50 mt-1 px-1">
-        {formatDistanceToNow(message.created_at)} {message.is_edited ? '(editado)' : ''}
-      </span>
+      {/* Indicador de edición */}
+      {message.is_edited && (
+        <span className="text-[10px] opacity-60 italic ml-2">
+          (editado)
+        </span>
+      )}
     </div>
   );
 }

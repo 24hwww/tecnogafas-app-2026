@@ -5,7 +5,7 @@
 import { Loader2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useChat } from '../providers/ChatProvider';
-import { MessageBubble } from './MessageBubble';
+import { ChatBubble } from './ChatBubble';
 
 export function ChatMessageList() {
   const { messages, isLoading, hasMore, loadMore, currentUser } = useChat();
@@ -93,11 +93,10 @@ export function ChatMessageList() {
         const isConsecutive = prevMessage?.user_id === message.user_id;
 
         return (
-          <MessageBubble
+          <ChatBubble
             key={message.id}
             message={message}
             isCurrentUser={message.user_id === currentUser?.id}
-            showAvatar={!isConsecutive}
             isConsecutive={isConsecutive}
           />
         );

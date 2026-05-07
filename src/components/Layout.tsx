@@ -67,7 +67,7 @@ function SidebarNav({ closeSidebar, cartCount, unread, pathname, versions }: {
           </div>
           <div>
             <span className="text-sm font-bold tracking-tight text-base-content">Tecnogafas</span>
-            <p className="text-[10px] text-[var(--color-text-muted)]">Sistema de Ventas</p>
+            <p className="text-[10px] text-[var(--color-text-muted)]">Pedidos</p>
           </div>
         </div>
         <button type="button" onClick={closeSidebar} className="btn btn-ghost btn-square btn-xs lg:hidden">
