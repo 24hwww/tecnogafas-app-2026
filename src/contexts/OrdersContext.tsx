@@ -47,7 +47,19 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     setOrdersError(null);
     try {
       const o = await apiService.getOrders(page, perPage, sellerId, customerId);
-      setOrders(o.orders);
+      
+      // Sort orders by ID DESC to show most recent first
+      const sortedOrders = [...o.orders].sort((a, b) => {
+        const idA = parseInt(a.id);
+        const idB = parseInt(b.id);
+        if (isNaN(idA) || isNaN(idB)) {
+          // Fallback to date sorting if ID is not numeric
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        return idB - idA;
+      });
+
+      setOrders(sortedOrders);
       setTotalOrders(o.total);
     } catch (error) {
       console.error('Failed to fetch orders', error);

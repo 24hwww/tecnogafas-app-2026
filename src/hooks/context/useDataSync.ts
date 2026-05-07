@@ -73,9 +73,14 @@ export function useDataSync(
         // 3. Pedidos & Vendedores
         let ordersCountFallback = 0;
         if (oRes.status === 'fulfilled') {
-          const sortedOrders = [...oRes.value.orders].sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-          );
+          const sortedOrders = [...oRes.value.orders].sort((a, b) => {
+            const idA = parseInt(a.id);
+            const idB = parseInt(b.id);
+            if (isNaN(idA) || isNaN(idB)) {
+              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            }
+            return idB - idA;
+          });
           setOrders(sortedOrders);
           setTotalOrders(oRes.value.total);
           ordersCountFallback = oRes.value.total;
