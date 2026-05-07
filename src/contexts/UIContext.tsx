@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useState,
 } from 'react';
+import { getPrimaryColor, savePrimaryColor } from '../stores/appDatabase';
 
 interface UIContextType {
   theme: 'light' | 'dark';
@@ -22,11 +23,39 @@ const UIContext = createContext<UIContextType | undefined>(undefined);
 export function UIProvider({ children }: { children: ReactNode }) {
   const [primaryColor, setPrimaryColor] = useState('#0A5DFF');
   const [fontSize, setFontSize] = useState('16px');
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  
+  // Initialize theme synchronously to prevent flash
+  const getInitialTheme = (): 'light' | 'dark' => {
+    const savedTheme = localStorage.getItem('tecnogafas_theme') as 'light' | 'dark' | null;
+    const isManual = localStorage.getItem('tecnogafas_theme_manual') === 'true';
+    
+    if (savedTheme && isManual) {
+      return savedTheme;
+    }
+    
+    // Auto-detect theme based on Buenos Aires time
+    const now = new Date();
+    const buenosAiresTime = new Date(
+      now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }),
+    );
+    const hour = buenosAiresTime.getHours();
+    return hour >= 6 && hour < 18 ? 'light' : 'dark';
+  };
+  
+  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme());
+  
+  // Apply initial theme immediately to prevent flash
+  if (typeof document !== 'undefined') {
+    document.documentElement.setAttribute('data-theme', theme);
+  }
 
-  const updatePrimaryColor = (color: string) => {
+  const updatePrimaryColor = async (color: string) => {
     setPrimaryColor(color);
-    localStorage.setItem('tecnogafas_primaryColor', color);
+    await savePrimaryColor(color);
+    // Update CSS custom properties for dynamic theming
+    document.documentElement.style.setProperty('--primary-color', color);
+    document.documentElement.style.setProperty('--primary-color-hover', color + 'dd');
+    document.documentElement.style.setProperty('--primary-color-active', color + 'bb');
   };
 
   const updateFontSize = (size: string) => {
@@ -60,8 +89,15 @@ export function UIProvider({ children }: { children: ReactNode }) {
   }, [detectBuenosAiresTheme]);
 
   useEffect(() => {
-    const savedPrimaryColor = localStorage.getItem('tecnogafas_primaryColor');
-    if (savedPrimaryColor) setPrimaryColor(savedPrimaryColor);
+    // Load primary color from Dexie
+    getPrimaryColor().then(color => {
+      setPrimaryColor(color);
+      // Apply CSS custom properties for initial color
+      document.documentElement.style.setProperty('--primary-color', color);
+      document.documentElement.style.setProperty('--primary-color-hover', color + 'dd');
+      document.documentElement.style.setProperty('--primary-color-active', color + 'bb');
+    });
+    
     const savedFontSize = localStorage.getItem('tecnogafas_fontSize');
     if (savedFontSize) setFontSize(savedFontSize);
 

@@ -14,7 +14,7 @@ import {
   Clock,
   Calendar,
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -146,14 +146,14 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const stats = [
+  const stats = useMemo(() => [
     { label: 'Vendedores', value: serverStats?.total_usuarios || sellers.length, icon: Users, color: 'text-emerald-400 bg-emerald-500/10' },
     { label: 'Clientes', value: serverStats?.total_clientes || clients.length, icon: TrendingUp, color: 'text-sky-400 bg-sky-500/10' },
     { label: 'Productos', value: serverStats?.total_productos || products.length, icon: Package, color: 'text-violet-400 bg-violet-500/10' },
     { label: 'Pedidos', value: serverStats?.total_pedidos || grandTotalOrders, icon: ShoppingBag, color: 'text-amber-400 bg-amber-500/10' },
-  ];
+  ], [serverStats, sellers.length, clients.length, products.length, grandTotalOrders]);
 
-  const newStats = [
+  const newStats = useMemo(() => [
     { 
       label: 'Pedidos 24h', 
       value: serverStats?.pedidos_ultimas_24h || 0, 
@@ -178,12 +178,12 @@ export default function Dashboard() {
       icon: Package, 
       color: 'text-teal-400 bg-teal-500/10' 
     },
-  ];
+  ], [serverStats]);
 
-  const getSellerName = (sellerId: string) => {
+  const getSellerName = useMemo(() => (sellerId: string) => {
     const seller = sellers.find((s) => s.id === sellerId);
     return seller?.name || 'Vendedor desconocido';
-  };
+  }, [sellers]);
 
   const getOrderNumber = (title: string) => {
     const match = title.match(/#(\d+)/);
@@ -407,7 +407,7 @@ export default function Dashboard() {
                 <button type="button" className="btn btn-primary w-full" onClick={() => { setShowDraftsModal(false); navigate('/pedidos', { state: { highlightDrafts: true } }); }}>
                   <Mail size={18} /> Ir a Pedidos para Enviar
                 </button>
-                <button type="button" className="btn btn-outline btn-error w-full" onClick={async () => { setShowDraftsModal(false); await clearAllCaches(); setHasCache(false); }} disabled={isSendingEmail}>
+                <button type="button" className="btn btn-outline btn-error w-full" onClick={async () => { setShowDraftsModal(false); await clearAllCaches(); setHasCache(false); }}>
                   <Trash2 size={18} /> Limpiar de Todos Modos
                 </button>
                 <button type="button" className="btn btn-ghost w-full" onClick={() => setShowDraftsModal(false)}>Cancelar</button>

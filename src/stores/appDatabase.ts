@@ -55,6 +55,7 @@ export class AppDatabase extends Dexie {
   orders!: Table<Order, string>;
   drafts!: Table<DraftOrder, string>;
   sharedCarts!: Table<SharedCart, string>;
+  settings!: Table<{ id: string; key: string; value: string; updated_at: string }, string>;
 
   constructor() {
     super('TecnoAppDB');
@@ -107,6 +108,9 @@ export class AppDatabase extends Dexie {
       orders: 'id, clientId, status, createdAt, sellerId',
       drafts: 'id, status, date',
       sharedCarts: 'id, code, isActive, expiresAt',
+      
+      // Settings: UI preferences and app settings
+      settings: 'id, key, updated_at',
     });
   }
 }
@@ -653,4 +657,32 @@ export async function syncQueuedMessages(userId: string, conversationId: string)
   }
   
   return messagesToSync;
+}
+
+// ============================================================================
+// HELPERS DE SETTINGS (UI PREFERENCES)
+// ============================================================================
+
+export async function saveSetting(key: string, value: string): Promise<void> {
+  const setting = {
+    id: key,
+    key,
+    value,
+    updated_at: new Date().toISOString(),
+  };
+  await appDB.settings.put(setting);
+}
+
+export async function getSetting(key: string): Promise<string | undefined> {
+  const setting = await appDB.settings.get(key);
+  return setting?.value;
+}
+
+export async function getPrimaryColor(): Promise<string> {
+  const color = await getSetting('primaryColor');
+  return color || '#0A5DFF'; // Default color
+}
+
+export async function savePrimaryColor(color: string): Promise<void> {
+  await saveSetting('primaryColor', color);
 }

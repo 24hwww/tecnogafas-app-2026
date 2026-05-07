@@ -16,7 +16,7 @@ import {
   Info,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -71,6 +71,18 @@ export default function Checkout() {
     }
   }, [currentDraftId, drafts]);
 
+  const calculations = useMemo(() => {
+    const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    const discountAmount = (subtotal * (Number(form.discount) || 0)) / 100;
+    const recargoAmount = (subtotal * (Number(form.recargo) || 0)) / 100;
+    const baseForIva = subtotal - discountAmount + recargoAmount;
+    const ivaAmount = (baseForIva * (Number(form.iva) || 0)) / 100;
+    const finalTotal = baseForIva + ivaAmount;
+    return { subtotal, discountAmount, recargoAmount, baseForIva, ivaAmount, finalTotal };
+  }, [cart, form.discount, form.recargo, form.iva]);
+
+  const { subtotal, discountAmount, recargoAmount, ivaAmount, finalTotal } = calculations;
+
   if (!orderFeedback && (!selectedClient || cart.length === 0)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-6 text-center">
@@ -90,13 +102,6 @@ export default function Checkout() {
       </div>
     );
   }
-
-  const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const discountAmount = (subtotal * (Number(form.discount) || 0)) / 100;
-  const recargoAmount = (subtotal * (Number(form.recargo) || 0)) / 100;
-  const baseForIva = subtotal - discountAmount + recargoAmount;
-  const ivaAmount = (baseForIva * (Number(form.iva) || 0)) / 100;
-  const finalTotal = baseForIva + ivaAmount;
 
   const handleConfirmOrder = async () => {
     if (!globalPin) {

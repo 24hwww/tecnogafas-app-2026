@@ -1,5 +1,5 @@
 import { AlertCircle, Camera, Copy, Share2, ShoppingBag, Trash2, User, Plus, Minus, ArrowRight, Package } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PinModal } from '../components/PinModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,7 +23,7 @@ export default function Cart() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
-  const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const total = useMemo(() => cart.reduce((acc, item) => acc + item.price * item.quantity, 0), [cart]);
 
   const handleConfirm = () => {
     navigate('/pago');
@@ -195,7 +195,7 @@ export default function Cart() {
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-1">
-                Cliente Asociado
+                Cliente
               </p>
               {selectedClient ? (
                 <div>
@@ -257,9 +257,23 @@ export default function Cart() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-sm sm:text-base truncate">{item.name}</h4>
-                  <p className="text-xs text-[var(--color-text-muted)] font-medium">
-                    {formatCurrency(item.price)} <span className="opacity-50">c/u</span>
-                  </p>
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <p className="text-xs text-[var(--color-text-muted)] font-medium">
+                      {formatCurrency(item.price)} <span className="opacity-50">c/u</span>
+                    </p>
+                    <div className={cn(
+                      "px-2 py-0.5 rounded-full text-xs font-bold",
+                      item.stock > 0 ? "bg-success/10 text-success" : "bg-error/10 text-error"
+                    )}>
+                      Stock: {item.stock}
+                    </div>
+                  </div>
+                  {item.quantity > item.stock && (
+                    <div className="flex items-center gap-1 mt-1 text-error">
+                      <AlertCircle size={12} />
+                      <p className="text-xs font-medium">Excede stock disponible</p>
+                    </div>
+                  )}
                   
                   <div className="flex items-center gap-3 mt-3">
                     <div className="flex items-center bg-[var(--color-surface-900)] rounded-lg p-0.5 border border-[var(--color-border)]">
@@ -274,7 +288,11 @@ export default function Cart() {
                       <button
                         id={`cart-increase-qty-btn-${item.id}`}
                         onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
-                        className="btn btn-ghost btn-square btn-xs hover:bg-primary/10 hover:text-primary"
+                        disabled={item.quantity >= item.stock}
+                        className={cn(
+                          "btn btn-ghost btn-square btn-xs hover:bg-primary/10 hover:text-primary",
+                          item.quantity >= item.stock && "opacity-30 cursor-not-allowed"
+                        )}
                       >
                         <Plus size={14} />
                       </button>

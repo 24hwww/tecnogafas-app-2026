@@ -18,8 +18,11 @@
   --color-base-300: #1D2127;   /* bg-700 */
   --color-base-content: #F3F7FA; /* text-100 */
 
-  /* Primary = Emerald/Teal */
-  --color-primary: #10B981;
+  /* Primary = Dynamic (will be overridden by JS) */
+  --primary-color: #10B981;
+  --primary-color-hover: #10B981dd;
+  --primary-color-active: #10B981bb;
+  --color-primary: var(--primary-color);
   --color-primary-content: #022c22;
 
   /* Secondary */
@@ -37,7 +40,7 @@
   /* Semantic */
   --color-info: #60A5FA;
   --color-info-content: #0A0F1E;
-  --color-success: #10B981;
+  --color-success: var(--primary-color);
   --color-success-content: #022c22;
   --color-warning: #F59E0B;
   --color-warning-content: #1A0F00;
@@ -59,7 +62,8 @@
   --color-base-300: #E5E7EB;
   --color-base-content: #111827;
 
-  --color-primary: #059669;
+  /* Primary = Dynamic (will be overridden by JS) */
+  --color-primary: var(--primary-color);
   --color-primary-content: #ECFDF5;
 
   --color-secondary: #E5E7EB;
@@ -73,7 +77,7 @@
 
   --color-info: #3B82F6;
   --color-info-content: #FFFFFF;
-  --color-success: #059669;
+  --color-success: var(--primary-color);
   --color-success-content: #ECFDF5;
   --color-warning: #D97706;
   --color-warning-content: #1A0F00;

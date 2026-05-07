@@ -23,6 +23,7 @@ import { useCart } from '../contexts/CartContext';
 import { useConnection } from '../contexts/ConnectionContext';
 import { useNotificationsContext } from '../contexts/NotificationsContext';
 import { cn, getAnimationProps } from '../lib/utils';
+import { OptimizedPageTransition } from './OptimizedPageTransition';
 
 const navItems = [
   { path: '/', label: 'Inicio', icon: House },
@@ -236,9 +237,11 @@ export function Layout({ children }: { children: ReactNode }) {
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto">
-          <motion.div {...getAnimationProps('fade')} className="p-4 lg:p-6 xl:p-8 min-h-full max-w-7xl mx-auto w-full" key={location.pathname}>
-            {children}
-          </motion.div>
+          <OptimizedPageTransition pathname={location.pathname}>
+            <div className="p-4 lg:p-6 xl:p-8 min-h-full max-w-7xl mx-auto w-full">
+              {children}
+            </div>
+          </OptimizedPageTransition>
         </main>
       </div>
     </div>

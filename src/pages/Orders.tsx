@@ -16,18 +16,15 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useMemo, useState, useCallback, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { PullToRefresh } from '../components/PullToRefresh';
 import { useAuth } from '../contexts/AuthContext';
-import { useCart } from '../contexts/CartContext';
 import { useOrders } from '../contexts/OrdersContext';
 import {
   formatCurrency,
   formatDateTimeBA,
-  formatTimeBA,
-  getRelativeTime,
   cn,
 } from '../lib/utils';
 import { apiService } from '../services/apiService';
@@ -52,10 +49,74 @@ function OrderSkeleton() {
   );
 }
 
+interface OrderCardProps {
+  order: Order;
+  isHighlight: boolean;
+  sellers: any[];
+  getOrderNumber: (title: string) => string | null;
+  getSellerName: (id: string | number) => string;
+  onViewDetails: (order: Order) => void;
+}
+
+const OrderCard = memo(({ order, isHighlight, sellers, getOrderNumber, getSellerName, onViewDetails }: OrderCardProps) => {
+  const isPending = order.status.toLowerCase().includes('pend');
+  
+  return (
+    <motion.div
+      layout
+      key={order.id}
+      initial={isHighlight ? { scale: 1.02, borderColor: 'var(--color-primary)' } : {}}
+      animate={isHighlight ? { scale: 1, borderColor: 'var(--color-border)' } : {}}
+      transition={{ duration: 1.5 }}
+      className={cn(
+         "card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-2xl overflow-hidden hover:border-primary/40 transition-all group shadow-sm",
+         isHighlight && "ring-2 ring-primary ring-offset-4 ring-offset-background"
+      )}
+    >
+      <div className="p-5 flex items-start justify-between">
+        <div className="space-y-1 flex-1 min-w-0 pr-4">
+           <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                 #{getOrderNumber(order.rawData?.post_title || '') || order.id}
+              </span>
+              <span className={cn(
+                 "text-[10px] font-bold px-2 py-0.5 rounded-full tracking-widest",
+                 isPending ? "bg-primary/10 text-primary" : "bg-success/20 text-primary"
+              )}>
+                 {order.status}
+              </span>
+           </div>
+           <h4 className="text-lg font-black truncate">{order.clientName}</h4>
+           <div className="flex items-center gap-3 text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest">
+              <span className="flex items-center gap-1"><Calendar size={12} /> {formatDateTimeBA(order.createdAt)}</span>
+              <span className="flex items-center gap-1"><User size={12} /> {getSellerName(order.sellerId)}</span>
+           </div>
+        </div>
+        <div className="text-right shrink-0">
+           <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Total</p>
+           <p className="text-xl font-black text-primary leading-none">{formatCurrency(order.total || 0)}</p>
+        </div>
+      </div>
+      
+      <div className="px-5 py-4 bg-[var(--color-surface-900)]/50 border-t border-[var(--color-border)]/10 flex justify-between items-center">
+         <span className="text-xs font-medium text-[var(--color-text-muted)]">{order.items?.length || 0} productos</span>
+         <button
+           id={`orders-view-details-btn-${order.id}`}
+           onClick={() => onViewDetails(order)}
+           className="btn btn-primary btn-sm rounded-xl gap-2 font-bold px-5"
+         >
+           Ver Detalles <ChevronRight size={16} />
+         </button>
+      </div>
+    </motion.div>
+  );
+});
+
+OrderCard.displayName = 'OrderCard';
+
 export default function Orders() {
   const { orders, isOrdersLoading: isLoading, fetchOrders: refreshOrders } = useOrders();
-  const { sellers, clients, refreshData } = useApp();
-  const { drafts } = useCart();
+  const { sellers, clients } = useApp();
   const { globalPin, setGlobalPin } = useAuth();
   const [searchParams] = useSearchParams();
   const targetId = searchParams.get('id');
@@ -65,7 +126,6 @@ export default function Orders() {
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
-  const [sharingDraftId, setSharingDraftId] = useState<string | null>(null);
 
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [pin, setPin] = useState('');
@@ -78,29 +138,24 @@ export default function Orders() {
     type: 'success' | 'error';
   } | null>(null);
 
-  const receiptRef = useRef<HTMLDivElement>(null);
-
-  const getSellerName = (id: string | number) => {
+  const getSellerName = useCallback((id: string | number) => {
     const seller = sellers.find((s) => s.id.toString() === id.toString());
     return seller ? seller.name : 'Vendedor Desconocido';
-  };
+  }, [sellers]);
 
-  const getOrderNumber = (title: string) => {
+  const getOrderNumber = useCallback((title: string) => {
     const match = title.match(/#(\d+)/);
     return match ? match[1] : null;
-  };
+  }, []);
 
-  const filteredOrders = orders.filter((order) => {
+  const filteredOrders = useMemo(() => orders.filter((order) => {
     const matchesSearch =
       order.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.rawData?.post_title || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSeller = !selectedSeller || order.sellerId.toString() === selectedSeller;
     const matchesCustomer = !selectedCustomer || order.clientId.toString() === selectedCustomer;
     return matchesSearch && matchesSeller && matchesCustomer;
-  });
-
-  const handleSellerChange = (val: string) => setSelectedSeller(val);
-  const handleCustomerChange = (val: string) => setSelectedCustomer(val);
+  }), [orders, searchTerm, selectedSeller, selectedCustomer]);
 
   const handleActionClick = (type: 'pdf' | 'email' | 'status' | 'regenerar') => {
     setActionType(type);
@@ -170,8 +225,9 @@ export default function Orders() {
           throw new Error(res.message || 'Error al regenerar pedido');
         }
       }
-    } catch (err: any) {
-      setActionFeedback({ message: err.message || 'Error en la acción', type: 'error' });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error en la acción';
+      setActionFeedback({ message: errorMessage, type: 'error' });
     } finally {
       setIsActionLoading(false);
     }
@@ -217,7 +273,7 @@ export default function Orders() {
           <div className="flex flex-wrap gap-3 items-center">
             <div className="flex items-center gap-2 px-4 py-2 bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-xl">
               <User size={14} className="text-[var(--color-text-muted)]" />
-              <select
+                <select
                 className="bg-transparent border-none outline-none text-sm font-medium min-w-[120px]"
                 value={selectedSeller}
                 onChange={(e) => setSelectedSeller(e.target.value)}
@@ -291,55 +347,16 @@ export default function Orders() {
             <div className="grid gap-4">
               {filteredOrders.map((order) => {
                 const isHighlight = targetId?.toString() === order.id.toString();
-                const isPending = order.status.toLowerCase().includes('pend');
                 return (
-                  <motion.div
-                    layout
+                  <OrderCard
                     key={order.id}
-                    initial={isHighlight ? { scale: 1.02, borderColor: 'var(--color-primary)' } : {}}
-                    animate={isHighlight ? { scale: 1, borderColor: 'var(--color-border)' } : {}}
-                    transition={{ duration: 1.5 }}
-                    className={cn(
-                       "card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-2xl overflow-hidden hover:border-primary/40 transition-all group shadow-sm",
-                       isHighlight && "ring-2 ring-primary ring-offset-4 ring-offset-background"
-                    )}
-                  >
-                    <div className="p-5 flex items-start justify-between">
-                      <div className="space-y-1 flex-1 min-w-0 pr-4">
-                         <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                               #{getOrderNumber(order.rawData?.post_title || '') || order.id}
-                            </span>
-                            <span className={cn(
-                               "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest",
-                               isPending ? "bg-warning/10 text-warning" : "bg-success/10 text-success"
-                            )}>
-                               {order.status}
-                            </span>
-                         </div>
-                         <h4 className="text-lg font-black truncate">{order.clientName}</h4>
-                         <div className="flex items-center gap-3 text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest">
-                            <span className="flex items-center gap-1"><Calendar size={12} /> {formatDateTimeBA(order.createdAt)}</span>
-                            <span className="flex items-center gap-1"><User size={12} /> {getSellerName(order.sellerId)}</span>
-                         </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                         <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Total</p>
-                         <p className="text-xl font-black text-primary leading-none">{formatCurrency(order.total || 0)}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="px-5 py-4 bg-[var(--color-surface-900)]/50 border-t border-[var(--color-border)]/10 flex justify-between items-center">
-                       <span className="text-xs font-medium text-[var(--color-text-muted)]">{order.items?.length || 0} productos</span>
-                       <button
-                         id={`orders-view-details-btn-${order.id}`}
-                         onClick={() => setSelectedOrder(order)}
-                         className="btn btn-primary btn-sm rounded-xl gap-2 font-bold px-5"
-                       >
-                         Ver Detalles <ChevronRight size={16} />
-                       </button>
-                    </div>
-                  </motion.div>
+                    order={order}
+                    isHighlight={isHighlight}
+                    sellers={sellers}
+                    getOrderNumber={getOrderNumber}
+                    getSellerName={getSellerName}
+                    onViewDetails={setSelectedOrder}
+                  />
                 );
               })}
             </div>
@@ -391,8 +408,8 @@ export default function Orders() {
                            <div>
                               <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Estado</p>
                               <span className={cn(
-                                 "badge badge-sm font-bold uppercase tracking-widest",
-                                 selectedOrder.status.toLowerCase().includes('pend') ? "badge-warning" : "badge-success"
+                                 "badge badge-sm font-bold tracking-widest",
+                                 selectedOrder.status.toLowerCase().includes('pend') ? "badge-success/10" : "badge-primary"
                               )}>{selectedOrder.status}</span>
                            </div>
                         </div>

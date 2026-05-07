@@ -6,14 +6,13 @@ import {
   MapPin,
   MapPinned,
   Phone,
-  RefreshCw,
   Search,
   UserPlus,
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type React from 'react';
-import { useState } from 'react';
+import { useMemo, useState, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { PullToRefresh } from '../components/PullToRefresh';
@@ -22,6 +21,72 @@ import { useCart } from '../contexts/CartContext';
 import { cn } from '../lib/utils';
 import { apiService } from '../services/apiService';
 import type { Client } from '../types';
+
+interface ClientCardProps {
+  client: Client;
+  isSelected: boolean;
+  onSelectClient: (client: Client) => void;
+  onEditClient: (client: Client) => void;
+}
+
+const ClientCard = memo(({ client, isSelected, onSelectClient, onEditClient }: ClientCardProps) => (
+  <div
+    key={client.id}
+    className={cn(
+      'card bg-base-100 shadow-sm border-2 p-4 transition-all',
+      isSelected
+        ? 'border-primary bg-primary/5 shadow-md'
+        : 'border-base-300/40',
+    )}
+  >
+    <div className="flex justify-between items-start">
+      <div
+        onClick={() => onSelectClient(client)}
+        className="flex-1 cursor-pointer"
+      >
+        <h4 className="font-semibold text-base">{client.name}</h4>
+        <p className="text-xs text-primary font-semibold mb-1">
+          {client.email}
+        </p>
+        <p className="text-xs opacity-50 flex items-center gap-1 mt-1">
+          <Phone size={12} /> {client.phone || 'Sin teléfono'}
+        </p>
+        <p className="text-xs opacity-50 flex items-center gap-1 mt-1">
+          <MapPin size={12} /> {client.address || 'Sin dirección'}
+        </p>
+        <div className="mt-3">
+          <button
+            id={`clients-select-btn-${client.id}`}
+            type="button"
+            onClick={() => onSelectClient(client)}
+            className={cn(
+              'btn btn-sm w-full gap-2',
+              isSelected ? 'btn-success' : 'btn-primary',
+            )}
+          >
+            {isSelected ? <Check size={14} /> : <UserPlus size={14} />}
+            {isSelected ? 'Seleccionado' : 'Agregar'}
+          </button>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2">
+        <button
+          id={`clients-edit-btn-${client.id}`}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEditClient(client);
+          }}
+          className="btn btn-ghost btn-square btn-sm"
+        >
+          <Edit2 size={16} />
+        </button>
+      </div>
+    </div>
+  </div>
+));
+
+ClientCard.displayName = 'ClientCard';
 
 export default function Clients() {
   const { clients, refreshData, isLoading } = useApp();
@@ -32,11 +97,11 @@ export default function Clients() {
   const [editingClient, setEditingClient] = useState<Partial<Client> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const filteredClients = clients.filter(
+  const filteredClients = useMemo(() => clients.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.email.toLowerCase().includes(search.toLowerCase()),
-  );
+  ), [clients, search]);
 
   const handleSaveClient = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -60,14 +125,14 @@ export default function Clients() {
     }
   };
 
-  const openEdit = (client: Client) => {
+  const openEdit = useCallback((client: Client) => {
     setEditingClient(client);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleSelectClient = (client: Client) => {
+  const handleSelectClient = useCallback((client: Client) => {
     setSelectedClient(client);
-  };
+  }, [setSelectedClient]);
 
   return (
     <PullToRefresh onRefresh={() => refreshData(false)}>
@@ -117,65 +182,15 @@ export default function Clients() {
             ? Array(6)
                 .fill(0)
                 .map((_, i) => <ClientSkeleton key={i} />)
-            : filteredClients.map((client) => {
-                const isSelected = selectedClient?.id === client.id;
-                return (
-                  <div
-                    key={client.id}
-                    className={cn(
-                      'card bg-base-100 shadow-sm border-2 p-4 transition-all',
-                      isSelected
-                        ? 'border-primary bg-primary/5 shadow-md'
-                        : 'border-base-300/40',
-                    )}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div
-                        onClick={() => handleSelectClient(client)}
-                        className="flex-1 cursor-pointer"
-                      >
-                        <h4 className="font-semibold text-base">{client.name}</h4>
-                        <p className="text-xs text-primary font-semibold mb-1">
-                          {client.email}
-                        </p>
-                        <p className="text-xs opacity-50 flex items-center gap-1 mt-1">
-                          <Phone size={12} /> {client.phone || 'Sin teléfono'}
-                        </p>
-                        <p className="text-xs opacity-50 flex items-center gap-1 mt-1">
-                          <MapPin size={12} /> {client.address || 'Sin dirección'}
-                        </p>
-                        <div className="mt-3">
-                          <button
-                            id={`clients-select-btn-${client.id}`}
-                            type="button"
-                            onClick={() => handleSelectClient(client)}
-                            className={cn(
-                              'btn btn-sm w-full gap-2',
-                              isSelected ? 'btn-success' : 'btn-primary',
-                            )}
-                          >
-                            {isSelected ? <Check size={14} /> : <UserPlus size={14} />}
-                            {isSelected ? 'Seleccionado' : 'Agregar'}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <button
-                          id={`clients-edit-btn-${client.id}`}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEdit(client);
-                          }}
-                          className="btn btn-ghost btn-square btn-sm"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            : filteredClients.map((client) => (
+              <ClientCard
+                key={client.id}
+                client={client}
+                isSelected={selectedClient?.id === client.id}
+                onSelectClient={handleSelectClient}
+                onEditClient={openEdit}
+              />
+            ))}
         </div>
 
         {/* Selected Client Sticky Bar */}

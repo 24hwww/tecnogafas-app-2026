@@ -1,28 +1,70 @@
-import { Check, ChevronRight, Filter, Minus, Plus, Search, ShoppingCart, X, Package, Tag, ArrowRight } from 'lucide-react';
+import { Check, ChevronRight, Filter, Minus, Plus, Search, ShoppingCart, X, Package, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback, memo } from 'react';
 import { useApp } from '../AppContext';
 import { PullToRefresh } from '../components/PullToRefresh';
 import { ProductSkeleton } from '../components/Skeleton';
 import { useCart } from '../contexts/CartContext';
 import { cn, formatCurrency } from '../lib/utils';
-import { type Product, ProductVariation } from '../types';
+import { type Product } from '../types';
+
+interface ProductCardProps {
+  product: Product;
+  inCart: { id: string; quantity: number } | undefined;
+  isAdded: boolean;
+  onOpenVariationModal: (product: Product) => void;
+}
+
+const ProductCard = memo(({ product, inCart, isAdded, onOpenVariationModal }: ProductCardProps) => (
+  <motion.div
+    layout
+    key={product.id}
+    className={cn(
+      "card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-[2rem] overflow-hidden hover:border-primary/40 transition-all group shadow-sm flex flex-col",
+      isAdded && "ring-2 ring-primary scale-[1.02]"
+    )}
+  >
+    <div className="p-6 space-y-4 flex-1 flex flex-col">
+      <div className="flex-1">
+         <h3 className="text-lg font-bold leading-tight line-clamp-2">{product.name}</h3>
+      </div>
+      
+      <div className="pt-4 border-t border-[var(--color-border)]/10 flex items-end justify-between gap-4">
+         <div>
+            <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Precio</p>
+            <p className="text-2xl font-black text-danger leading-none">{formatCurrency(product.price)}</p>
+         </div>
+         <button
+            onClick={() => onOpenVariationModal(product)}
+            className={cn(
+               "btn btn-primary rounded-2xl h-14 w-14 shadow-lg shadow-primary/20 p-0",
+               inCart && "btn-success shadow-success/20"
+            )}
+         >
+            {inCart ? <Check size={24} /> : <Plus size={24} />}
+         </button>
+      </div>
+    </div>
+  </motion.div>
+));
+
+ProductCard.displayName = 'ProductCard';
 
 export default function Products() {
   const { products, isLoading, refreshData } = useApp();
-  const { addToCart, cart, updateCartQuantity } = useCart();
+  const { addToCart, cart } = useCart();
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [showZeroPrice, setShowZeroPrice] = useState(true);
+  const [showZeroPrice] = useState(true);
   const [search, setSearch] = useState('');
   const [variationModalProduct, setVariationModalProduct] = useState<Product | null>(null);
   const [variationQuantities, setVariationQuantities] = useState<Record<string, number>>({});
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
 
-  const triggerAddedAnimation = (id: string) => {
+  const triggerAddedAnimation = useCallback((id: string) => {
     setAddedProductId(id);
     setTimeout(() => setAddedProductId(null), 1000);
-  };
+  }, []);
 
   const parseFiltros = (filtros: string): string[] => {
     if (!filtros) return [];
@@ -43,13 +85,13 @@ export default function Products() {
     return map;
   }, [products]);
 
-  const filteredProducts = products.filter((p) => {
+  const filteredProducts = useMemo(() => products.filter((p) => {
     const pFiltros = productFiltrosMap.get(p.id) || [];
     const matchesFilters = activeFilters.every((f, i) => pFiltros[i] === f);
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchesPrice = showZeroPrice || p.price > 0;
     return matchesFilters && matchesSearch && matchesPrice;
-  });
+  }), [products, productFiltrosMap, activeFilters, search, showZeroPrice]);
 
   const nextLevel = activeFilters.length;
 
@@ -65,10 +107,10 @@ export default function Products() {
     return Array.from(terms);
   }, [products, activeFilters, nextLevel, productFiltrosMap]);
 
-  const handleAddFilter = (term: string) => setActiveFilters([...activeFilters, term]);
-  const handleRemoveFilter = (index: number) => setActiveFilters(activeFilters.slice(0, index));
+  const handleAddFilter = useCallback((term: string) => setActiveFilters([...activeFilters, term]), [activeFilters]);
+  const handleRemoveFilter = useCallback((index: number) => setActiveFilters(activeFilters.slice(0, index)), [activeFilters]);
 
-  const getInCart = (id: string) => cart.find((item) => item.id === id);
+  const getInCart = useCallback((id: string) => cart.find((item) => item.id === id), [cart]);
 
   const handleOpenVariationModal = (product: Product) => {
     setVariationModalProduct(product);
@@ -81,14 +123,14 @@ export default function Products() {
     setVariationQuantities(initialQuantities);
   };
 
-  const updateVariationQuantity = (vid: string, delta: number) => {
+  const updateVariationQuantity = useCallback((vid: string, delta: number) => {
     setVariationQuantities((prev) => ({
       ...prev,
       [vid]: Math.max(0, (prev[vid] || 0) + delta),
     }));
-  };
+  }, []);
 
-  const handleAddToCartFromModal = () => {
+  const handleAddToCartFromModal = useCallback(() => {
     if (!variationModalProduct) return;
     let anyAdded = false;
     Object.entries(variationQuantities).forEach(([vid, quantity]) => {
@@ -114,7 +156,7 @@ export default function Products() {
       }
     });
     if (anyAdded) setVariationModalProduct(null);
-  };
+  }, [variationModalProduct, variationQuantities, addToCart, triggerAddedAnimation]);
 
   const totalSelected = Object.values(variationQuantities).reduce((acc, q) => acc + q, 0);
 
@@ -124,7 +166,7 @@ export default function Products() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 id="products-title" className="text-3xl font-black tracking-tight">Catálogo</h2>
-            <p className="text-sm text-[var(--color-text-muted)] mt-1">Explora nuestra colección premium</p>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">Productos</p>
           </div>
           <div className="flex items-center gap-2">
              <button
@@ -205,42 +247,13 @@ export default function Products() {
               const inCart = getInCart(product.id);
               const isAdded = addedProductId === product.id;
               return (
-                <motion.div
-                  layout
+                <ProductCard
                   key={product.id}
-                  className={cn(
-                    "card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-[2rem] overflow-hidden hover:border-primary/40 transition-all group shadow-sm flex flex-col",
-                    isAdded && "ring-2 ring-primary scale-[1.02]"
-                  )}
-                >
-                  <div className="p-6 space-y-4 flex-1 flex flex-col">
-                    <div className="flex-1">
-                       <div className="flex items-center gap-2 mb-2">
-                          <Tag size={12} className="text-primary" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest tracking-widest text-[var(--color-text-muted)]">
-                             {productFiltrosMap.get(product.id)?.[0] || 'Sin Categoría'}
-                          </span>
-                       </div>
-                       <h3 className="text-lg font-bold leading-tight line-clamp-2">{product.name}</h3>
-                    </div>
-                    
-                    <div className="pt-4 border-t border-[var(--color-border)]/10 flex items-end justify-between gap-4">
-                       <div>
-                          <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Precio</p>
-                          <p className="text-2xl font-black text-primary leading-none">{formatCurrency(product.price)}</p>
-                       </div>
-                       <button
-                          onClick={() => handleOpenVariationModal(product)}
-                          className={cn(
-                             "btn btn-primary rounded-2xl h-14 w-14 shadow-lg shadow-primary/20 p-0",
-                             inCart && "btn-success shadow-success/20"
-                          )}
-                       >
-                          {inCart ? <Check size={24} /> : <Plus size={24} />}
-                       </button>
-                    </div>
-                  </div>
-                </motion.div>
+                  product={product}
+                  inCart={inCart}
+                  isAdded={isAdded}
+                  onOpenVariationModal={handleOpenVariationModal}
+                />
               );
             })
           )}
@@ -281,7 +294,15 @@ export default function Products() {
                            <div key={v.vid} className="p-5 bg-[var(--color-surface-900)] rounded-3xl border border-[var(--color-border)] space-y-4">
                               <div className="min-w-0">
                                  <p className="font-bold text-base truncate">{v.title}</p>
-                                 <p className="text-xs font-bold text-primary">{formatCurrency(v.price)}</p>
+                                 <div className="flex items-center justify-between gap-2">
+                                    <p className="text-xs font-bold text-primary">{formatCurrency(v.price)}</p>
+                                    <div className={cn(
+                                       "px-2 py-1 rounded-full text-xs font-bold",
+                                       v.stock > 0 ? "bg-success/10 text-success" : "bg-error/10 text-error"
+                                    )}>
+                                       Stock: {v.stock}
+                                    </div>
+                                 </div>
                               </div>
                               <div className="flex items-center justify-between bg-[var(--color-surface-800)]/50 p-2 pl-4 rounded-2xl border border-[var(--color-border)]/10">
                                  <span className="text-xs font-bold uppercase tracking-widest opacity-40">Cantidad</span>
@@ -290,7 +311,14 @@ export default function Products() {
                                        <Minus size={18} />
                                     </button>
                                     <span className="w-10 text-center font-black text-lg">{variationQuantities[v.vid] || 0}</span>
-                                    <button onClick={() => updateVariationQuantity(v.vid, 1)} className="btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] text-primary hover:bg-primary/10">
+                                    <button 
+                                       onClick={() => updateVariationQuantity(v.vid, 1)} 
+                                       disabled={(variationQuantities[v.vid] || 0) >= v.stock}
+                                       className={cn(
+                                          "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] text-primary hover:bg-primary/10",
+                                          (variationQuantities[v.vid] || 0) >= v.stock && "opacity-30 cursor-not-allowed"
+                                       )}
+                                    >
                                        <Plus size={18} />
                                     </button>
                                  </div>
@@ -301,7 +329,15 @@ export default function Products() {
                         <div className="p-5 bg-[var(--color-surface-900)] rounded-3xl border border-[var(--color-border)] space-y-4">
                            <div className="min-w-0">
                               <p className="font-bold text-base">Unidad Base</p>
-                              <p className="text-xs font-bold text-primary">{formatCurrency(variationModalProduct.price)}</p>
+                              <div className="flex items-center justify-between gap-2">
+                                 <p className="text-xs font-bold text-primary">{formatCurrency(variationModalProduct.price)}</p>
+                                 <div className={cn(
+                                    "px-2 py-1 rounded-full text-xs font-bold",
+                                    variationModalProduct.stock > 0 ? "bg-success/10 text-success" : "bg-error/10 text-error"
+                                 )}>
+                                    Stock: {variationModalProduct.stock}
+                                 </div>
+                              </div>
                            </div>
                            <div className="flex items-center justify-between bg-[var(--color-surface-800)]/50 p-2 pl-4 rounded-2xl border border-[var(--color-border)]/10">
                               <span className="text-xs font-bold uppercase tracking-widest opacity-40">Cantidad</span>
@@ -310,7 +346,14 @@ export default function Products() {
                                     <Minus size={18} />
                                  </button>
                                  <span className="w-10 text-center font-black text-lg">{variationQuantities['base'] || 0}</span>
-                                 <button onClick={() => updateVariationQuantity('base', 1)} className="btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] text-primary hover:bg-primary/10">
+                                 <button 
+                                    onClick={() => updateVariationQuantity('base', 1)} 
+                                    disabled={(variationQuantities['base'] || 0) >= variationModalProduct.stock}
+                                    className={cn(
+                                       "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] text-primary hover:bg-primary/10",
+                                       (variationQuantities['base'] || 0) >= variationModalProduct.stock && "opacity-30 cursor-not-allowed"
+                                    )}
+                                 >
                                     <Plus size={18} />
                                  </button>
                               </div>
