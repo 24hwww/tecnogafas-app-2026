@@ -9,6 +9,9 @@ import {
   Send,
   UserPlus,
   X,
+  Search,
+  Filter,
+  CheckCircle,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
@@ -16,7 +19,7 @@ import { useApp } from '../AppContext';
 import { PinModal } from '../components/PinModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotificationsContext } from '../contexts/NotificationsContext';
-import { formatTimeBA, getRelativeTime } from '../lib/utils';
+import { formatTimeBA, getRelativeTime, cn } from '../lib/utils';
 import { apiService } from '../services/apiService';
 import type { AppNotification } from '../types';
 
@@ -25,10 +28,8 @@ export default function Notifications() {
   const { sellers } = useApp();
   const {
     notifications,
-    setNotifications,
     unreadNotifications,
     setUnreadNotifications,
-    fetchNotifications,
     sendNotification,
     markAllNotificationsAsRead,
   } = useNotificationsContext();
@@ -38,7 +39,6 @@ export default function Notifications() {
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [isAcking, setIsAcking] = useState<number[]>([]);
 
   const handleSend = async () => {
     const userId = parseInt(targetUser, 10);
@@ -51,112 +51,105 @@ export default function Notifications() {
     if (success) {
       setMessageContent('');
       setShowSendForm(false);
-      // fetchNotifications(); // Desactivado (Events API)
     }
   };
 
   useEffect(() => {
     if (globalPin) {
-      // fetchNotifications(); // Desactivado (Events API)
-      // Mark all as read when entering the notifications page
       if (unreadNotifications > 0) {
         markAllNotificationsAsRead();
       }
     } else {
       setIsPinModalOpen(true);
     }
-  }, [
-    globalPin,
-    fetchNotifications,
-    unreadNotifications,
-    setUnreadNotifications,
-    markAllNotificationsAsRead,
-  ]);
+  }, [globalPin, unreadNotifications, markAllNotificationsAsRead]);
 
   return (
-    <div className="space-y-4 pb-20">
+    <div className="space-y-8 max-w-3xl mx-auto pb-20">
       <PinModal
         isOpen={isPinModalOpen}
         onClose={() => setIsPinModalOpen(false)}
-        onSuccess={(seller, pin) => {
-          setGlobalPin(pin);
-          // fetchNotifications(); // Desactivado (Events API)
-        }}
+        onSuccess={(seller, pin) => setGlobalPin(pin)}
       />
 
-      <div className="flex justify-between items-center">
-        <h2 id="notifications-title" className="text-2xl font-bold">
-          Notificaciones
-        </h2>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 id="notifications-title" className="text-3xl font-bold tracking-tight">Notificaciones</h2>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">Mensajes y alertas del sistema</p>
+        </div>
         <button
           id="notifications-show-send-form-btn"
-          onClick={() => setShowSendForm(!showSendForm)}
-          className="m3-button !p-2 rounded-full"
+          onClick={() => setShowSendForm(true)}
+          className="btn btn-primary rounded-2xl gap-2 shadow-lg shadow-primary/20"
         >
-          <Send size={20} />
+          <Send size={18} /> <span className="hidden sm:inline">Nuevo Mensaje</span>
         </button>
       </div>
 
       <AnimatePresence>
         {showSendForm && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-surface p-6 shadow-2xl w-full max-w-sm space-y-4 border border-outline/10 rounded-2xl"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+              onClick={() => !isSending && setShowSendForm(false)}
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl relative z-10"
             >
-              <h3
-                id="notifications-new-title"
-                className="font-bold flex items-center gap-2 text-primary text-lg"
-              >
-                <Send size={18} /> Enviar Mensaje
-              </h3>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-on-surface-variant">Para:</label>
-                <select
-                  className="w-full p-3 m3-input rounded-xl border border-outline/20 bg-surface text-sm"
-                  value={targetUser}
-                  onChange={(e) => setTargetUser(e.target.value)}
-                >
-                  <option value="">Seleccionar Vendedor</option>
-                  <option value="0">Todos (Broadcast)</option>
-                  {sellers
-                    .filter((s) => s.id !== currentSeller?.id)
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-on-surface-variant">Mensaje:</label>
-                <textarea
-                  className="w-full p-3 m3-input rounded-xl border border-outline/20 bg-surface text-sm h-24"
-                  placeholder="Escribe tu mensaje aquí..."
-                  value={messageContent}
-                  onChange={(e) => setMessageContent(e.target.value)}
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  id="notifications-close-send-form-btn"
-                  className="flex-1 py-3 font-bold text-sm bg-surface-variant text-on-surface rounded-xl"
-                  onClick={() => setShowSendForm(false)}
-                >
-                  Cancelar
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <Send size={20} className="text-primary" /> Nuevo Mensaje
+                </h3>
+                <button onClick={() => setShowSendForm(false)} className="btn btn-ghost btn-square btn-sm rounded-xl">
+                  <X size={20} />
                 </button>
+              </div>
+
+              <div className="space-y-5">
+                <div className="form-control">
+                  <label className="label py-1">
+                    <span className="label-text text-[10px] font-bold uppercase tracking-widest tracking-widest opacity-60">Para</span>
+                  </label>
+                  <select
+                    className="select select-bordered w-full bg-[var(--color-surface-900)] rounded-xl h-14"
+                    value={targetUser}
+                    onChange={(e) => setTargetUser(e.target.value)}
+                  >
+                    <option value="">Seleccionar Vendedor</option>
+                    <option value="0">📢 Todos (Broadcast)</option>
+                    {sellers
+                      .filter((s) => s.id !== currentSeller?.id)
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="form-control">
+                  <label className="label py-1">
+                    <span className="label-text text-[10px] font-bold uppercase tracking-widest tracking-widest opacity-60">Mensaje</span>
+                  </label>
+                  <textarea
+                    className="textarea textarea-bordered bg-[var(--color-surface-900)] w-full h-32 rounded-xl text-base font-medium"
+                    placeholder="Escriba su mensaje aquí..."
+                    value={messageContent}
+                    onChange={(e) => setMessageContent(e.target.value)}
+                  />
+                </div>
+
                 <button
                   id="notifications-send-btn"
-                  className="flex-1 py-3 font-bold text-sm bg-primary text-on-primary rounded-xl disabled:opacity-50"
+                  className="btn btn-primary btn-lg w-full rounded-2xl h-16 font-bold"
                   onClick={handleSend}
                   disabled={isSending || !targetUser || !messageContent}
                 >
-                  {isSending ? 'Enviando...' : 'Enviar'}
+                  {isSending ? <span className="loading loading-spinner" /> : 'Enviar Mensaje'}
                 </button>
               </div>
             </motion.div>
@@ -164,35 +157,50 @@ export default function Notifications() {
         )}
       </AnimatePresence>
 
-      {/* Listado de notificaciones */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         {notifications.length === 0 ? (
-          <div className="text-center py-10 text-on-surface-variant opacity-60">
-            <Bell size={48} className="mx-auto mb-2" />
-            <p className="text-sm font-bold">No hay notificaciones</p>
+          <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] border-dashed py-20 flex flex-col items-center justify-center text-center opacity-50">
+            <Bell size={60} className="text-[var(--color-text-muted)] mb-4" />
+            <p className="text-xl font-bold">Sin notificaciones</p>
+            <p className="text-sm max-w-xs mt-2">No tienes mensajes ni alertas pendientes en este momento.</p>
           </div>
         ) : (
-          notifications.map((notif: AppNotification) => (
-            <motion.div
-              key={notif.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="m3-card !p-4 flex items-start gap-3"
-            >
-              <div
-                className={`mt-1 p-2 rounded-full ${notif.read ? 'bg-surface-variant text-outline' : 'bg-primary/10 text-primary'}`}
+          <div className="grid gap-3">
+            {notifications.map((notif: AppNotification, i: number) => (
+              <motion.div
+                key={notif.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className={cn(
+                  "card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-5 flex flex-row items-start gap-4 hover:border-primary/30 transition-all",
+                  !notif.read && "border-primary/20 bg-primary/5"
+                )}
               >
-                {notif.type === 'message' ? <MessageSquare size={18} /> : <Info size={18} />}
-              </div>
-              <div className="flex-1">
-                <h4 className="font-bold text-sm">{notif.content.title}</h4>
-                <p className="text-xs text-on-surface-variant mt-0.5">{notif.content.body}</p>
-                <span className="text-[0.625rem] text-outline block mt-2 font-mono">
-                  {formatTimeBA(notif.created_at)}
-                </span>
-              </div>
-            </motion.div>
-          ))
+                <div className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm",
+                  notif.type === 'message' ? "bg-primary/10 text-primary" : "bg-info/10 text-info"
+                )}>
+                  {notif.type === 'message' ? <MessageSquare size={24} /> : <Info size={24} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start mb-1">
+                    <h4 className="font-bold text-base truncate">{notif.content.title}</h4>
+                    {!notif.read && <span className="badge badge-primary badge-xs animate-pulse" />}
+                  </div>
+                  <p className="text-sm text-[var(--color-text-muted)] leading-relaxed font-medium">
+                    {notif.content.body}
+                  </p>
+                  <div className="flex items-center gap-2 mt-4 text-[10px] font-bold uppercase tracking-widest tracking-widest opacity-40">
+                    <Clock size={12} />
+                    <span>{getRelativeTime(notif.created_at)}</span>
+                    <span>•</span>
+                    <span>{formatTimeBA(notif.created_at)} hs</span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         )}
       </div>
     </div>

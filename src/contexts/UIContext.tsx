@@ -22,7 +22,7 @@ const UIContext = createContext<UIContextType | undefined>(undefined);
 export function UIProvider({ children }: { children: ReactNode }) {
   const [primaryColor, setPrimaryColor] = useState('#0A5DFF');
   const [fontSize, setFontSize] = useState('16px');
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
   const updatePrimaryColor = (color: string) => {
     setPrimaryColor(color);

@@ -1,11 +1,12 @@
-import { AlertCircle, Camera, Copy, Share2, ShoppingBag, Trash2, User } from 'lucide-react';
+import { AlertCircle, Camera, Copy, Share2, ShoppingBag, Trash2, User, Plus, Minus, ArrowRight, Package } from 'lucide-react';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PinModal } from '../components/PinModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, cn } from '../lib/utils';
 import type { Seller } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Cart() {
   const { cart, selectedClient, removeFromCart, updateCartQuantity, shareCart, clearCart } =
@@ -22,10 +23,6 @@ export default function Cart() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
-  // Debug: Log para depurar qué datos recibe el Cart
-  console.log('Cart Component - cart:', cart);
-  console.log('Cart Component - selectedClient:', selectedClient);
-
   const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
   const handleConfirm = () => {
@@ -37,13 +34,10 @@ export default function Cart() {
       alert('Debes tener productos en el carrito y un cliente asignado para compartir');
       return;
     }
-
-    // Check if PIN is already validated
     if (!globalPin) {
       setIsPinModalOpen(true);
       return;
     }
-
     executeShareCart();
   };
 
@@ -52,26 +46,8 @@ export default function Cart() {
     try {
       const result = await shareCart();
       setShareResult(result);
-
-      if (result.success) {
-        // Copy link to clipboard
-        if (navigator.clipboard) {
-          await navigator.clipboard.writeText(result.link);
-          alert('¡Carrito compartido! El enlace ha sido copiado al portapapeles.');
-        }
-
-        // Try native share API
-        if (navigator.share) {
-          try {
-            await navigator.share({
-              title: 'Carrito Tecnogafas',
-              text: `Mira mi carrito: ${result.link}`,
-              url: result.link,
-            });
-          } catch (shareError) {
-            console.log('Native share failed:', shareError);
-          }
-        }
+      if (result.success && navigator.clipboard) {
+        await navigator.clipboard.writeText(result.link);
       }
     } catch (error) {
       console.error('Error sharing cart:', error);
@@ -89,33 +65,24 @@ export default function Cart() {
 
   const handleClearCart = () => {
     if (cart.length === 0) return;
-
-    if (
-      confirm(
-        '¿Estás seguro de que quieres limpiar todo el carrito? Esta acción no se puede deshacer.',
-      )
-    ) {
+    if (confirm('¿Estás seguro de que quieres limpiar todo el carrito?')) {
       clearCart();
-      alert('Carrito limpiado exitosamente');
     }
   };
 
   const generateCartImage = async (shareCode?: string) => {
     if (cart.length === 0) return;
-
     setIsGeneratingImage(true);
     try {
-      const jsPDF = (await import('jspdf')).jsPDF;
+      const { jsPDF } = await import('jspdf');
       const html2canvas = (await import('html2canvas')).default;
       const QRCode = (await import('qrcode')).default;
 
-      // Si tenemos un shareCode de Supabase, lo usamos. Si no, generamos uno temporal local.
-      const displayCode = shareCode || `LOCAL_${Date.now().toString(36).toUpperCase()}`;
-      const shareUrl = shareCode
+      const displayCode = typeof shareCode === 'string' ? shareCode : `LOCAL_${Date.now().toString(36).toUpperCase()}`;
+      const shareUrl = typeof shareCode === 'string'
         ? `${window.location.origin}/shared-cart/${shareCode}`
         : `${window.location.origin}/carrito?recover=${displayCode}`;
 
-      // En el QR solo ponemos la URL o el código, NO todos los productos
       const qrCodeDataUrl = await QRCode.toDataURL(shareUrl, {
         width: 150,
         margin: 1,
@@ -142,19 +109,13 @@ export default function Cart() {
             <p style="margin: 5px 0; color: #000; font-size: 14px;">Fecha: ${currentDate}</p>
             <p style="margin: 2px 0; color: #444; font-size: 12px;">Código: ${displayCode}</p>
           </div>
-          
-          ${
-            selectedClient
-              ? `
+          ${selectedClient ? `
           <div style="margin-bottom: 20px; padding: 12px; border: 1px solid #000; border-radius: 4px;">
             <h2 style="margin: 0 0 5px 0; color: #000; font-size: 14px; font-weight: bold;">CLIENTE</h2>
             <p style="margin: 0; font-weight: bold; color: #000; font-size: 15px;">${selectedClient.name}</p>
             ${selectedClient.email ? `<p style="margin: 3px 0 0 0; color: #444; font-size: 12px;">${selectedClient.email}</p>` : ''}
           </div>
-          `
-              : ''
-          }
-          
+          ` : ''}
           <div style="margin-bottom: 20px;">
             <table style="width: 100%; border-collapse: collapse;">
               <thead>
@@ -164,60 +125,34 @@ export default function Cart() {
                   <th style="padding: 8px; border: 1px solid #000; text-align: right; font-size: 12px;">Subtotal</th>
                 </tr>
               </thead>
-              <tbody>
-                ${cartItemsHtml}
-              </tbody>
+              <tbody>${cartItemsHtml}</tbody>
             </table>
           </div>
-          
           <div style="text-align: right; margin-top: 15px; padding: 10px; border-top: 2px solid #000;">
             <h2 style="margin: 0; font-size: 20px; font-weight: bold; color: #000;">TOTAL: ${formatCurrency(total)}</h2>
           </div>
-          
           <div style="text-align: center; margin-top: 25px; padding: 15px; border: 1px dashed #666; border-radius: 8px;">
             <p style="margin: 0 0 10px 0; color: #000; font-size: 13px; font-weight: bold;">ESCANEAR PARA RECUPERAR PEDIDO</p>
             <img src="${qrCodeDataUrl}" alt="QR Code" style="width: 140px; height: 140px;" />
-            <p style="margin: 10px 0 0 0; color: #666; font-size: 10px;">Escanea este código con la aplicación para cargar este carrito automáticamente.</p>
           </div>
         </div>
       `;
 
-      // Generar PDF con jsPDF
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
-
-      // Convertir HTML a canvas y luego a imagen para el PDF
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = htmlContent;
       tempDiv.style.position = 'absolute';
       tempDiv.style.left = '-9999px';
-      tempDiv.style.top = '-9999px';
       document.body.appendChild(tempDiv);
 
-      // Generar canvas del contenido
-      const canvas = await html2canvas(tempDiv, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-      });
-
-      // Agregar imagen al PDF
+      const canvas = await html2canvas(tempDiv, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
       const imgData = canvas.toDataURL('image/png');
-      const imgWidth = 190; // Ancho en mm para A4
+      const imgWidth = 190;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
       pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
-
-      // Descargar PDF
       pdf.save(`pedido-tecnogafas-${Date.now()}.pdf`);
-
-      // Limpiar
       document.body.removeChild(tempDiv);
-
-      alert('PDF del pedido generado y descargado');
     } catch (error) {
       console.error('Error generating cart PDF:', error);
       alert('Error al generar el PDF del pedido');
@@ -227,260 +162,256 @@ export default function Cart() {
   };
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6 max-w-3xl mx-auto pb-32">
       <div className="flex items-center justify-between">
-        <h2 id="cart-title" className="text-2xl font-bold">
-          Carrito
-        </h2>
+        <div>
+          <h2 id="cart-title" className="text-3xl font-bold tracking-tight">Carrito</h2>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">Revisa y confirma tu pedido</p>
+        </div>
         {cart.length > 0 && (
           <button
             id="cart-clear-all-btn"
             onClick={handleClearCart}
-            className="text-sm text-red-500 hover:text-red-600 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
+            className="btn btn-ghost btn-sm text-error gap-2 hover:bg-error/10"
           >
             <Trash2 size={16} />
-            Limpiar todo
+            <span className="hidden sm:inline">Limpiar todo</span>
           </button>
         )}
       </div>
 
       {/* Selected Client Section */}
-      <div className="m3-card !bg-primary-container/20 border-primary/20">
-        <h3 className="text-xs font-bold text-primary flex items-center gap-1 mb-2">
-          <User size={14} /> CLIENTE ASOCIADO
-        </h3>
-        {selectedClient ? (
-          <div className="flex justify-between items-center">
+      <div className={cn(
+        "card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-5 relative overflow-hidden",
+        !selectedClient && "border-warning/30 bg-warning/5"
+      )}>
+        <div className="flex items-start justify-between relative z-10">
+          <div className="flex gap-4">
+            <div className={cn(
+              "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+              selectedClient ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"
+            )}>
+              <User size={24} />
+            </div>
             <div>
-              <p className="font-bold">{selectedClient.name}</p>
-              <p className="text-xs text-on-surface-variant">{selectedClient.email}</p>
-            </div>
-            <button
-              id="cart-change-client-btn"
-              onClick={() => navigate('/clientes')}
-              className="text-xs text-primary font-bold"
-            >
-              Cambiar
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3 w-full">
-            <div className="flex items-center gap-2 text-red-500">
-              <AlertCircle size={20} />
-              <span className="text-xs font-medium">Asigna un cliente para continuar</span>
-            </div>
-            <button
-              id="cart-assign-client-btn"
-              onClick={() => navigate('/clientes')}
-              className="m3-button-filled w-full"
-            >
-              Asignar
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Cart Items */}
-      <div className="space-y-3">
-        {cart.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-8 text-center space-y-4 border-2 border-dashed border-outline/20 rounded-2xl">
-            <div className="bg-surface-variant p-4 rounded-full">
-              <ShoppingBag size={48} className="text-outline" />
-            </div>
-            <h3 className="font-bold">Carrito Vacío</h3>
-            <p className="text-xs text-on-surface-variant">
-              Agrega productos del catálogo para comenzar un pedido.
-            </p>
-          </div>
-        ) : (
-          cart.map((item) => (
-            <div key={item.id} className="m3-card flex gap-4">
-              <div className="flex-1">
-                <h4 className="font-semibold text-sm">{item.name}</h4>
-                <p className="text-xs text-on-surface-variant">{formatCurrency(item.price)} c/u</p>
-                <div className="flex items-center gap-4 mt-2">
-                  <div className="flex items-center bg-surface px-2 py-1 border border-outline/10">
-                    <button
-                      id={`cart-decrease-qty-btn-${item.id}`}
-                      onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
-                      className="p-1"
-                    >
-                      <span className="text-lg font-bold">−</span>
-                    </button>
-                    <span className="mx-3 font-bold text-xs">{item.quantity}</span>
-                    <button
-                      id={`cart-increase-qty-btn-${item.id}`}
-                      onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
-                      className="p-1"
-                    >
-                      <span className="text-lg font-bold">+</span>
-                    </button>
-                  </div>
-                  <button
-                    id={`cart-remove-item-btn-${item.id}`}
-                    onClick={() => removeFromCart(item.id)}
-                    className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+              <p className="text-xs font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-1">
+                Cliente Asociado
+              </p>
+              {selectedClient ? (
+                <div>
+                  <p className="text-lg font-bold">{selectedClient.name}</p>
+                  <p className="text-sm text-[var(--color-text-muted)]">{selectedClient.email}</p>
                 </div>
-              </div>
-              <div className="text-right flex flex-col justify-between items-end">
-                <span className="font-bold text-primary">
-                  {formatCurrency(item.price * item.quantity)}
-                </span>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      <button
-        id="cart-add-products-btn"
-        onClick={() => navigate('/productos')}
-        className="w-full text-center text-sm font-bold text-primary py-4 border-2 border-primary border-dashed rounded-xl hover:bg-primary/5 transition-colors"
-      >
-        + Agregar {cart.length === 0 ? 'productos' : 'más productos'}
-      </button>
-
-      {/* Share Result Modal */}
-      {shareResult && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
-            <h3 className="text-lg font-bold mb-4">
-              {shareResult.success ? '✅ ¡Carrito Compartido!' : '❌ Error al Compartir'}
-            </h3>
-            {shareResult.success ? (
-              <React.Fragment>
-                <div className="space-y-3">
-                  <p className="text-green-600 font-medium">{shareResult.message}</p>
-                  <div className="bg-gray-100 p-3 rounded border">
-                    <p className="text-sm font-bold mb-2">Código del carrito:</p>
-                    <div className="flex items-center gap-2">
-                      <code className="bg-gray-200 px-3 py-2 rounded font-mono text-lg">
-                        {shareResult.code}
-                      </code>
-                      <button
-                        onClick={() => navigator.clipboard.writeText(shareResult.link)}
-                        className="m3-button-outlined text-sm"
-                      >
-                        <Copy size={16} className="mr-1" />
-                        Copiar
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-2">
-                    Enlace público:{' '}
-                    <a
-                      href={shareResult.link}
-                      target="_blank"
-                      className="text-blue-600 underline"
-                      rel="noopener"
-                    >
-                      {shareResult.link}
-                    </a>
-                  </p>
-                  <p className="text-xs text-gray-500">Este enlace expirará en 24 horas.</p>
-                </div>
-                <button
-                  onClick={() => setShareResult(null)}
-                  className="w-full m3-button-filled mt-4"
-                >
-                  Cerrar
-                </button>
-              </React.Fragment>
-            ) : (
-              <React.Fragment>
-                <div className="space-y-3">
-                  <p className="text-red-600 font-medium">{shareResult.message}</p>
-                  <div className="space-y-2">
-                    <button
-                      onClick={generateCartImage}
-                      disabled={isGeneratingImage || cart.length === 0}
-                      className="w-full m3-button-outlined flex items-center justify-center gap-2"
-                    >
-                      {isGeneratingImage ? (
-                        <>
-                          <div className="inline-block animate-spin rounded-full border-2 border-primary/20 border-t-primary/20 h-4 w-4"></div>
-                          Generando PDF...
-                        </>
-                      ) : (
-                        <>
-                          <Camera size={16} />
-                          Generar PDF del pedido
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setShareResult(null)}
-                      className="w-full m3-button-filled"
-                    >
-                      Cerrar
-                    </button>
-                  </div>
-                </div>
-              </React.Fragment>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Summary and Action */}
-      <div className="m3-card !bg-surface sticky bottom-0 border-t-2 border-primary/10 shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.3)] -mx-4 px-4 py-6 space-y-4 z-10">
-        <div className="flex justify-between items-center">
-          <span className="text-lg font-medium">Total</span>
-          <span className="text-2xl font-bold text-primary">{formatCurrency(total)}</span>
-        </div>
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              id="cart-share-cart-btn"
-              onClick={handleShareCart}
-              disabled={!selectedClient || cart.length === 0 || isSharing}
-              className="m3-button-outlined py-3 disabled:opacity-50 text-xs flex items-center justify-center"
-            >
-              {isSharing ? (
-                <>
-                  <div className="inline-block animate-spin rounded-full border-2 border-primary/20 border-t-primary/20 h-4 w-4 mr-1"></div>
-                  Guardando...
-                </>
               ) : (
-                <>
-                  <Share2 size={16} className="mr-1" />
-                  Guardar Carrito
-                </>
+                <div className="flex items-center gap-2 text-warning">
+                  <AlertCircle size={16} />
+                  <p className="text-sm font-medium">Asigna un cliente para continuar</p>
+                </div>
               )}
-            </button>
-            <button
-              id="cart-pdf-btn"
-              onClick={() => generateCartImage()}
-              disabled={cart.length === 0 || isGeneratingImage}
-              className="m3-button-outlined py-3 disabled:opacity-50 text-xs flex items-center justify-center"
-            >
-              {isGeneratingImage ? (
-                <>
-                  <div className="inline-block animate-spin rounded-full border-2 border-primary/20 border-t-primary/20 h-4 w-4 mr-1"></div>
-                  Generando...
-                </>
-              ) : (
-                <>
-                  <Camera size={16} className="mr-1" />
-                  Generar PDF
-                </>
-              )}
-            </button>
+            </div>
           </div>
           <button
-            id="cart-confirm-order-btn"
-            onClick={handleConfirm}
-            disabled={!selectedClient || cart.length === 0}
-            className="w-full m3-button-filled py-3 disabled:opacity-50 font-bold uppercase tracking-widest"
+            id="cart-change-client-btn"
+            onClick={() => navigate('/clientes')}
+            className={cn(
+              "btn btn-sm rounded-xl",
+              selectedClient ? "btn-ghost text-primary" : "btn-warning"
+            )}
           >
-            Confirmar Pedido
+            {selectedClient ? 'Cambiar' : 'Asignar'}
           </button>
         </div>
       </div>
-      {/* PIN Modal */}
+
+      {/* Cart Items */}
+      <div className="space-y-4">
+        {cart.length === 0 ? (
+          <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] border-dashed py-20 flex flex-col items-center justify-center text-center px-6">
+            <div className="w-20 h-20 bg-[var(--color-surface-900)] rounded-full flex items-center justify-center mb-6 border border-[var(--color-border)]">
+              <ShoppingBag size={40} className="text-[var(--color-text-muted)] opacity-50" />
+            </div>
+            <h3 className="text-xl font-bold">Tu carrito está vacío</h3>
+            <p className="text-[var(--color-text-muted)] mt-2 max-w-xs">
+              Agrega productos del catálogo para comenzar un nuevo pedido.
+            </p>
+            <button
+              onClick={() => navigate('/productos')}
+              className="btn btn-primary mt-8 gap-2 px-8"
+            >
+              Ir al Catálogo <ArrowRight size={18} />
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {cart.map((item) => (
+              <motion.div
+                layout
+                key={item.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-4 flex flex-row items-center gap-4 hover:border-primary/30 transition-all group"
+              >
+                <div className="w-16 h-16 bg-[var(--color-surface-900)] rounded-xl flex items-center justify-center shrink-0 border border-[var(--color-border)]">
+                  <Package className="text-[var(--color-text-muted)]" size={24} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-sm sm:text-base truncate">{item.name}</h4>
+                  <p className="text-xs text-[var(--color-text-muted)] font-medium">
+                    {formatCurrency(item.price)} <span className="opacity-50">c/u</span>
+                  </p>
+                  
+                  <div className="flex items-center gap-3 mt-3">
+                    <div className="flex items-center bg-[var(--color-surface-900)] rounded-lg p-0.5 border border-[var(--color-border)]">
+                      <button
+                        id={`cart-decrease-qty-btn-${item.id}`}
+                        onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                        className="btn btn-ghost btn-square btn-xs hover:bg-primary/10 hover:text-primary"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span className="w-8 text-center font-bold text-xs">{item.quantity}</span>
+                      <button
+                        id={`cart-increase-qty-btn-${item.id}`}
+                        onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                        className="btn btn-ghost btn-square btn-xs hover:bg-primary/10 hover:text-primary"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                    <button
+                      id={`cart-remove-item-btn-${item.id}`}
+                      onClick={() => removeFromCart(item.id)}
+                      className="btn btn-ghost btn-square btn-xs text-error opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-primary">
+                    {formatCurrency(item.price * item.quantity)}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {cart.length > 0 && (
+        <button
+          id="cart-add-products-btn"
+          onClick={() => navigate('/productos')}
+          className="w-full btn btn-ghost border-2 border-dashed border-[var(--color-border)] hover:border-primary/50 hover:bg-primary/5 rounded-2xl py-8 h-auto"
+        >
+          <div className="flex flex-col items-center gap-2">
+            <Plus size={24} className="text-primary" />
+            <span className="font-bold text-[var(--color-text-muted)]">Agregar más productos</span>
+          </div>
+        </button>
+      )}
+
+      {/* Summary Floating Bar */}
+      <AnimatePresence>
+        {cart.length > 0 && (
+          <motion.div
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            exit={{ y: 100 }}
+            className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-surface-900)]/90 backdrop-blur-xl border-t border-[var(--color-border)] p-4 lg:p-6 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)]"
+          >
+            <div className="max-w-3xl mx-auto flex flex-col gap-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">Total Estimado</p>
+                  <p className="text-3xl font-black text-primary leading-none mt-1">{formatCurrency(total)}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleShareCart}
+                    disabled={isSharing}
+                    className="btn btn-square btn-outline btn-lg rounded-2xl"
+                    title="Compartir"
+                  >
+                    {isSharing ? <span className="loading loading-spinner loading-sm" /> : <Share2 size={22} />}
+                  </button>
+                  <button
+                    onClick={() => generateCartImage()}
+                    disabled={isGeneratingImage}
+                    className="btn btn-square btn-outline btn-lg rounded-2xl"
+                    title="PDF"
+                  >
+                    {isGeneratingImage ? <span className="loading loading-spinner loading-sm" /> : <Camera size={22} />}
+                  </button>
+                </div>
+              </div>
+              
+              <button
+                id="cart-confirm-order-btn"
+                onClick={handleConfirm}
+                disabled={!selectedClient}
+                className="btn btn-primary btn-lg w-full rounded-2xl font-bold text-lg h-16 shadow-lg shadow-primary/20"
+              >
+                Continuar al Pago <ArrowRight size={20} className="ml-2" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Share Result Modal */}
+      <AnimatePresence>
+        {shareResult && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[60] p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center"
+            >
+              <div className={cn(
+                "w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6",
+                shareResult.success ? "bg-success/10 text-success" : "bg-error/10 text-error"
+              )}>
+                {shareResult.success ? <ShoppingBag size={40} /> : <AlertCircle size={40} />}
+              </div>
+              
+              <h3 className="text-2xl font-bold mb-2">
+                {shareResult.success ? '¡Carrito Guardado!' : 'Error al guardar'}
+              </h3>
+              <p className="text-[var(--color-text-muted)] text-sm mb-8">
+                {shareResult.message}
+              </p>
+
+              {shareResult.success && (
+                <div className="bg-[var(--color-surface-900)] p-6 rounded-2xl border border-[var(--color-border)] mb-8 space-y-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-2">Código de recuperación</p>
+                    <code className="text-3xl font-black tracking-widest text-primary">{shareResult.code}</code>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(shareResult.link);
+                      alert('Enlace copiado');
+                    }}
+                    className="btn btn-ghost btn-sm w-full gap-2 text-primary"
+                  >
+                    <Copy size={16} /> Copiar enlace directo
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={() => setShareResult(null)}
+                className="btn btn-primary w-full h-14 rounded-2xl font-bold text-lg"
+              >
+                Entendido
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <PinModal
         isOpen={isPinModalOpen}
         onClose={() => setIsPinModalOpen(false)}

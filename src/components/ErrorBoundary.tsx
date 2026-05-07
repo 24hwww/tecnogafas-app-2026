@@ -48,23 +48,23 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen bg-surface flex items-center justify-center p-4">
-          <div className="bg-surface-variant p-6 border border-white/10 max-w-md w-full">
+        <div className="min-h-screen bg-base-100 flex items-center justify-center p-4">
+          <div className="bg-[var(--color-surface-800)] p-6 border border-white/10 max-w-md w-full">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-error/20 flex items-center justify-center">
                 <span className="text-error text-xl">!</span>
               </div>
-              <h2 className="text-lg font-bold text-on-surface">Algo salió mal</h2>
+              <h2 className="text-lg font-bold text-base-content">Algo salió mal</h2>
             </div>
 
-            <p className="text-sm text-on-surface-variant mb-4">
+            <p className="text-sm text-[var(--color-text-muted)] mb-4">
               La aplicación encontró un error inesperado. Puedes intentar recargar la página o
               limpiar la caché.
             </p>
 
             {this.state.error && (
               <details className="mb-4 text-xs">
-                <summary className="text-outline cursor-pointer hover:text-on-surface">
+                <summary className="text-[var(--color-text-muted)] cursor-pointer hover:text-base-content">
                   Ver detalles técnicos
                 </summary>
                 <pre className="mt-2 p-2 bg-black/30 text-red-400 overflow-auto max-h-40 font-mono">
@@ -78,14 +78,14 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="flex-1 bg-primary text-on-primary py-3 font-bold text-sm hover:brightness-110 transition-all"
+                className="flex-1 bg-primary text-primary-content py-3 font-bold text-sm hover:brightness-110 transition-all"
               >
                 Recargar página
               </button>
               <button
                 type="button"
                 onClick={this.handleClearCache}
-                className="flex-1 bg-surface border border-outline text-on-surface py-3 font-bold text-sm hover:bg-surface-variant transition-all"
+                className="flex-1 bg-base-100 border border-[var(--color-border)] text-base-content py-3 font-bold text-sm hover:bg-[var(--color-surface-800)] transition-all"
               >
                 Limpiar caché
               </button>

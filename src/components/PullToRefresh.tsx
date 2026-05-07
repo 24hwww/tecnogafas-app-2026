@@ -26,7 +26,6 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
     let isPulling = false;
 
     const handleTouchStart = (e: TouchEvent) => {
-      // Only allow pull to refresh if we are at the top of the container
       if (window.scrollY === 0) {
         startY = e.touches[0].pageY;
         isPulling = true;
@@ -35,19 +34,12 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
 
     const handleTouchMove = (e: TouchEvent) => {
       if (!isPulling || isRefreshing) return;
-
       const currentY = e.touches[0].pageY;
       const diff = currentY - startY;
-
       if (diff > 0) {
-        // Apply resistance
         const newY = diff ** 0.8;
         y.set(newY);
-
-        // Prevent default behavior to avoid browser pull-to-refresh
-        if (diff > 10) {
-          if (e.cancelable) e.preventDefault();
-        }
+        if (diff > 10 && e.cancelable) e.preventDefault();
       } else {
         isPulling = false;
         y.set(0);
@@ -57,14 +49,11 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
     const handleTouchEnd = async () => {
       if (!isPulling || isRefreshing) return;
       isPulling = false;
-
       if (y.get() >= PULL_THRESHOLD) {
         setIsRefreshing(true);
         animate(y, 100, { duration: 0.2 });
-
-        try {
-          await onRefresh();
-        } finally {
+        try { await onRefresh(); }
+        finally {
           setIsRefreshing(false);
           animate(y, 0, { duration: 0.3, delay: 0.5 });
         }
@@ -76,7 +65,6 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
     container.addEventListener('touchstart', handleTouchStart);
     container.addEventListener('touchmove', handleTouchMove, { passive: false });
     container.addEventListener('touchend', handleTouchEnd);
-
     return () => {
       container.removeEventListener('touchstart', handleTouchStart);
       container.removeEventListener('touchmove', handleTouchMove);
@@ -88,7 +76,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
     <div ref={containerRef} className="relative w-full">
       <motion.div
         style={{ y, opacity, scale }}
-        className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-white shadow-lg rounded-full p-2 text-primary border border-primary/20 flex items-center justify-center h-10 w-10"
+        className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-base-200 shadow-lg rounded-full p-2 text-primary border border-[var(--color-border)] flex items-center justify-center h-10 w-10"
       >
         {isRefreshing ? (
           <Loader2 className="animate-spin" size={20} />

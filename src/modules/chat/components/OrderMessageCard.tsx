@@ -54,7 +54,7 @@ export function OrderMessageCard({ message }: OrderMessageCardProps) {
   const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden max-w-sm">
+    <div className="bg-base-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden max-w-sm">
       {/* Header */}
       <div className="flex items-center gap-3 p-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
         <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">

@@ -33,12 +33,12 @@ export function ChatLayout({ className = '' }: ChatLayoutProps) {
     return (
       <div className={`flex flex-col h-dvh bg-background ${className}`}>
         {/* Header compacto estilo chat */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-outline/10 bg-surface shrink-0">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)]/10 bg-base-100 shrink-0">
           <h2 className="text-lg font-semibold flex-1 truncate">{activeConversation.name}</h2>
           <button
             onClick={handleRefresh}
             disabled={isLoading}
-            className={`p-2 hover:bg-surface-variant rounded-full transition-all ${isLoading ? 'animate-spin' : ''}`}
+            className={`p-2 hover:bg-[var(--color-surface-800)] rounded-full transition-all ${isLoading ? 'animate-spin' : ''}`}
           >
             <RefreshCw size={18} className="text-primary" />
           </button>
@@ -50,7 +50,7 @@ export function ChatLayout({ className = '' }: ChatLayoutProps) {
         </div>
 
         {/* Footer Area with Input - siempre abajo */}
-        <div className="p-3 bg-surface border-t border-outline/10 shrink-0">
+        <div className="p-3 bg-base-100 border-t border-[var(--color-border)]/10 shrink-0">
           <TypingIndicator />
           <ChatInput />
         </div>
@@ -68,7 +68,7 @@ export function ChatLayout({ className = '' }: ChatLayoutProps) {
           <button
             onClick={handleRefresh}
             disabled={isLoading}
-            className={`p-2.5 hover:bg-surface-variant rounded-full transition-all ${isLoading ? 'animate-spin' : ''}`}
+            className={`p-2.5 hover:bg-[var(--color-surface-800)] rounded-full transition-all ${isLoading ? 'animate-spin' : ''}`}
             title="Sincronizar"
           >
             <RefreshCw size={20} className="text-primary" />

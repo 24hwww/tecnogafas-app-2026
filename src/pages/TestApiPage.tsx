@@ -24,26 +24,26 @@ export default function TestApiPage() {
   };
 
   return (
-    <div className="p-6 bg-surface text-on-surface min-h-screen">
+    <div className="p-6 bg-base-100 text-base-content min-h-screen">
       <h1 className="text-2xl font-black mb-6">🛠️ API Test Bench</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 bg-surface-variant p-4 rounded-xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 bg-[var(--color-surface-800)] p-4 rounded-xl">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-bold text-outline">PIN Vendedor</label>
+          <label className="text-sm font-bold text-[var(--color-text-muted)]">PIN Vendedor</label>
           <input
             type="text"
             value={sellerId}
             onChange={(e) => setSellerId(e.target.value)}
-            className="bg-surface p-3 rounded-lg border border-outline/20 outline-none focus:ring-2 focus:ring-primary"
+            className="bg-base-100 p-3 rounded-lg border border-[var(--color-border)]/20 outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-bold text-outline">Order ID</label>
+          <label className="text-sm font-bold text-[var(--color-text-muted)]">Order ID</label>
           <input
             type="text"
             value={testOrderId}
             onChange={(e) => setTestOrderId(e.target.value)}
-            className="bg-surface p-3 rounded-lg border border-outline/20 outline-none focus:ring-2 focus:ring-primary"
+            className="bg-base-100 p-3 rounded-lg border border-[var(--color-border)]/20 outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
       </div>
@@ -93,19 +93,19 @@ export default function TestApiPage() {
         <h2 className="text-lg font-bold mb-3">📦 Productos y Pedidos</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <button
-            className="bg-primary text-on-primary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform"
+            className="bg-primary text-primary-content p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform"
             onClick={() => runTest('Get Products', () => apiService.getProducts())}
           >
             Get Products
           </button>
           <button
-            className="bg-primary text-on-primary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform"
+            className="bg-primary text-primary-content p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform"
             onClick={() => runTest('Get Clients', () => apiService.getClients())}
           >
             Get Clients
           </button>
           <button
-            className="bg-primary text-on-primary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform"
+            className="bg-primary text-primary-content p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform"
             onClick={() => runTest('Get Orders', () => apiService.getOrders(1, 25, sellerId))}
           >
             Get Orders
@@ -117,7 +117,7 @@ export default function TestApiPage() {
         <h2 className="text-lg font-bold mb-3">⚡ Acciones de Pedidos</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <button
-            className="bg-secondary text-on-secondary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform"
+            className="bg-secondary text-secondary-content p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform"
             onClick={() =>
               runTest('Update Status', () =>
                 apiService.updateOrderStatus(testOrderId, 'attended', sellerId),
@@ -127,7 +127,7 @@ export default function TestApiPage() {
             Update Status
           </button>
           <button
-            className="bg-secondary text-on-secondary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform"
+            className="bg-secondary text-secondary-content p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform"
             onClick={() =>
               runTest('Download PDF', () => apiService.downloadOrderPdf(testOrderId, sellerId))
             }
@@ -135,7 +135,7 @@ export default function TestApiPage() {
             Download PDF
           </button>
           <button
-            className="bg-secondary text-on-secondary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform"
+            className="bg-secondary text-secondary-content p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform"
             onClick={() =>
               runTest('Send Email', () => apiService.sendOrderEmail(testOrderId, sellerId))
             }
@@ -167,12 +167,12 @@ export default function TestApiPage() {
 
       <div className="space-y-4">
         {results.map((r, i) => (
-          <div key={i} className="bg-surface rounded-xl border border-outline/10 p-4 shadow-sm">
+          <div key={i} className="bg-base-100 rounded-xl border border-[var(--color-border)]/10 p-4 shadow-sm">
             <p className="font-mono font-bold text-sm text-primary mb-2 flex justify-between">
               <span>{r.name}</span>
-              <span className="text-outline/60">{r.time}</span>
+              <span className="text-[var(--color-text-muted)]/60">{r.time}</span>
             </p>
-            <pre className="text-xs bg-surface-variant p-3 rounded-lg overflow-x-auto text-on-surface-variant">
+            <pre className="text-xs bg-[var(--color-surface-800)] p-3 rounded-lg overflow-x-auto text-[var(--color-text-muted)]">
               {typeof r.result === 'object' ? JSON.stringify(r.result, null, 2) : String(r.result)}
             </pre>
           </div>

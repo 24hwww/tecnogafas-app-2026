@@ -48,7 +48,7 @@ export function ChatMessageList() {
     <div
       ref={listRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto px-2 py-4 space-y-2 bg-surface"
+      className="flex-1 overflow-y-auto px-2 py-4 space-y-2 bg-base-100"
     >
       {/* Cargar más mensajes */}
       {hasMore && (
@@ -62,7 +62,7 @@ export function ChatMessageList() {
             className={`
               text-xs px-4 py-2 rounded-full border border-primary/20
               transition-all active:scale-95
-              ${isLoading ? 'bg-surface-variant text-gray-400' : 'bg-primary/5 text-primary hover:bg-primary/10'}
+              ${isLoading ? 'bg-[var(--color-surface-800)] text-gray-400' : 'bg-primary/5 text-primary hover:bg-primary/10'}
             `}
           >
             {isLoading ? (

@@ -32,7 +32,7 @@ export default function ChatTest() {
 
   const AuthBadge = () => {
     if (!currentUser)
-      return <span className="text-xs text-on-surface-variant italic">No autenticado</span>;
+      return <span className="text-xs text-[var(--color-text-muted)] italic">No autenticado</span>;
     return (
       <span className="text-xs bg-secondary/10 text-secondary px-2 py-1 rounded-lg font-mono">
         {currentUser.email}
@@ -207,17 +207,17 @@ export default function ChatTest() {
   };
 
   return (
-    <div className="p-6 bg-surface rounded-2xl border border-outline/20 max-w-2xl mx-auto space-y-6">
-      <h2 className="text-2xl font-bold text-on-surface">🧪 Test de Chat</h2>
+    <div className="p-6 bg-base-100 rounded-2xl border border-[var(--color-border)]/20 max-w-2xl mx-auto space-y-6">
+      <h2 className="text-2xl font-bold text-base-content">🧪 Test de Chat</h2>
 
       {/* Status */}
       <div className="flex items-center gap-3">
-        <span className="text-on-surface-variant">Estado:</span>
+        <span className="text-[var(--color-text-muted)]">Estado:</span>
         <span
           className={`
           px-3 py-1 rounded-full text-sm font-medium
-          ${status === 'idle' ? 'bg-surface-variant text-on-surface-variant' : ''}
-          ${status === 'testing' ? 'bg-primary-container text-on-primary-container' : ''}
+          ${status === 'idle' ? 'bg-[var(--color-surface-800)] text-[var(--color-text-muted)]' : ''}
+          ${status === 'testing' ? 'bg-primary/10 text-primary' : ''}
           ${status === 'success' ? 'bg-green-100 text-green-700' : ''}
           ${status === 'error' ? 'bg-error-container text-on-error-container' : ''}
         `}
@@ -242,14 +242,14 @@ export default function ChatTest() {
       <div className="flex flex-wrap gap-3">
         <button
           onClick={testConnection}
-          className="px-4 py-2 bg-primary text-on-primary rounded-xl hover:opacity-90 transition-opacity"
+          className="px-4 py-2 bg-primary text-primary-content rounded-xl hover:opacity-90 transition-opacity"
         >
           1. Probar Conexión
         </button>
 
         <button
           onClick={loadMessages}
-          className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-xl hover:opacity-90 transition-opacity"
+          className="px-4 py-2 bg-secondary-container text-secondary-content-container rounded-xl hover:opacity-90 transition-opacity"
         >
           2. Cargar Mensajes
         </button>
@@ -264,19 +264,19 @@ export default function ChatTest() {
 
       {/* Enviar mensaje */}
       <div className="space-y-3">
-        <h3 className="font-medium text-on-surface">3. Enviar mensaje de prueba</h3>
+        <h3 className="font-medium text-base-content">3. Enviar mensaje de prueba</h3>
         <div className="flex gap-2">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Escribe un mensaje..."
-            className="flex-1 px-4 py-2 bg-surface-variant rounded-xl text-on-surface placeholder:text-on-surface-variant outline-none focus:ring-2 focus:ring-primary"
+            className="flex-1 px-4 py-2 bg-[var(--color-surface-800)] rounded-xl text-base-content placeholder:text-[var(--color-text-muted)] outline-none focus:ring-2 focus:ring-primary"
             onKeyDown={(e) => e.key === 'Enter' && sendTestMessage()}
           />
           <button
             onClick={sendTestMessage}
-            className="px-4 py-2 bg-primary text-on-primary rounded-xl hover:opacity-90 transition-opacity"
+            className="px-4 py-2 bg-primary text-primary-content rounded-xl hover:opacity-90 transition-opacity"
           >
             Enviar
           </button>
@@ -294,12 +294,12 @@ export default function ChatTest() {
       {/* Lista de mensajes */}
       {messages.length > 0 && (
         <div className="space-y-2">
-          <h3 className="font-medium text-on-surface">Mensajes recientes:</h3>
+          <h3 className="font-medium text-base-content">Mensajes recientes:</h3>
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {messages.map((msg) => (
-              <div key={msg.id} className="p-3 bg-surface-variant rounded-xl">
-                <p className="text-on-surface">{msg.content}</p>
-                <p className="text-xs text-on-surface-variant mt-1">
+              <div key={msg.id} className="p-3 bg-[var(--color-surface-800)] rounded-xl">
+                <p className="text-base-content">{msg.content}</p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">
                   {new Date(msg.created_at).toLocaleString()}
                 </p>
               </div>
@@ -310,8 +310,8 @@ export default function ChatTest() {
 
       {/* Debug info */}
       <details className="text-sm">
-        <summary className="text-on-surface-variant cursor-pointer">Información de debug</summary>
-        <div className="mt-2 p-3 bg-surface-variant rounded-xl text-on-surface-variant font-mono text-xs">
+        <summary className="text-[var(--color-text-muted)] cursor-pointer">Información de debug</summary>
+        <div className="mt-2 p-3 bg-[var(--color-surface-800)] rounded-xl text-[var(--color-text-muted)] font-mono text-xs">
           <p>Supabase URL: {import.meta.env.VITE_SUPABASE_URL || 'NO CONFIGURADO'}</p>
           <p>
             Anon Key:{' '}

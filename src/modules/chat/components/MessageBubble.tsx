@@ -51,7 +51,7 @@ export function MessageBubble({ message, isCurrentUser, isConsecutive }: Message
           ${
             isCurrentUser
               ? 'bg-primary/10 border-r-2 border-primary text-right'
-              : 'bg-surface-container border-l-2 border-primary-container text-left'
+              : 'bg-base-100-container border-l-2 border-primary-container text-left'
           }
           ${message.is_deleted ? 'opacity-50 italic' : ''}
         `}

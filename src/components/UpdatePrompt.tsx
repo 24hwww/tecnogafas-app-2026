@@ -44,7 +44,7 @@ export function UpdatePrompt() {
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           className="fixed bottom-20 left-4 right-4 z-50 flex items-center justify-center pointer-events-none"
         >
-          <div className="bg-surface m3-card border border-primary/20 shadow-2xl p-4 flex flex-col gap-3 pointer-events-auto max-w-sm w-full">
+          <div className="bg-base-200 border border-[var(--color-border)] shadow-2xl rounded-xl p-4 flex flex-col gap-3 pointer-events-auto max-w-sm w-full">
             <div className="flex items-start justify-between">
               <div>
                 <h4 id="update-prompt-title" className="font-bold text-sm">
@@ -54,7 +54,7 @@ export function UpdatePrompt() {
                       ? '¡Nueva actualización!'
                       : 'App lista'}
                 </h4>
-                <p className="text-xs text-on-surface-variant mt-1">
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">
                   {hasNewVersion
                     ? `Hay una nueva versión (${currentAppVersion}) disponible. Se recomienda limpiar el cache para ver los cambios.`
                     : needRefresh
@@ -65,7 +65,7 @@ export function UpdatePrompt() {
               <button
                 id="update-prompt-close-btn"
                 onClick={close}
-                className="p-1 hover:bg-surface-variant rounded-full text-outline"
+                className="p-1 hover:bg-[var(--color-surface-800)] rounded-full text-[var(--color-text-muted)]"
               >
                 <X size={16} />
               </button>
@@ -75,7 +75,7 @@ export function UpdatePrompt() {
               <button
                 id="update-prompt-update-btn"
                 onClick={() => updateServiceWorker(true)}
-                className="m3-button-filled w-full font-bold text-xs py-2.5 flex items-center justify-center gap-2"
+                className="btn btn-primary w-full font-bold text-xs py-2.5 flex items-center justify-center gap-2"
               >
                 <RefreshCw size={14} className="animate-spin" />
                 Actualizar ahora

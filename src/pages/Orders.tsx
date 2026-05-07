@@ -1,119 +1,111 @@
-import { toBlob } from 'html-to-image';
 import {
-  CheckCircle2,
   FileText,
   Loader2,
   Mail,
-  RefreshCw,
   RotateCcw,
-  Save,
-  Send,
-  Share2,
+  Search,
   X,
+  Calendar,
+  User,
+  Tag,
+  CreditCard,
+  Truck,
+  MessageSquare,
+  CheckCircle2,
+  ChevronRight,
+  TrendingUp,
 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { PullToRefresh } from '../components/PullToRefresh';
-import { OrderSkeleton } from '../components/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { useOrders } from '../contexts/OrdersContext';
-import { formatCurrency, formatDateTimeBA, formatTimeBA, getRelativeTime } from '../lib/utils';
+import {
+  formatCurrency,
+  formatDateTimeBA,
+  formatTimeBA,
+  getRelativeTime,
+  cn,
+} from '../lib/utils';
 import { apiService } from '../services/apiService';
-import type { DraftOrder, Order } from '../types';
+import type { Order } from '../types';
+
+function OrderSkeleton() {
+  return (
+    <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-2xl p-5 space-y-4 animate-pulse">
+      <div className="flex justify-between items-center">
+        <div className="h-4 bg-[var(--color-surface-900)] rounded w-1/3"></div>
+        <div className="h-4 bg-[var(--color-surface-900)] rounded w-1/4"></div>
+      </div>
+      <div className="space-y-2">
+        <div className="h-3 bg-[var(--color-surface-900)] rounded w-full"></div>
+        <div className="h-3 bg-[var(--color-surface-900)] rounded w-5/6"></div>
+      </div>
+      <div className="pt-2 border-t border-[var(--color-border)]/10 flex justify-between">
+        <div className="h-6 bg-[var(--color-surface-900)] rounded w-1/4"></div>
+        <div className="h-6 bg-[var(--color-surface-900)] rounded w-1/3"></div>
+      </div>
+    </div>
+  );
+}
 
 export default function Orders() {
-  const { orders, fetchOrders } = useOrders();
-  const { drafts, loadDraft, clearCart, addToCart, setSelectedClient } = useCart();
-  const { clients, sellers, isLoading, refreshData } = useApp();
+  const { orders, isOrdersLoading: isLoading, fetchOrders: refreshOrders } = useOrders();
+  const { sellers, clients, refreshData } = useApp();
+  const { drafts } = useCart();
   const { globalPin, setGlobalPin } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [sharingDraftId, setSharingDraftId] = useState<string | null>(null);
-  const receiptRef = useRef<HTMLDivElement>(null);
+  const [searchParams] = useSearchParams();
+  const targetId = searchParams.get('id');
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSeller, setSelectedSeller] = useState<string>('');
-  const [selectedCustomer, setSelectedCustomer] = useState<string>('');
+  const [selectedSeller, setSelectedSeller] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [sharingDraftId, setSharingDraftId] = useState<string | null>(null);
 
-  // Helper para obtener nombre del vendedor por ID
-  const getSellerName = (sellerId: string) => {
-    const seller = sellers.find((s) => s.id === sellerId);
-    return seller?.name || 'Vendedor desconocido';
-  };
-
-  // Helper para extraer número de pedido del título (formato: "Pedido #12345" o similar)
-  const getOrderNumber = (title: string) => {
-    const match = title.match(/#(\d+)/);
-    return match ? `#${match[1]}` : '';
-  };
-
-  // New states for actions
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pin, setPin] = useState('');
   const [actionType, setActionType] = useState<'pdf' | 'email' | 'status' | 'regenerar' | null>(
     null,
   );
-  const [pinModalOpen, setPinModalOpen] = useState(false);
-  const [pin, setPin] = useState('');
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<{
     message: string;
-    type: 'error' | 'success';
+    type: 'success' | 'error';
   } | null>(null);
 
-  const [isRegenerating, setIsRegenerating] = useState(false);
+  const receiptRef = useRef<HTMLDivElement>(null);
 
-  // Auto-select order if passed via state
-  const targetId = location.state?.highlightOrderId || location.state?.newOrderId;
-  const effectRan = useRef(false);
-
-  useEffect(() => {
-    if (targetId && orders.length > 0 && !selectedOrder && !effectRan.current) {
-      const found = orders.find((o) => o.id.toString() === targetId.toString());
-      if (found) {
-        setSelectedOrder(found);
-        effectRan.current = true;
-      }
-    }
-  }, [orders, targetId, selectedOrder]);
-
-  // Fetch orders when page changes or filters change
-  // Usar fetchOrders del contexto que ya maneja loading y estado global
-  const loadOrders = async (sellerId?: string, customerId?: string) => {
-    await fetchOrders(
-      1,
-      100,
-      sellerId ? parseInt(sellerId) : undefined,
-      customerId ? parseInt(customerId) : undefined,
-    );
+  const getSellerName = (id: string | number) => {
+    const seller = sellers.find((s) => s.id.toString() === id.toString());
+    return seller ? seller.name : 'Vendedor Desconocido';
   };
 
-  const handleSellerChange = (sellerId: string) => {
-    setSelectedSeller(sellerId);
-    loadOrders(sellerId, selectedCustomer);
+  const getOrderNumber = (title: string) => {
+    const match = title.match(/#(\d+)/);
+    return match ? match[1] : null;
   };
 
-  const handleCustomerChange = (customerId: string) => {
-    setSelectedCustomer(customerId);
-    loadOrders(selectedSeller, customerId);
-  };
-
-  // Filter orders by title locally
   const filteredOrders = orders.filter((order) => {
-    if (order.rawData?.post_title?.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return true;
-    }
-    return false;
+    const matchesSearch =
+      order.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.rawData?.post_title || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSeller = !selectedSeller || order.sellerId.toString() === selectedSeller;
+    const matchesCustomer = !selectedCustomer || order.clientId.toString() === selectedCustomer;
+    return matchesSearch && matchesSeller && matchesCustomer;
   });
 
-  // Debug log
+  const handleSellerChange = (val: string) => setSelectedSeller(val);
+  const handleCustomerChange = (val: string) => setSelectedCustomer(val);
 
-  const handleActionClick = async (type: 'pdf' | 'email' | 'status' | 'regenerar') => {
+  const handleActionClick = (type: 'pdf' | 'email' | 'status' | 'regenerar') => {
     setActionType(type);
     if (globalPin) {
-      await executeAction(type, globalPin);
+      executeAction(globalPin);
     } else {
       setPinModalOpen(true);
       setPin('');
@@ -121,696 +113,382 @@ export default function Orders() {
     }
   };
 
-  const executeAction = async (overrideActionType?: string, overridePin?: string) => {
-    const currentPin = overridePin || pin;
-    const currentAction = overrideActionType || actionType;
+  const executeAction = async (validatedPin?: string) => {
+    if (!selectedOrder || !actionType) return;
+    const pinToUse = validatedPin || pin;
+    if (!pinToUse || pinToUse.length !== 8) {
+      setActionFeedback({ message: 'PIN inválido', type: 'error' });
+      return;
+    }
 
-    if (!currentPin || !selectedOrder || !currentAction) return;
     setIsActionLoading(true);
     setActionFeedback(null);
+
     try {
-      const sellerInfo = await apiService.loginSeller(currentPin);
-      if (!sellerInfo) {
-        setActionFeedback({ message: 'PIN incorrecto o error de red', type: 'error' });
+      const seller = await apiService.loginSeller(pinToUse);
+      if (!seller) {
+        setActionFeedback({ message: 'PIN incorrecto', type: 'error' });
         setIsActionLoading(false);
         return;
       }
 
-      setGlobalPin(currentPin);
+      setGlobalPin(pinToUse);
+      setPinModalOpen(false);
 
-      if (currentAction === 'pdf') {
-        const success = await apiService.downloadOrderPdf(selectedOrder.id, sellerInfo.id);
-        if (success) {
-          setPinModalOpen(false);
-          alert('PDF descargado exitosamente');
+      if (actionType === 'pdf') {
+        const res = await apiService.sendOrderEmail(selectedOrder.id.toString(), seller.id);
+        if (res.success && res.pdf_url) {
+          window.open(res.pdf_url, '_blank');
         } else {
-          setActionFeedback({ message: 'Error al descargar el PDF', type: 'error' });
+          throw new Error(res.message || 'Error al generar PDF');
         }
-      } else if (currentAction === 'email') {
-        const res = await apiService.sendOrderEmail(selectedOrder.id, sellerInfo.id);
+      } else if (actionType === 'email') {
+        const res = await apiService.sendOrderEmail(selectedOrder.id.toString(), seller.id);
+        if (!res.success) throw new Error(res.message || 'Error al enviar email');
+        alert('Email enviado correctamente');
+      } else if (actionType === 'status') {
+        const newStatus = selectedOrder.status === 'Pendiente' ? 'Atendido' : 'Pendiente';
+        const res = await apiService.updateOrderStatus(
+          selectedOrder.id.toString(),
+          newStatus,
+          seller.id,
+        );
         if (res.success) {
-          setPinModalOpen(false);
-          alert('Email enviado exitosamente');
+          setSelectedOrder({ ...selectedOrder, status: newStatus });
+          refreshOrders();
         } else {
-          setActionFeedback({ message: res.message, type: 'error' });
+          throw new Error(res.message || 'Error al actualizar estado');
         }
-      } else if (currentAction === 'status') {
-        const newStatus = selectedOrder.status === 'Pendiente' ? 'attended' : 'unattended';
-        const res = await apiService.updateOrderStatus(selectedOrder.id, newStatus, sellerInfo.id);
-        if (res.success) {
-          setPinModalOpen(false);
-          alert(`Estado actualizado a ${newStatus === 'attended' ? 'Completado' : 'Pendiente'}`);
-          window.location.reload(); // Quick refresh
-        } else {
-          setActionFeedback({ message: res.message, type: 'error' });
-        }
-      } else if (currentAction === 'regenerar') {
+      } else if (actionType === 'regenerar') {
         setIsRegenerating(true);
-        try {
-          const items = selectedOrder.items
-            .filter((item) => item.productId && item.productId !== '')
-            .map((item) => ({
-              id: item.productId.toString(), // Map existing item ID
-              name: item.productName,
-              price: item.price,
-              quantity: item.quantity,
-              vid: item.vid,
-            }));
-
-          if (items.length === 0) {
-            throw new Error('No hay productos válidos en el pedido');
-          }
-
-          // Find the client from the clients list
-          const client = clients.find((c) => c.id === selectedOrder.clientId);
-          if (!client) {
-            throw new Error('Cliente no encontrado');
-          }
-
-          // Clear current cart and set the client
-          console.log('🔄 Clearing cart...');
-          clearCart();
-
-          console.log('👤 Setting client:', client);
-          setSelectedClient(client);
-
-          // Add each item to cart
-          console.log('🛒 Adding items to cart:', items);
-          items.forEach((item) => {
-            const product = {
-              id: item.id,
-              name: item.name,
-              price: item.price,
-              quantity: item.quantity,
-              vid: item.vid,
-              category: '',
-              stock: 0,
-              description: '',
-            };
-            console.log('📦 Adding product:', product);
-            addToCart(product, item.quantity);
-          });
-
-          console.log('✅ Regeneration completed, navigating to /carrito');
-
-          setPinModalOpen(false);
-          alert('Pedido regenerado en el carrito con éxito');
-          setSelectedOrder(null);
-
-          // Navigate to cart page
-          navigate('/carrito');
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : 'Error al regenerar el pedido';
-          setActionFeedback({ message: msg, type: 'error' });
-        } finally {
-          setIsRegenerating(false);
+        const res = await apiService.regenerateOrder(selectedOrder.id.toString(), seller.id);
+        setIsRegenerating(false);
+        if (res.success) {
+          alert('Pedido regenerado correctamente');
+          refreshOrders();
+        } else {
+          throw new Error(res.message || 'Error al regenerar pedido');
         }
       }
-    } catch {
-      setActionFeedback({ message: 'Error de conexión', type: 'error' });
+    } catch (err: any) {
+      setActionFeedback({ message: err.message || 'Error en la acción', type: 'error' });
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  const handleLoadDraft = (id: string) => {
-    loadDraft(id);
-    navigate('/pago');
-  };
-
-  const handleShareDraft = async (draft: DraftOrder) => {
-    setSharingDraftId(draft.id);
-
-    setTimeout(async () => {
-      if (receiptRef.current) {
-        try {
-          const blob = await toBlob(receiptRef.current, {
-            style: { transform: 'scale(1)', margin: '0' },
-            width: 400,
-          });
-          if (blob) {
-            const file = new File([blob], `Pedido_${draft.id.slice(-6)}.png`, {
-              type: 'image/png',
-            });
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-              await navigator.share({
-                title: 'Pedido',
-                text: 'Adjunto el borrador del pedido',
-                files: [file],
-              });
-            } else {
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `Pedido_${draft.id.slice(-6)}.png`;
-              a.click();
-              URL.revokeObjectURL(url);
-              alert('Imagen descargada. Puedes compartirla manualmente.');
-            }
-          }
-        } catch (e) {
-          console.error(e);
-          alert('Error al generar la imagen del pedido.');
-        } finally {
-          setSharingDraftId(null);
-        }
-      }
-    }, 200);
-  };
-
-  const hasDrafts = drafts.length > 0;
-  const noOrders = orders.length === 0 && !hasDrafts;
-  if (!isLoading && noOrders) {
-    return (
-      <PullToRefresh onRefresh={() => refreshData(false)}>
-        <div className="flex flex-col items-center justify-center p-8 text-center space-y-4 pt-20 min-h-[50vh]">
-          <h3 className="text-xl font-bold">Sin Pedidos</h3>
-          <p className="text-sm text-on-surface-variant">Todavía no has realizado ningún pedido.</p>
-        </div>
-      </PullToRefresh>
-    );
-  }
-
   return (
-    <PullToRefresh onRefresh={() => refreshData(false)}>
-      <div className="space-y-8 min-h-[50vh]">
-        {/* Drafts Section */}
-        {hasDrafts && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 id="orders-drafts-title" className="text-2xl font-bold">
-                Borradores
-              </h2>
-              <span className="text-[0.625rem] bg-secondary/10 text-secondary px-2 py-0.5 font-bold uppercase tracking-wider">
-                No Enviados
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {drafts
-                .filter((d) => d.status === 'no enviado')
-                .map((draft) => (
-                  <div
-                    key={draft.id}
-                    className="m3-card !p-0 overflow-hidden border-dashed border-2 border-outline/20"
-                  >
-                    <div className="p-4 border-b border-outline/10 flex justify-between items-center bg-surface-variant/20">
-                      <div>
-                        <p className="font-bold text-sm">Borrador #{draft.id.slice(-6)}</p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-[0.625rem] text-on-surface-variant font-mono font-medium flex gap-1 items-center uppercase">
-                            {new Date(draft.date).toLocaleDateString('es-AR', {
-                              timeZone: 'America/Argentina/Buenos_Aires',
-                              day: '2-digit',
-                              month: '2-digit',
-                            })}{' '}
-                            {formatTimeBA(draft.date)} HS – {getRelativeTime(draft.date)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs font-bold text-outline">
-                        <Save size={14} />
-                        PENDIENTE
-                      </div>
-                    </div>
-
-                    <div className="p-4 flex justify-between items-center bg-surface gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[0.625rem] text-on-surface-variant uppercase tracking-wider font-bold mb-1">
-                          Cliente
-                        </p>
-                        <p className="text-sm font-bold truncate leading-tight">
-                          {draft.client.name}
-                        </p>
-                      </div>
-                      <div className="flex gap-2 shrink-0">
-                        <button
-                          id={`orders-draft-share-btn-${draft.id}`}
-                          onClick={() => handleShareDraft(draft)}
-                          disabled={sharingDraftId === draft.id}
-                          className="m3-button-outlined !p-2 flex items-center justify-center border border-primary/20 text-primary hover:bg-primary/5 transition-colors disabled:opacity-50 h-[36px] w-[36px] rounded-lg shadow-sm"
-                          title="Compartir pedido"
-                        >
-                          {sharingDraftId === draft.id ? (
-                            <Loader2 size={16} className="animate-spin text-primary" />
-                          ) : (
-                            <Share2 size={16} className="text-primary" />
-                          )}
-                        </button>
-                        <button
-                          id={`orders-draft-continue-btn-${draft.id}`}
-                          onClick={() => handleLoadDraft(draft.id)}
-                          className="m3-button-filled !py-2 !px-4 text-[0.625rem] flex items-center gap-2 whitespace-nowrap h-[2.25rem] shadow-sm hover:shadow-md transition-all active:scale-95 rounded-lg"
-                        >
-                          REVISAR Y ENVIAR <Send size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-            </div>
+    <PullToRefresh onRefresh={refreshOrders}>
+      <div className="space-y-8 max-w-5xl mx-auto pb-20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 id="orders-title" className="text-3xl font-black tracking-tight">Pedidos</h2>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">Gestión y seguimiento de ventas</p>
           </div>
-        )}
-
-        {/* Orders Section */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 id="orders-title" className="text-2xl font-bold">
-              Pedidos
-            </h2>
-            <button
-              id="orders-sync-btn"
-              onClick={() =>
-                fetchOrders(
-                  1,
-                  100,
-                  selectedSeller ? parseInt(selectedSeller) : undefined,
-                  selectedCustomer ? parseInt(selectedCustomer) : undefined,
-                )
-              }
-              disabled={isLoading}
-              className={`p-2.5 hover:bg-surface-variant rounded-full transition-all ${isLoading ? 'animate-spin' : ''}`}
-              title="Sincronizar pedidos"
-            >
-              <RefreshCw size={20} className="text-primary" />
-            </button>
+          <div className="flex items-center gap-2 bg-[var(--color-surface-800)] p-1 rounded-2xl border border-[var(--color-border)]">
+             <div className="px-4 py-2 flex flex-col items-center border-r border-[var(--color-border)]">
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Total</span>
+                <span className="text-lg font-black text-primary">{orders.length}</span>
+             </div>
+             <div className="px-4 py-2 flex flex-col items-center">
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Pendientes</span>
+                <span className="text-lg font-black text-warning">
+                   {orders.filter(o => o.status.toLowerCase().includes('pend')).length}
+                </span>
+             </div>
           </div>
+        </div>
 
-          <div className="flex flex-col gap-3">
+        {/* Filters Section */}
+        <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-3xl p-6 shadow-xl space-y-4">
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] group-focus-within:text-primary transition-colors" size={20} />
             <input
               id="orders-search-input"
               type="text"
-              placeholder="Buscar por título..."
-              className="w-full p-3 m3-input rounded-lg border border-outline/20"
+              placeholder="Buscar por cliente o número..."
+              className="w-full pl-12 pr-4 py-4 bg-[var(--color-surface-900)] rounded-2xl border border-[var(--color-border)] focus:ring-2 focus:ring-primary/20 outline-none font-medium text-sm transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-
-            <div className="grid grid-cols-2 gap-3">
-              <select
-                id="orders-seller-select"
-                className="p-3 m3-input rounded-lg border border-outline/20 text-sm bg-surface"
-                value={selectedSeller}
-                onChange={(e) => handleSellerChange(e.target.value)}
-              >
-                <option value="">Todos los Vendedores</option>
-                {sellers.map((seller) => (
-                  <option key={seller.id} value={seller.id}>
-                    {seller.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                id="orders-client-select"
-                className="p-3 m3-input rounded-lg border border-outline/20 text-sm bg-surface"
-                value={selectedCustomer}
-                onChange={(e) => handleCustomerChange(e.target.value)}
-              >
-                <option value="">Todos los Clientes</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
-          <div className="space-y-3">
-            {isLoading ? (
-              Array(4)
-                .fill(0)
-                .map((_, i) => <OrderSkeleton key={i} />)
-            ) : filteredOrders.length === 0 ? (
-              <p className="text-center p-4 text-on-surface-variant text-sm">
-                No se encontraron pedidos
-              </p>
-            ) : (
-              filteredOrders.map((order) => {
-                const isHighlight = targetId?.toString() === order.id.toString();
-                return (
-                  <motion.div
-                    key={order.id}
-                    initial={isHighlight ? { backgroundColor: '#fef3c7' } : {}}
-                    animate={isHighlight ? { backgroundColor: 'transparent' } : {}}
-                    transition={{ duration: 2 }}
-                    className="m3-card !p-0 overflow-hidden"
-                  >
-                    <div className="p-4 border-b border-outline/10 flex justify-between items-center bg-primary/5">
-                      <div className="flex-1 min-w-0 pr-2">
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-sm truncate">
-                            {order.rawData?.post_title || order.clientName}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[0.625rem] text-on-surface-variant font-mono font-medium uppercase">
-                            {new Date(order.createdAt).toLocaleDateString('es-AR', {
-                              timeZone: 'America/Argentina/Buenos_Aires',
-                              day: '2-digit',
-                              month: '2-digit',
-                            })}{' '}
-                            {formatTimeBA(order.createdAt)} HS
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-on-surface-variant">Pedido</span>
-                        {order.rawData?.post_title && getOrderNumber(order.rawData.post_title) && (
-                          <span className="text-[0.625rem] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-mono font-bold">
-                            {getOrderNumber(order.rawData.post_title)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-on-surface-variant">Vendedor</span>
-                        <span className="text-xs font-medium">{getSellerName(order.sellerId)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-on-surface-variant">Estado</span>
-                        <span
-                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${order.status.toLowerCase().includes('pend') ? 'bg-orange-500/10 text-orange-600' : 'bg-green-500/10 text-green-600'}`}
-                        >
-                          {order.status}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-on-surface-variant">Items</span>
-                        <span className="text-xs font-medium bg-surface-variant px-2 py-0.5 rounded-full">
-                          {order.items?.length || 0}
-                        </span>
-                      </div>
-                      <div className="pt-2 border-t border-outline/5 flex justify-between items-center">
-                        <span className="font-bold">Total</span>
-                        <span className="font-bold text-primary text-lg">
-                          {formatCurrency(order.total || 0)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <button
-                      id={`orders-view-details-btn-${order.id}`}
-                      onClick={() => setSelectedOrder(order)}
-                      className="w-full py-4 font-bold text-sm tracking-widest bg-primary text-on-primary shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform"
-                    >
-                      <FileText size={20} />
-                      VER DETALLES
-                    </button>
-                  </motion.div>
-                );
-              })
-            )}
-
-            {/* Pagination Controls removed */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="form-control">
+               <label className="label py-1"><span className="label-text text-[10px] font-bold uppercase tracking-widest opacity-60">Vendedor</span></label>
+               <select
+                 className="select select-bordered bg-[var(--color-surface-900)] rounded-2xl h-12"
+                 value={selectedSeller}
+                 onChange={(e) => setSelectedSeller(e.target.value)}
+               >
+                 <option value="">Todos los Vendedores</option>
+                 {sellers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+               </select>
+            </div>
+            <div className="form-control">
+               <label className="label py-1"><span className="label-text text-[10px] font-bold uppercase tracking-widest opacity-60">Cliente</span></label>
+               <select
+                 className="select select-bordered bg-[var(--color-surface-900)] rounded-2xl h-12"
+                 value={selectedCustomer}
+                 onChange={(e) => setSelectedCustomer(e.target.value)}
+               >
+                 <option value="">Todos los Clientes</option>
+                 {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+               </select>
+            </div>
           </div>
         </div>
 
-        {selectedOrder && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="m3-card !bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4">
-              <div className="flex justify-between items-center border-b border-outline/10 pb-4">
-                <h2 id="orders-modal-title" className="text-xl font-bold text-primary">
-                  {selectedOrder.rawData?.post_title || `Pedido ${selectedOrder.id}`}
-                </h2>
-                <button
-                  id="orders-modal-close-btn"
-                  onClick={() => setSelectedOrder(null)}
-                  className="p-2 hover:bg-surface-variant rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="space-y-4 text-sm bg-surface-variant/20 p-4 rounded-lg">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[0.625rem] uppercase font-bold text-outline">Estado</p>
-                    <p className="font-bold">{selectedOrder.status}</p>
-                  </div>
-                  <div>
-                    <p className="text-[0.625rem] uppercase font-bold text-outline">Fecha</p>
-                    <p className="font-medium">{formatDateTimeBA(selectedOrder.createdAt)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[0.625rem] uppercase font-bold text-outline">Cliente</p>
-                    <p className="font-bold">{selectedOrder.clientName}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-[0.625rem] uppercase font-bold text-outline">Transporte</p>
-                    <p className="font-medium">
-                      {selectedOrder.rawData?.transport || 'Sin definir'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[0.625rem] uppercase font-bold text-outline">
-                      Método de Pago
-                    </p>
-                    <p className="font-medium">
-                      {selectedOrder.rawData?.methodpay || 'Sin definir'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-outline/10">
-                  <p className="text-[0.625rem] uppercase font-bold text-outline mb-1">
-                    Observaciones
-                  </p>
-                  <div className="bg-surface p-3 rounded border border-outline/10 text-sm font-medium italic text-on-surface">
-                    {selectedOrder.rawData?.customer_note || 'Sin observaciones adicionales.'}
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-outline/10">
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-outline">Descuento</span>
-                    <span className="font-medium">{selectedOrder.rawData?.discount || 0}%</span>
-                  </div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-outline">Recargo</span>
-                    <span className="font-medium">{selectedOrder.rawData?.recargo || 0}%</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-outline">IVA</span>
-                    <span className="font-medium">{selectedOrder.rawData?.iva || 21}%</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <div className="flex justify-between items-center">
-                  <p className="font-bold text-sm uppercase tracking-wider text-primary">
-                    Productos
-                  </p>
-                  <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                    {selectedOrder.items.length} items
-                  </span>
-                </div>
-                <div className="max-h-[200px] overflow-y-auto pr-1 space-y-1">
-                  {selectedOrder.items.map((item, i) => (
-                    <div
-                      key={i}
-                      className="flex justify-between text-xs py-2 border-b border-outline/5 last:border-0"
-                    >
-                      <div className="flex-1 pr-4">
-                        <p className="font-bold">{item.productName}</p>
-                        <p className="text-outline">
-                          {item.quantity} x {formatCurrency(item.price)}
-                        </p>
-                      </div>
-                      <div className="text-right font-bold">
-                        {formatCurrency(item.price * item.quantity)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="pt-3 border-t-2 border-primary/20 flex justify-between items-center">
-                  <span className="font-black text-sm uppercase">Total Pedido</span>
-                  <span className="font-black text-xl text-primary">
-                    {formatCurrency(selectedOrder.total)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 pt-4 border-t border-outline/10">
-                <button
-                  id="orders-modal-status-btn"
-                  onClick={() => handleActionClick('status')}
-                  className="w-full m3-button-outlined flex items-center justify-center gap-2 py-3"
-                >
-                  <CheckCircle2 size={16} />{' '}
-                  {selectedOrder.status === 'Pendiente' ? 'Marcar Atendido' : 'Marcar Pendiente'}
-                </button>
-                <button
-                  id="orders-modal-email-btn"
-                  onClick={() => handleActionClick('email')}
-                  className="w-full m3-button-outlined flex items-center justify-center gap-2 py-3"
-                >
-                  <Mail size={16} /> Enviar Email
-                </button>
-                <button
-                  id="orders-modal-pdf-btn"
-                  onClick={() => handleActionClick('pdf')}
-                  className="w-full m3-button-filled flex items-center justify-center gap-2 py-3"
-                >
-                  <FileText size={16} /> Descargar PDF
-                </button>
-                <button
-                  id="orders-modal-regenerate-btn"
-                  onClick={() => handleActionClick('regenerar')}
-                  className="w-full py-3 bg-secondary text-on-secondary font-bold flex items-center justify-center gap-2 py-3 rounded-lg"
-                >
-                  {isRegenerating ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <RotateCcw size={16} />
-                  )}{' '}
-                  Regenerar Pedido
-                </button>
-              </div>
+        {/* Orders List */}
+        <div className="space-y-4">
+          {isLoading ? (
+            Array(4).fill(0).map((_, i) => <OrderSkeleton key={i} />)
+          ) : filteredOrders.length === 0 ? (
+            <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] border-dashed py-20 flex flex-col items-center text-center opacity-50">
+              <FileText size={60} className="mb-4" />
+              <p className="text-xl font-bold">No se encontraron pedidos</p>
+              <p className="text-sm mt-2">Intenta ajustar los filtros de búsqueda</p>
             </div>
-          </div>
-        )}
-
-        {pinModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => !isActionLoading && setPinModalOpen(false)}
-            />
-            <div className="relative bg-surface w-full max-w-xs p-6 shadow-2xl text-center space-y-4 rounded-xl">
-              <h3 className="text-xl font-bold uppercase tracking-tight">Autorización</h3>
-              <p className="text-sm text-on-surface-variant">
-                Ingrese su PIN de vendedor para {actionType === 'pdf' ? 'descargar' : 'enviar'} el
-                pedido
-              </p>
-              <input
-                type="password"
-                autoFocus
-                value={pin}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9]/g, '');
-                  setPin(value);
-                }}
-                className="w-full text-center text-2xl tracking-[0.5em] font-mono py-3 m3-input"
-                maxLength={8}
-                placeholder="••••••••"
-              />
-              {actionFeedback && (
-                <p
-                  className={`text-xs font-bold ${actionFeedback.type === 'error' ? 'text-red-500' : 'text-primary'}`}
-                >
-                  {actionFeedback.message}
-                </p>
-              )}
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={() => setPinModalOpen(false)}
-                  disabled={isActionLoading}
-                  className="flex-1 py-3 bg-surface-variant font-bold rounded"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => executeAction()}
-                  disabled={!pin || pin.length !== 8 || isActionLoading}
-                  className="flex-1 py-3 m3-button-filled font-bold flex items-center justify-center gap-2"
-                >
-                  {isActionLoading && <Loader2 size={16} className="animate-spin" />}
-                  Confirmar
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Hidden Receipt for Image Generation */}
-        <div className="absolute top-[-9999px] left-[-9999px]">
-          {sharingDraftId && (
-            <div
-              ref={receiptRef}
-              className="bg-white text-black p-6 w-[400px] shadow-lg rounded-xl flex flex-col font-sans"
-              style={{ fontFamily: 'Inter, sans-serif' }}
-            >
-              {(() => {
-                const d = drafts.find((x) => x.id === sharingDraftId);
-                if (!d) return null;
-                const subtotal = d.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-                const discountAmount = (subtotal * (Number(d.details?.discount) || 0)) / 100;
-                const recargoAmount = (subtotal * (Number(d.details?.recargo) || 0)) / 100;
-                const baseForIva = subtotal - discountAmount + recargoAmount;
-                const ivaAmount = (baseForIva * (Number(d.details?.iva) || 0)) / 100;
-                const finalTotal = baseForIva + ivaAmount;
-
+          ) : (
+            <div className="grid gap-4">
+              {filteredOrders.map((order) => {
+                const isHighlight = targetId?.toString() === order.id.toString();
+                const isPending = order.status.toLowerCase().includes('pend');
                 return (
-                  <>
-                    <div className="text-center border-b border-gray-200 pb-4 mb-4">
-                      <h1 className="text-2xl font-bold uppercase tracking-tight">PRE-PEDIDO</h1>
-                      <p className="text-sm text-gray-500">
-                        #{d.id.slice(-6)} - {formatDateTimeBA(d.date)}
-                      </p>
-                    </div>
-                    <div className="mb-4">
-                      <p className="text-sm">
-                        <strong className="uppercase">Cliente:</strong> {d.client.name}
-                      </p>
-                      <p className="text-sm">
-                        <strong>Email:</strong> {d.client.email}
-                      </p>
-                    </div>
-                    <div className="mb-4 border-b border-gray-200 pb-4">
-                      <h2 className="font-bold text-sm uppercase tracking-wider mb-2">Productos</h2>
-                      <ul className="space-y-2">
-                        {d.items.map((item, i) => (
-                          <li key={i} className="flex justify-between text-sm">
-                            <span className="flex-1 pr-2 truncate">
-                              {item.quantity}x {item.name}
+                  <motion.div
+                    layout
+                    key={order.id}
+                    initial={isHighlight ? { scale: 1.02, borderColor: 'var(--color-primary)' } : {}}
+                    animate={isHighlight ? { scale: 1, borderColor: 'var(--color-border)' } : {}}
+                    transition={{ duration: 1.5 }}
+                    className={cn(
+                       "card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-2xl overflow-hidden hover:border-primary/40 transition-all group shadow-sm",
+                       isHighlight && "ring-2 ring-primary ring-offset-4 ring-offset-background"
+                    )}
+                  >
+                    <div className="p-5 flex items-start justify-between">
+                      <div className="space-y-1 flex-1 min-w-0 pr-4">
+                         <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                               #{getOrderNumber(order.rawData?.post_title || '') || order.id}
                             </span>
-                            <span className="font-mono">
-                              {formatCurrency(item.price * item.quantity)}
+                            <span className={cn(
+                               "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest",
+                               isPending ? "bg-warning/10 text-warning" : "bg-success/10 text-success"
+                            )}>
+                               {order.status}
                             </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="space-y-1 mb-4 border-b border-gray-200 pb-4 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Subtotal</span>
-                        <span className="font-mono">{formatCurrency(subtotal)}</span>
+                         </div>
+                         <h4 className="text-lg font-black truncate">{order.clientName}</h4>
+                         <div className="flex items-center gap-3 text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest">
+                            <span className="flex items-center gap-1"><Calendar size={12} /> {formatDateTimeBA(order.createdAt)}</span>
+                            <span className="flex items-center gap-1"><User size={12} /> {getSellerName(order.sellerId)}</span>
+                         </div>
                       </div>
-                      {Number(d.details?.discount) > 0 && (
-                        <div className="flex justify-between text-green-600">
-                          <span>Descuento ({d.details.discount}%)</span>
-                          <span className="font-mono">-{formatCurrency(discountAmount)}</span>
-                        </div>
-                      )}
-                      {Number(d.details?.recargo) > 0 && (
-                        <div className="flex justify-between text-orange-600">
-                          <span>Recargo ({d.details.recargo}%)</span>
-                          <span className="font-mono">+{formatCurrency(recargoAmount)}</span>
-                        </div>
-                      )}
-                      {Number(d.details?.iva) > 0 && (
-                        <div className="flex justify-between text-gray-500">
-                          <span>IVA ({d.details.iva}%)</span>
-                          <span className="font-mono">+{formatCurrency(ivaAmount)}</span>
-                        </div>
-                      )}
+                      <div className="text-right shrink-0">
+                         <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Total</p>
+                         <p className="text-xl font-black text-primary leading-none">{formatCurrency(order.total || 0)}</p>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-xl font-black uppercase">
-                      <span>Total</span>
-                      <span className="font-mono">{formatCurrency(finalTotal)}</span>
+                    
+                    <div className="px-5 py-4 bg-[var(--color-surface-900)]/50 border-t border-[var(--color-border)]/10 flex justify-between items-center">
+                       <span className="text-xs font-medium text-[var(--color-text-muted)]">{order.items?.length || 0} productos</span>
+                       <button
+                         id={`orders-view-details-btn-${order.id}`}
+                         onClick={() => setSelectedOrder(order)}
+                         className="btn btn-primary btn-sm rounded-xl gap-2 font-bold px-5"
+                       >
+                         Ver Detalles <ChevronRight size={16} />
+                       </button>
                     </div>
-                  </>
+                  </motion.div>
                 );
-              })()}
+              })}
             </div>
           )}
         </div>
+
+        {/* Details Modal */}
+        <AnimatePresence>
+          {selectedOrder && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setSelectedOrder(null)} />
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                className="relative bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+              >
+                {/* Modal Header */}
+                <div className="p-8 border-b border-[var(--color-border)]/10 flex justify-between items-center bg-primary/5">
+                  <div className="flex items-center gap-4">
+                     <div className="w-14 h-14 bg-primary text-primary-content rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
+                        <FileText size={28} />
+                     </div>
+                     <div>
+                        <h3 className="text-2xl font-black tracking-tight leading-none">
+                           #{getOrderNumber(selectedOrder.rawData?.post_title || '') || selectedOrder.id}
+                        </h3>
+                        <p className="text-sm font-bold text-[var(--color-text-muted)] mt-1 uppercase tracking-widest">Detalle del Pedido</p>
+                     </div>
+                  </div>
+                  <button onClick={() => setSelectedOrder(null)} className="btn btn-ghost btn-square rounded-2xl">
+                    <X size={24} />
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                           <User size={18} className="text-primary shrink-0 mt-1" />
+                           <div>
+                              <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Cliente</p>
+                              <p className="font-bold text-lg">{selectedOrder.clientName}</p>
+                           </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                           <Tag size={18} className="text-primary shrink-0 mt-1" />
+                           <div>
+                              <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Estado</p>
+                              <span className={cn(
+                                 "badge badge-sm font-bold uppercase tracking-widest",
+                                 selectedOrder.status.toLowerCase().includes('pend') ? "badge-warning" : "badge-success"
+                              )}>{selectedOrder.status}</span>
+                           </div>
+                        </div>
+                     </div>
+                     <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                           <Calendar size={18} className="text-primary shrink-0 mt-1" />
+                           <div>
+                              <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Fecha y Hora</p>
+                              <p className="font-bold">{formatDateTimeBA(selectedOrder.createdAt)} hs</p>
+                           </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                           <TrendingUp size={18} className="text-primary shrink-0 mt-1" />
+                           <div>
+                              <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Vendedor</p>
+                              <p className="font-bold">{getSellerName(selectedOrder.sellerId)}</p>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* Extra Details */}
+                  <div className="bg-[var(--color-surface-900)] rounded-3xl p-6 border border-[var(--color-border)] grid grid-cols-1 sm:grid-cols-2 gap-6">
+                     <div className="flex items-center gap-3">
+                        <Truck size={18} className="text-primary" />
+                        <div>
+                           <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Transporte</p>
+                           <p className="font-bold text-sm">{selectedOrder.rawData?.transport || 'No especificado'}</p>
+                        </div>
+                     </div>
+                     <div className="flex items-center gap-3">
+                        <CreditCard size={18} className="text-primary" />
+                        <div>
+                           <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Método de Pago</p>
+                           <p className="font-bold text-sm">{selectedOrder.rawData?.methodpay || 'No especificado'}</p>
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* Note */}
+                  <div className="space-y-2">
+                     <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest flex items-center gap-2">
+                        <MessageSquare size={14} /> Observaciones
+                     </p>
+                     <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 italic text-sm text-[var(--color-text-muted)]">
+                        {selectedOrder.rawData?.customer_note || 'Sin observaciones adicionales.'}
+                     </div>
+                  </div>
+
+                  {/* Items List */}
+                  <div className="space-y-4">
+                     <h4 className="text-xl font-black tracking-tight flex items-center gap-2">
+                        <TrendingUp size={20} className="text-primary" /> Productos
+                     </h4>
+                     <div className="grid gap-2">
+                        {selectedOrder.items.map((item, i) => (
+                          <div key={i} className="flex justify-between items-center py-3 border-b border-[var(--color-border)]/5 last:border-0">
+                             <div className="flex-1 min-w-0 pr-4">
+                                <p className="font-bold text-sm truncate">{item.productName}</p>
+                                <p className="text-xs text-[var(--color-text-muted)]">{item.quantity} x {formatCurrency(item.price)}</p>
+                             </div>
+                             <div className="text-right">
+                                <p className="font-black text-primary">{formatCurrency(item.price * item.quantity)}</p>
+                             </div>
+                          </div>
+                        ))}
+                     </div>
+                  </div>
+                </div>
+
+                {/* Modal Footer Summary */}
+                <div className="p-8 bg-[var(--color-surface-900)] border-t border-[var(--color-border)]">
+                   <div className="flex justify-between items-center mb-6">
+                      <span className="text-xl font-black uppercase tracking-widest opacity-50">Total Final</span>
+                      <span className="text-4xl font-black text-primary">{formatCurrency(selectedOrder.total)}</span>
+                   </div>
+                   
+                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <button onClick={() => handleActionClick('status')} className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20">
+                         <CheckCircle2 size={20} />
+                         <span className="text-[10px] font-bold uppercase tracking-widest">{selectedOrder.status === 'Pendiente' ? 'Atendido' : 'Pendiente'}</span>
+                      </button>
+                      <button onClick={() => handleActionClick('email')} className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20">
+                         <Mail size={20} />
+                         <span className="text-[10px] font-bold uppercase tracking-widest">Enviar</span>
+                      </button>
+                      <button onClick={() => handleActionClick('pdf')} className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20">
+                         <FileText size={20} />
+                         <span className="text-[10px] font-bold uppercase tracking-widest">PDF</span>
+                      </button>
+                      <button onClick={() => handleActionClick('regenerar')} className="btn btn-secondary rounded-2xl flex flex-col items-center gap-1 h-20">
+                         {isRegenerating ? <Loader2 size={20} className="animate-spin" /> : <RotateCcw size={20} />}
+                         <span className="text-[10px] font-bold uppercase tracking-widest">Regenerar</span>
+                      </button>
+                   </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* PIN Verification Modal */}
+        <AnimatePresence>
+          {pinModalOpen && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setPinModalOpen(false)} />
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-[var(--color-surface-800)] p-8 rounded-[2.5rem] max-w-sm w-full text-center shadow-2xl">
+                <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
+                   <TrendingUp size={40} />
+                </div>
+                <h3 className="text-2xl font-bold mb-2">Autorización</h3>
+                <p className="text-[var(--color-text-muted)] text-sm mb-8">Ingrese su PIN de vendedor para autorizar esta acción.</p>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  placeholder="••••••••"
+                  maxLength={8}
+                  className="input input-bordered w-full bg-[var(--color-surface-900)] text-center text-3xl tracking-[0.5rem] font-black h-16 mb-4"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))}
+                  autoFocus
+                />
+                {actionFeedback && <p className={cn("text-xs font-bold mb-4 uppercase", actionFeedback.type === 'error' ? "text-error" : "text-success")}>{actionFeedback.message}</p>}
+                <div className="flex flex-col gap-3">
+                  <button onClick={() => executeAction()} disabled={isActionLoading || pin.length !== 8} className="btn btn-primary btn-lg rounded-2xl w-full h-14">
+                    {isActionLoading ? <span className="loading loading-spinner" /> : 'Confirmar Acción'}
+                  </button>
+                  <button onClick={() => setPinModalOpen(false)} className="btn btn-ghost btn-sm">Cancelar</button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </PullToRefresh>
   );

@@ -1,9 +1,11 @@
 import { type IDetectedBarcode, Scanner } from '@yudiel/react-qr-scanner';
-import { ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Scan, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import type { CartItem } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '../lib/utils';
 
 interface QRData {
   id: string;
@@ -29,32 +31,24 @@ export default function QRScanner() {
       const rawValue = detectedCodes[0].rawValue;
       console.log('QR Code detected:', rawValue);
 
-      // 1. Verificar si es una URL de carrito compartido (Nuevo formato)
       if (rawValue.includes('/shared-cart/')) {
         const parts = rawValue.split('/');
         const code = parts[parts.length - 1];
         if (code) {
           setScanning(false);
           setSuccess(true);
-          setTimeout(() => {
-            navigate(`/shared-cart/${code}`);
-          }, 1000);
+          setTimeout(() => navigate(`/shared-cart/${code}`), 1000);
           return;
         }
       }
 
-      // 2. Formato antiguo JSON
       const data: QRData = JSON.parse(rawValue);
-
-      // Basic validation
       if (!data.id || !data.items || !Array.isArray(data.items)) {
         throw new Error('Formato de QR inválido');
       }
 
       setScanning(false);
       setSuccess(true);
-
-      // Load into cart
       clearCart();
       setCart(data.items);
       if (data.client) {
@@ -66,13 +60,9 @@ export default function QRScanner() {
           address: '',
         });
       }
-
-      // Navigate to cart after short delay
-      setTimeout(() => {
-        navigate('/carrito');
-      }, 1500);
+      setTimeout(() => navigate('/carrito'), 1500);
     } catch (err) {
-      console.error('Error procesando el código QR:', err);
+      console.error('Error processing QR:', err);
       const rawValue = detectedCodes[0].rawValue;
       if (rawValue.includes('"items"') || rawValue.includes('/shared-cart/')) {
         setError('Error al leer los datos del carrito del código QR.');
@@ -87,75 +77,121 @@ export default function QRScanner() {
     setScanning(false);
   };
 
-  const handleGoBack = () => {
-    navigate(-1);
-  };
-
   return (
-    <div className="min-h-screen bg-surface flex flex-col p-4">
+    <div className="flex flex-col min-h-[80vh] max-w-2xl mx-auto py-8">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-10">
         <button
-          onClick={handleGoBack}
-          className="p-2 bg-surface-variant rounded-full text-on-surface hover:bg-surface-variant-hover transition-colors"
+          onClick={() => navigate(-1)}
+          className="btn btn-ghost btn-square rounded-2xl bg-[var(--color-surface-800)]"
         >
-          <ArrowLeft size={24} />
+          <ArrowLeft size={20} />
         </button>
-        <h1 className="text-2xl font-bold text-on-surface">Escanear Carrito</h1>
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Escáner QR</h2>
+          <p className="text-sm text-[var(--color-text-muted)]">Carga pedidos automáticamente</p>
+        </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center">
-        {success ? (
-          <div className="text-center m3-card p-6 w-full max-w-sm animate-in fade-in zoom-in duration-300">
-            <CheckCircle className="w-20 h-20 text-primary mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-on-surface mb-2">¡Éxito!</h2>
-            <p className="text-on-surface-variant">
-              Carrito cargado correctamente. Redirigiendo...
-            </p>
-          </div>
-        ) : error ? (
-          <div className="text-center m3-card p-6 w-full max-w-sm">
-            <XCircle className="w-20 h-20 text-error mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-error mb-4">Error</h2>
-            <p className="text-on-surface mb-6">{error}</p>
-            <button
-              onClick={() => {
-                setError(null);
-                setScanning(true);
-              }}
-              className="m3-button-filled w-full mb-3 py-3"
+      <div className="flex-1 flex flex-col items-center justify-center relative">
+        <AnimatePresence mode="wait">
+          {success ? (
+            <motion.div
+              key="success"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="text-center bg-[var(--color-surface-800)] border border-primary/20 p-10 rounded-[2.5rem] shadow-2xl max-w-sm w-full"
             >
-              Reintentar
-            </button>
-            <button onClick={() => navigate('/carrito')} className="m3-button-outlined w-full py-3">
-              Ir al Carrito
-            </button>
-          </div>
-        ) : (
-          <div className="w-full max-w-md">
-            <div className="m3-card overflow-hidden p-2 bg-surface-variant shadow-lg border-2 border-primary/20">
-              <div className="rounded-xl overflow-hidden aspect-square relative bg-black/5 flex items-center justify-center">
-                {scanning && (
-                  // @ts-expect-error - La librería tiene un desajuste de tipos con React 19 en su definición de JSX
-                  <Scanner
-                    onScan={handleScan}
-                    onError={handleError}
-                    components={{
-                      audio: false,
-                      finder: true,
-                    }}
-                  />
-                )}
-                <div className="absolute inset-0 pointer-events-none border-4 border-primary/50 rounded-xl z-10"></div>
+              <div className="w-24 h-24 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle size={50} />
               </div>
-            </div>
-            <p className="text-center text-on-surface-variant mt-6 text-sm font-medium">
-              Apunta la cámara al código QR generado en el PDF del pedido para cargar los datos
-              automáticamente al carrito.
-            </p>
-          </div>
-        )}
+              <h2 className="text-3xl font-black mb-2">¡Completado!</h2>
+              <p className="text-[var(--color-text-muted)] leading-relaxed">
+                El carrito ha sido cargado con éxito. Redirigiendo...
+              </p>
+            </motion.div>
+          ) : error ? (
+            <motion.div
+              key="error"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="text-center bg-[var(--color-surface-800)] border border-error/20 p-10 rounded-[2.5rem] shadow-2xl max-w-sm w-full"
+            >
+              <div className="w-24 h-24 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-6">
+                <XCircle size={50} />
+              </div>
+              <h2 className="text-2xl font-bold mb-4 text-error">Error de Lectura</h2>
+              <p className="text-sm text-[var(--color-text-muted)] mb-8">{error}</p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => { setError(null); setScanning(true); }}
+                  className="btn btn-primary btn-lg rounded-2xl w-full h-14"
+                >
+                  Reintentar
+                </button>
+                <button onClick={() => navigate('/carrito')} className="btn btn-ghost text-sm">
+                  Cancelar
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="scanner"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full space-y-8 flex flex-col items-center"
+            >
+              <div className="relative w-full max-w-sm group">
+                {/* Decorative glow */}
+                <div className="absolute -inset-1 bg-primary/20 rounded-[3rem] blur-xl group-hover:bg-primary/30 transition-all opacity-50"></div>
+                
+                <div className="relative bg-[var(--color-surface-800)] border-4 border-[var(--color-border)] rounded-[2.5rem] overflow-hidden aspect-square shadow-2xl flex items-center justify-center">
+                  {scanning && (
+                    <Scanner
+                      // @ts-expect-error Types mismatch with React 19
+                      onScan={handleScan}
+                      onError={handleError}
+                      components={{ audio: false, finder: true }}
+                      styles={{ container: { width: '100%', height: '100%' } }}
+                    />
+                  )}
+                  
+                  {/* Scan overlay */}
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div className="w-64 h-64 border-2 border-primary/40 rounded-3xl relative">
+                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-xl"></div>
+                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-xl"></div>
+                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-xl"></div>
+                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-xl"></div>
+                      
+                      {/* Scanning line animation */}
+                      <div className="w-full h-0.5 bg-primary/50 shadow-[0_0_15px_rgba(16,185,129,0.5)] absolute top-0 animate-[scan_2s_infinite_linear]"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[var(--color-surface-800)] p-6 rounded-3xl border border-[var(--color-border)] flex items-start gap-4 max-w-sm">
+                <div className="bg-primary/10 p-2 rounded-xl text-primary shrink-0">
+                  <Zap size={20} />
+                </div>
+                <p className="text-xs text-[var(--color-text-muted)] leading-relaxed font-medium">
+                  Escanee el código QR del PDF impreso o desde la pantalla de otro dispositivo para sincronizar instantáneamente el carrito de compras.
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes scan {
+          0% { top: 0; opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { top: 100%; opacity: 0; }
+        }
+      `}} />
     </div>
   );
 }

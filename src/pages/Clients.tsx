@@ -19,6 +19,7 @@ import { useApp } from '../AppContext';
 import { PullToRefresh } from '../components/PullToRefresh';
 import { ClientSkeleton } from '../components/Skeleton';
 import { useCart } from '../contexts/CartContext';
+import { cn } from '../lib/utils';
 import { apiService } from '../services/apiService';
 import type { Client } from '../types';
 
@@ -71,12 +72,14 @@ export default function Clients() {
   return (
     <PullToRefresh onRefresh={() => refreshData(false)}>
       <div className="space-y-4 min-h-[50vh]">
+        {/* Header */}
         <div className="flex items-center justify-between">
           <h2 id="clients-title" className="text-2xl font-bold">
             Clientes
           </h2>
           <button
             id="clients-add-btn"
+            type="button"
             onClick={() => {
               setEditingClient({
                 name: '',
@@ -89,25 +92,27 @@ export default function Clients() {
               });
               setIsModalOpen(true);
             }}
-            className="p-2 text-primary hover:bg-surface-variant transition-colors rounded-full"
+            className="btn btn-ghost btn-square btn-sm text-primary"
           >
-            <UserPlus size={24} />
-          </button>{' '}
+            <UserPlus size={20} />
+          </button>
         </div>
 
+        {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" size={20} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={18} />
           <input
             id="clients-search-input"
             type="text"
             placeholder="Buscar por nombre o correo..."
-            className="w-full bg-surface-variant py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            className="input input-bordered w-full pl-10 bg-base-200/50 focus:bg-base-100"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
 
-        <div className="space-y-3">
+        {/* Client List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {isLoading && clients.length === 0
             ? Array(6)
                 .fill(0)
@@ -117,30 +122,37 @@ export default function Clients() {
                 return (
                   <div
                     key={client.id}
-                    className={`m3-card relative transition-all border-2 ${
-                      isSelected ? 'border-primary bg-primary/5 shadow-md' : 'border-transparent'
-                    }`}
+                    className={cn(
+                      'card bg-base-100 shadow-sm border-2 p-4 transition-all',
+                      isSelected
+                        ? 'border-primary bg-primary/5 shadow-md'
+                        : 'border-base-300/40',
+                    )}
                   >
                     <div className="flex justify-between items-start">
                       <div
                         onClick={() => handleSelectClient(client)}
                         className="flex-1 cursor-pointer"
                       >
-                        <h4 className="font-semibold text-lg">{client.name}</h4>
-                        <p className="text-[0.625rem] text-primary font-bold mb-1">
+                        <h4 className="font-semibold text-base">{client.name}</h4>
+                        <p className="text-xs text-primary font-semibold mb-1">
                           {client.email}
                         </p>
-                        <p className="text-xs text-on-surface-variant flex items-center gap-1 mt-1">
+                        <p className="text-xs opacity-50 flex items-center gap-1 mt-1">
                           <Phone size={12} /> {client.phone || 'Sin teléfono'}
                         </p>
-                        <p className="text-xs text-on-surface-variant flex items-center gap-1 mt-1">
+                        <p className="text-xs opacity-50 flex items-center gap-1 mt-1">
                           <MapPin size={12} /> {client.address || 'Sin dirección'}
                         </p>
                         <div className="mt-3">
                           <button
                             id={`clients-select-btn-${client.id}`}
+                            type="button"
                             onClick={() => handleSelectClient(client)}
-                            className={`m3-button-filled w-full !py-2 text-xs flex items-center justify-center gap-2 font-bold ${isSelected ? '!bg-green-600' : ''}`}
+                            className={cn(
+                              'btn btn-sm w-full gap-2',
+                              isSelected ? 'btn-success' : 'btn-primary',
+                            )}
                           >
                             {isSelected ? <Check size={14} /> : <UserPlus size={14} />}
                             {isSelected ? 'Seleccionado' : 'Agregar'}
@@ -150,13 +162,14 @@ export default function Clients() {
                       <div className="flex flex-col gap-2">
                         <button
                           id={`clients-edit-btn-${client.id}`}
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             openEdit(client);
                           }}
-                          className="p-2 hover:bg-surface text-secondary"
+                          className="btn btn-ghost btn-square btn-sm"
                         >
-                          <Edit2 size={18} />
+                          <Edit2 size={16} />
                         </button>
                       </div>
                     </div>
@@ -165,23 +178,25 @@ export default function Clients() {
               })}
         </div>
 
+        {/* Selected Client Sticky Bar */}
         {selectedClient && (
-          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[calc(448px-2rem)] bg-primary-container p-3 flex justify-between items-center shadow-lg border border-primary/20 z-40">
-            <div className="flex-1">
-              <span className="text-[0.625rem] uppercase font-black text-primary animate-pulse">
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-lg bg-primary text-primary-content p-3 flex justify-between items-center shadow-xl rounded-2xl z-40">
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] uppercase font-bold opacity-70 animate-pulse">
                 Cliente para pedido
               </span>
-              <p className="text-sm font-bold text-on-primary-container truncate">
+              <p className="text-sm font-bold truncate">
                 {selectedClient.name}
               </p>
             </div>
-            <div className="flex flex-col gap-2">
-              <button onClick={() => navigate('/carrito')} className="m3-button-filled w-full">
+            <div className="flex flex-col gap-1.5 shrink-0">
+              <button type="button" onClick={() => navigate('/carrito')} className="btn btn-sm btn-neutral">
                 Ver Carrito
               </button>
               <button
+                type="button"
                 onClick={() => setSelectedClient(null)}
-                className="text-[0.625rem] font-bold text-outline uppercase w-full"
+                className="text-[10px] font-bold opacity-70 uppercase text-center hover:opacity-100"
               >
                 Quitar
               </button>
@@ -198,70 +213,71 @@ export default function Clients() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => !isSaving && setIsModalOpen(false)}
-                className="absolute inset-0 bg-black/50"
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
               />
               <motion.div
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
-                className="relative w-full max-w-md bg-surface p-6 shadow-2xl space-y-6"
+                transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+                className="relative w-full max-w-md bg-base-100 p-6 shadow-2xl space-y-5 rounded-t-2xl sm:rounded-2xl"
               >
                 <div className="flex justify-between items-center">
                   <h3 className="text-xl font-bold">
                     {editingClient?.id ? 'Editar Cliente' : 'Nuevo Cliente'}
                   </h3>
-                  <button onClick={() => setIsModalOpen(false)} className="p-1">
-                    <X />
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-square btn-sm">
+                    <X size={20} />
                   </button>
                 </div>
 
-                <form onSubmit={handleSaveClient} className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[0.625rem] font-bold uppercase text-outline">
-                      Nombre Completo
+                <form onSubmit={handleSaveClient} className="space-y-3">
+                  <div className="form-control">
+                    <label className="label py-1">
+                      <span className="label-text text-xs font-semibold uppercase opacity-60">Nombre Completo</span>
                     </label>
                     <input
                       required
-                      className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none"
+                      className="input input-bordered w-full bg-base-200/50"
                       value={editingClient?.name || ''}
                       onChange={(e) =>
                         setEditingClient((prev) => ({ ...prev, name: e.target.value }))
                       }
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[0.625rem] font-bold uppercase text-outline">
-                      Correo Electrónico
+                  <div className="form-control">
+                    <label className="label py-1">
+                      <span className="label-text text-xs font-semibold uppercase opacity-60">Correo Electrónico</span>
                     </label>
                     <input
                       required
                       type="email"
-                      className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none"
+                      className="input input-bordered w-full bg-base-200/50"
                       value={editingClient?.email || ''}
                       onChange={(e) =>
                         setEditingClient((prev) => ({ ...prev, email: e.target.value }))
                       }
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[0.625rem] font-bold uppercase text-outline">
-                        Teléfono
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="form-control">
+                      <label className="label py-1">
+                        <span className="label-text text-xs font-semibold uppercase opacity-60">Teléfono</span>
                       </label>
                       <input
-                        className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none"
+                        className="input input-bordered w-full bg-base-200/50"
                         value={editingClient?.phone || ''}
                         onChange={(e) =>
                           setEditingClient((prev) => ({ ...prev, phone: e.target.value }))
                         }
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[0.625rem] font-bold uppercase text-outline">
-                        Dirección
+                    <div className="form-control">
+                      <label className="label py-1">
+                        <span className="label-text text-xs font-semibold uppercase opacity-60">Dirección</span>
                       </label>
                       <input
-                        className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none"
+                        className="input input-bordered w-full bg-base-200/50"
                         value={editingClient?.address || ''}
                         onChange={(e) =>
                           setEditingClient((prev) => ({ ...prev, address: e.target.value }))
@@ -269,25 +285,29 @@ export default function Clients() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[0.625rem] font-bold uppercase text-outline flex items-center gap-1">
-                        <Building2 size={12} /> Localidad
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="form-control">
+                      <label className="label py-1">
+                        <span className="label-text text-xs font-semibold uppercase opacity-60 flex items-center gap-1">
+                          <Building2 size={12} /> Localidad
+                        </span>
                       </label>
                       <input
-                        className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none"
+                        className="input input-bordered w-full bg-base-200/50"
                         value={editingClient?.billing_city || ''}
                         onChange={(e) =>
                           setEditingClient((prev) => ({ ...prev, billing_city: e.target.value }))
                         }
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[0.625rem] font-bold uppercase text-outline flex items-center gap-1">
-                        <MapPinned size={12} /> Provincia
+                    <div className="form-control">
+                      <label className="label py-1">
+                        <span className="label-text text-xs font-semibold uppercase opacity-60 flex items-center gap-1">
+                          <MapPinned size={12} /> Provincia
+                        </span>
                       </label>
                       <select
-                        className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none appearance-none"
+                        className="select select-bordered w-full bg-base-200/50"
                         value={editingClient?.billing_state || ''}
                         onChange={(e) =>
                           setEditingClient((prev) => ({ ...prev, billing_state: e.target.value }))
@@ -325,12 +345,14 @@ export default function Clients() {
                       </select>
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[0.625rem] font-bold uppercase text-outline flex items-center gap-1">
-                      <IdCard size={12} /> CUIT
+                  <div className="form-control">
+                    <label className="label py-1">
+                      <span className="label-text text-xs font-semibold uppercase opacity-60 flex items-center gap-1">
+                        <IdCard size={12} /> CUIT
+                      </span>
                     </label>
                     <input
-                      className="w-full bg-surface-variant p-3 focus:ring-2 focus:ring-primary outline-none"
+                      className="input input-bordered w-full bg-base-200/50"
                       value={editingClient?.cuit || ''}
                       onChange={(e) =>
                         setEditingClient((prev) => ({ ...prev, cuit: e.target.value }))
@@ -341,9 +363,9 @@ export default function Clients() {
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="w-full m3-button-filled py-4 flex items-center justify-center gap-2"
+                    className="btn btn-primary w-full mt-2"
                   >
-                    {isSaving && <RefreshCw size={18} className="animate-spin" />}
+                    {isSaving && <span className="loading loading-spinner loading-xs" />}
                     {editingClient?.id ? 'Guardar Cambios' : 'Crear Cliente'}
                   </button>
                 </form>

@@ -10,15 +10,19 @@ import {
   ShoppingCart,
   Users,
   X,
+  WifiOff,
+  AlertCircle,
+  Users2,
+  Search,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState, useCallback } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { useCart } from '../contexts/CartContext';
 import { useConnection } from '../contexts/ConnectionContext';
 import { useNotificationsContext } from '../contexts/NotificationsContext';
-import { cn } from '../lib/utils';
+import { cn, getAnimationProps } from '../lib/utils';
 
 const navItems = [
   { path: '/', label: 'Inicio', icon: House },
@@ -31,6 +35,98 @@ const navItems = [
   { path: '/configuracion', label: 'Configuración', icon: Settings },
 ];
 
+const DESKTOP_BP = 1024;
+
+function useIsDesktop() {
+  const [is, setIs] = useState(typeof window !== 'undefined' ? window.innerWidth >= DESKTOP_BP : false);
+  useEffect(() => {
+    const mql = window.matchMedia(`(min-width: ${DESKTOP_BP}px)`);
+    const h = (e: MediaQueryListEvent) => setIs(e.matches);
+    mql.addEventListener('change', h);
+    setIs(mql.matches);
+    return () => mql.removeEventListener('change', h);
+  }, []);
+  return is;
+}
+
+/* ── Sidebar Nav (shared) ── */
+function SidebarNav({ closeSidebar, cartCount, unread, pathname, versions }: {
+  closeSidebar: () => void;
+  cartCount: number;
+  unread: number;
+  pathname: string;
+  versions: { app: string; api: string };
+}) {
+  return (
+    <>
+      {/* Brand */}
+      <div className="flex items-center justify-between px-5 py-5">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center text-primary-content font-bold text-base">
+            T
+          </div>
+          <div>
+            <span className="text-sm font-bold tracking-tight text-base-content">Tecnogafas</span>
+            <p className="text-[10px] text-[var(--color-text-muted)]">Sistema de Ventas</p>
+          </div>
+        </div>
+        <button type="button" onClick={closeSidebar} className="btn btn-ghost btn-square btn-xs lg:hidden">
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Nav links */}
+      <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
+        {navItems.map((item) => {
+          const active = pathname === item.path;
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={closeSidebar}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative group',
+                active
+                  ? 'bg-[var(--color-surface-800)] text-primary'
+                  : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-800)] hover:text-base-content',
+              )}
+            >
+              {/* Left emerald accent bar */}
+              {active && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />
+              )}
+              <item.icon size={18} className={cn('shrink-0', active ? 'text-primary' : 'text-[var(--color-text-muted)] group-hover:text-base-content')} />
+              <span className="flex-1 truncate">{item.label}</span>
+              {item.label === 'Carrito' && cartCount > 0 && (
+                <span className="badge badge-sm badge-primary">{cartCount}</span>
+              )}
+              {item.label === 'Chat' && unread > 0 && pathname !== '/chat' && (
+                <span className="badge badge-sm badge-error animate-pulse">{unread > 99 ? '99+' : unread}</span>
+              )}
+            </NavLink>
+          );
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div className="px-4 py-4 border-t border-[var(--color-border)]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+            <span className="text-primary text-xs font-bold">JP</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold truncate">Sesión de Vendedor</p>
+            <p className="text-[10px] text-[var(--color-text-muted)] flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
+              En línea
+            </p>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function Layout({ children }: { children: ReactNode }) {
   const { cart } = useCart();
   const { unreadNotifications } = useNotificationsContext();
@@ -38,229 +134,111 @@ export function Layout({ children }: { children: ReactNode }) {
   const { onlineUsersCount, connectionStatus } = useConnection();
   const location = useLocation();
   const navigate = useNavigate();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
-  const closeSidebar = () => setIsSidebarOpen(false);
+  const isDesktop = useIsDesktop();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
-  const [versions, setVersions] = useState({ app: 'Cargando...', api: 'Cargando...' });
+  const [versions] = useState({ app: 'v1.2.0', api: 'v1.0.0' });
 
-  useEffect(() => {
-    const handlePopState = () => {
-      console.log('Navigation: PopState triggered (Back Button)');
-    };
-    window.addEventListener('popstate', handlePopState);
+  useEffect(() => { closeDrawer(); }, [location.pathname, closeDrawer]);
 
-    const fetchVersions = async () => {
-      // Valor por defecto en caso de no poder consultar GitHub
-      setVersions({ app: `v1.2.0`, api: `v1.0.0` });
-    };
-
-    fetchVersions();
-
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  const cartCount = cart.reduce((a, b) => a + b.quantity, 0);
 
   return (
-    <div className="flex h-screen max-w-md mx-auto bg-background overflow-hidden shadow-2xl relative text-on-surface">
-      {/* Loading Overlay */}
+    <div className="flex h-dvh bg-base-100 overflow-hidden relative">
+      {/* Loading overlay */}
       <AnimatePresence>
         {isLoading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-surface/80 z-[100] flex flex-col items-center justify-center backdrop-blur-md"
-          >
-            <RefreshCw className="w-12 h-12 text-primary animate-spin mb-4" />
-            <p className="text-sm font-bold text-primary animate-pulse tracking-widest uppercase">
-              Sincronizando...
-            </p>
+          <motion.div {...getAnimationProps('fade')} className="absolute inset-0 bg-base-100/90 backdrop-blur-xl z-[100] flex flex-col items-center justify-center">
+            <RefreshCw className="w-8 h-8 text-primary animate-spin mb-3" />
+            <p className="text-xs font-semibold text-primary animate-pulse tracking-widest uppercase">Sincronizando...</p>
+            <progress className="progress progress-primary w-28 mt-3 h-1" />
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Sidebar Overlay */}
+
+      {/* ═══ DESKTOP SIDEBAR ═══ */}
+      {isDesktop && (
+        <aside className="hidden lg:flex flex-col w-[var(--sidebar-width)] bg-[var(--color-surface-900)] border-r border-[var(--color-border)] shrink-0">
+          <SidebarNav closeSidebar={() => {}} cartCount={cartCount} unread={unreadNotifications} pathname={location.pathname} versions={versions} />
+        </aside>
+      )}
+
+      {/* ═══ MOBILE DRAWER ═══ */}
       <AnimatePresence>
-        {isSidebarOpen && (
+        {!isDesktop && drawerOpen && (
           <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={closeSidebar}
-              className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
-            />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} onClick={closeDrawer} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
             <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 h-full w-72 bg-surface text-on-surface z-50 flex flex-col shadow-2xl border-r border-outline/10"
+              initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+              className="fixed left-0 top-0 h-full w-[var(--sidebar-width)] bg-[var(--color-surface-900)] z-50 flex flex-col shadow-2xl border-r border-[var(--color-border)]"
             >
-              <div className="p-6 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-on-primary font-bold text-xl shadow-lg shadow-primary/20">
-                    T
-                  </div>
-                  <span className="text-xl font-bold tracking-tight text-on-surface">
-                    Tecnogafas
-                  </span>
-                </div>
-                <button
-                  onClick={closeSidebar}
-                  className="p-2 hover:bg-surface-variant rounded-full transition-colors text-on-surface-variant"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <nav className="flex-1 px-3 py-2 space-y-1">
-                {navItems.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    onClick={closeSidebar}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all',
-                        isActive
-                          ? 'bg-primary-container text-on-primary-container font-semibold'
-                          : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface',
-                      )
-                    }
-                  >
-                    <item.icon
-                      size={20}
-                      className={cn(
-                        'transition-colors',
-                        location.pathname === item.path
-                          ? 'text-primary'
-                          : 'text-on-surface-variant',
-                      )}
-                    />
-                    <span>{item.label}</span>
-                    {item.label === 'Carrito' && cart.length > 0 && (
-                      <span className="ml-auto bg-primary text-on-primary text-[0.7rem] px-2 py-0.5 font-bold rounded-full">
-                        {cart.reduce((a, b) => a + b.quantity, 0)}
-                      </span>
-                    )}
-                    {item.label === 'Chat' &&
-                      unreadNotifications > 0 &&
-                      location.pathname !== '/chat' && (
-                        <span className="ml-auto bg-error text-white text-[0.7rem] px-2 py-0.5 font-bold rounded-full">
-                          {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                        </span>
-                      )}
-                  </NavLink>
-                ))}
-              </nav>
-
-              <div className="p-6 border-t border-outline/10">
-                <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 bg-secondary-container text-on-secondary-container rounded-full flex items-center justify-center text-sm font-bold">
-                    <Users size={18} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-on-surface truncate">Sesión de Vendedor</p>
-                    <p className="text-[0.7rem] text-on-surface-variant font-medium">
-                      App {versions.app} • API {versions.api}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <SidebarNav closeSidebar={closeDrawer} cartCount={cartCount} unread={unreadNotifications} pathname={location.pathname} versions={versions} />
             </motion.aside>
           </>
         )}
       </AnimatePresence>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="px-4 py-3 flex items-center justify-between bg-surface/80 backdrop-blur-md sticky top-0 z-30 border-b border-outline/5">
-          <div className="flex items-center gap-2">
-            <h1
-              onClick={() => navigate('/')}
-              className="text-xl font-black text-primary tracking-tighter cursor-pointer hover:opacity-80 transition-opacity"
-            >
-              TECNOGAFAS
-            </h1>
+      {/* ═══ MAIN ═══ */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Topbar */}
+        <header className="flex items-center gap-2 px-4 h-14 bg-[var(--color-surface-900)]/80 backdrop-blur-lg sticky top-0 z-30 border-b border-[var(--color-border)] shrink-0">
+          <button type="button" onClick={() => setDrawerOpen(true)} className="btn btn-ghost btn-square btn-sm lg:hidden">
+            <Menu size={18} />
+          </button>
+
+          {/* Search bar (desktop) */}
+          <div className="hidden lg:flex flex-1 max-w-md relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+            <input placeholder="Buscar productos, clientes, pedidos..." className="input input-sm input-bordered w-full pl-9 bg-[var(--color-surface-800)] border-[var(--color-border)] text-sm placeholder:text-[var(--color-text-muted)]" />
           </div>
+
+          {/* Mobile brand */}
+          <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 lg:hidden flex-1 min-w-0">
+            <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center text-primary-content font-bold text-xs">T</div>
+            <span className="text-sm font-bold tracking-tight text-primary truncate">TECNOGAFAS</span>
+          </button>
+
+          <div className="flex-1 lg:flex-none" />
+
+          {/* Right actions */}
           <div className="flex items-center gap-1">
-            {/* Connection Status Indicator */}
             {connectionStatus !== 'online' && (
-              <div
-                title={
-                  connectionStatus === 'offline'
-                    ? 'Sin conexión - Datos en caché'
-                    : connectionStatus === 'error'
-                      ? 'Error de API - Usando caché'
-                      : 'Sincronizando...'
-                }
-                className={`flex items-center gap-1.5 px-2 py-1 font-bold text-[0.65rem] rounded-full mr-2 ${
-                  connectionStatus === 'offline'
-                    ? 'bg-error/10 text-error'
-                    : connectionStatus === 'error'
-                      ? 'bg-warning/10 text-warning'
-                      : 'bg-primary/10 text-primary'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    connectionStatus === 'offline'
-                      ? 'bg-error'
-                      : connectionStatus === 'error'
-                        ? 'bg-warning'
-                        : 'bg-primary animate-pulse'
-                  }`}
-                ></span>
-                <span>
-                  {connectionStatus === 'offline'
-                    ? 'Offline'
-                    : connectionStatus === 'error'
-                      ? 'Cache'
-                      : 'Sync'}
-                </span>
+              <div className="badge badge-outline badge-sm gap-1">
+                {connectionStatus === 'offline' ? <WifiOff size={11} className="text-error" /> : connectionStatus === 'error' ? <AlertCircle size={11} className="text-warning" /> : <RefreshCw size={11} className="text-primary animate-spin" />}
+                <span className="text-[10px]">{connectionStatus === 'offline' ? 'Offline' : connectionStatus === 'error' ? 'Cache' : 'Sync'}</span>
               </div>
             )}
             {onlineUsersCount !== null && (
-              <div
-                title="Vendedores activos"
-                className="flex items-center gap-1.5 px-3 py-1 bg-success/10 text-success font-bold text-[0.65rem] rounded-full mr-2"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span>
-                <span>{onlineUsersCount}</span>
+              <div className="badge badge-sm bg-primary/10 text-primary border-primary/20 gap-1">
+                <Users2 size={11} /><span className="text-[10px] font-semibold">{onlineUsersCount}</span>
               </div>
             )}
-            <button
-              onClick={() => navigate('/carrito')}
-              className="relative p-2.5 hover:bg-surface-variant rounded-full text-on-surface-variant transition-colors"
-            >
-              <ShoppingCart size={22} />
-              {cart.reduce((a, b) => a + b.quantity, 0) > 0 && (
-                <span className="absolute top-1 right-1 bg-primary text-on-primary text-[0.65rem] w-5 h-5 flex items-center justify-center font-bold rounded-full border-2 border-surface">
-                  {cart.reduce((a, b) => a + b.quantity, 0)}
-                </span>
+            <button type="button" onClick={() => navigate('/carrito')} className="btn btn-ghost btn-square btn-sm relative">
+              <ShoppingCart size={18} />
+              {cartCount > 0 && (
+                <span className="badge badge-primary badge-xs absolute -top-0.5 -right-0.5 border-2 border-base-100 text-[9px]">{cartCount}</span>
               )}
-            </button>
-            <button
-              onClick={toggleSidebar}
-              className="p-2.5 hover:bg-surface-variant rounded-full text-on-surface-variant transition-colors"
-            >
-              <Menu size={22} />
             </button>
           </div>
         </header>
 
-        {apiError && (
-          <div className="bg-error text-white text-[0.7rem] font-bold py-2 px-4 text-center shadow-lg flex items-center justify-center gap-2">
-            <RefreshCw size={14} className="animate-spin" />
-            {apiError}
-          </div>
-        )}
+        {/* Error banner */}
+        <AnimatePresence>
+          {apiError && (
+            <motion.div {...getAnimationProps('slide')} className="alert alert-error rounded-none py-2 text-sm">
+              <AlertCircle size={14} /><span className="flex-1 truncate text-xs">{apiError}</span>
+              <button type="button" onClick={() => window.location.reload()} className="btn btn-ghost btn-xs btn-square"><RefreshCw size={12} /></button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto bg-background">
-          <div className="p-4 min-h-full" key={location.pathname}>
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto">
+          <motion.div {...getAnimationProps('fade')} className="p-4 lg:p-6 xl:p-8 min-h-full max-w-7xl mx-auto w-full" key={location.pathname}>
             {children}
-          </div>
+          </motion.div>
         </main>
       </div>
     </div>

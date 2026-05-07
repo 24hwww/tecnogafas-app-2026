@@ -1,19 +1,20 @@
-import { AlertCircle, ArrowLeft, ShoppingBag } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ShoppingBag, Package, CheckCircle, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, cn } from '../lib/utils';
 import type { SharedCart as SharedCartType } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function SharedCart() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
-  const [cart, setCart] = useState<SharedCartType | null>(null);
+  const [sharedCart, setSharedCart] = useState<SharedCartType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadSharedCart = async () => {
+    const loadSharedCartData = async () => {
       try {
         const { supabase } = await import('../modules/chat/lib/supabase');
         const { data, error } = await (supabase as any)
@@ -28,7 +29,6 @@ export default function SharedCart() {
           return;
         }
 
-        // Check if expired
         if (new Date(data.expires_at) < new Date()) {
           setError('Este carrito ha expirado');
           return;
@@ -44,7 +44,7 @@ export default function SharedCart() {
           isActive: data.is_active,
         };
 
-        setCart(mappedCart);
+        setSharedCart(mappedCart);
         setError(null);
       } catch (err) {
         console.error('Error loading shared cart:', err);
@@ -54,7 +54,7 @@ export default function SharedCart() {
       }
     };
 
-    loadSharedCart();
+    loadSharedCartData();
   }, [code]);
 
   const {
@@ -65,22 +65,15 @@ export default function SharedCart() {
   } = useCart();
 
   const handleContinueToCheckout = async () => {
-    if (!cart) return;
+    if (!sharedCart) return;
 
     try {
-      const result = await loadSharedCartAction(cart.code);
+      const result = await loadSharedCartAction(sharedCart.code);
 
       if (result.success && result.cart) {
-        // Set client in context
-        if (result.cart.client) {
-          setSelectedClient(result.cart.client);
-        }
-
-        // Clear existing cart and add shared items
+        if (result.cart.client) setSelectedClient(result.cart.client);
         clearCart();
-
         result.cart.items.forEach((item) => {
-          // Mapeo robusto para asegurar que el item sea compatible con el contexto del carrito
           const productToLoad = {
             id: item.id.toString(),
             name: item.name,
@@ -90,20 +83,16 @@ export default function SharedCart() {
             image: item.image || '',
             description: item.description || '',
             variations: item.vid
-              ? [
-                  {
-                    vid: item.vid.toString(),
-                    title: item.variation_name || item.name,
-                    stock: item.quantity,
-                    price: item.price,
-                  },
-                ]
+              ? [{
+                  vid: item.vid.toString(),
+                  title: item.variation_name || item.name,
+                  stock: item.quantity,
+                  price: item.price,
+                }]
               : undefined,
           };
-
           addToCart(productToLoad, item.quantity);
         });
-
         navigate('/carrito');
       } else {
         setError(result.message || 'Error al cargar el carrito');
@@ -116,125 +105,99 @@ export default function SharedCart() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full border-2 border-primary/20 border-t-primary/20 h-8 w-8"></div>
-          <p className="mt-4 text-sm text-gray-600">Cargando carrito compartido...</p>
-        </div>
+      <div className="min-h-[80vh] flex flex-col items-center justify-center space-y-4">
+        <RefreshCw size={40} className="text-primary animate-spin" />
+        <p className="text-[var(--color-text-muted)] font-medium">Recuperando carrito compartido...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center max-w-md mx-4 p-6">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <div className="flex items-center mb-4">
-              <AlertCircle size={48} className="text-red-500 mr-3" />
-              <h2 className="text-xl font-bold text-red-800">Error</h2>
-            </div>
-            <p className="text-red-600">{error}</p>
-            <button onClick={() => navigate('/carrito')} className="w-full m3-button-filled mt-4">
-              Volver al Carrito
-            </button>
+      <div className="min-h-[80vh] flex items-center justify-center p-6">
+        <div className="text-center max-w-sm w-full bg-[var(--color-surface-800)] p-10 rounded-[2.5rem] border border-error/20 shadow-2xl">
+          <div className="w-20 h-20 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle size={40} />
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!cart) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <ShoppingBag size={48} className="text-gray-400 mb-4" />
-          <p className="text-gray-600">Carrito no encontrado</p>
+          <h2 className="text-2xl font-bold mb-2">Error</h2>
+          <p className="text-[var(--color-text-muted)] text-sm mb-8 leading-relaxed">{error}</p>
+          <button onClick={() => navigate('/carrito')} className="btn btn-primary w-full h-14 rounded-2xl font-bold">
+            Volver al Carrito
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Carrito Compartido</h1>
-            <button
-              onClick={() => navigate('/carrito')}
-              className="flex items-center text-primary hover:text-primary/80 transition-colors"
-            >
-              <ArrowLeft size={20} className="mr-2" />
-              Volver
-            </button>
+    <div className="space-y-8 max-w-3xl mx-auto pb-32 pt-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate('/carrito')} className="btn btn-ghost btn-square rounded-2xl bg-[var(--color-surface-800)]">
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Carrito Compartido</h2>
+            <p className="text-sm text-[var(--color-text-muted)]">Código de recuperación: <span className="text-primary font-bold">{code}</span></p>
           </div>
         </div>
       </div>
 
-      {/* Cart Content */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">
-                Carrito: <span className="text-primary">{code}</span>
-              </h2>
-              <div className="text-sm text-gray-600">Expira en 24 horas</div>
-            </div>
+      <div className="space-y-6">
+        {/* Info Banner */}
+        <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl flex items-center gap-3">
+          <CheckCircle size={18} className="text-primary" />
+          <p className="text-xs font-medium text-[var(--color-text-muted)]">
+            Este es un carrito compartido. Al continuar, se reemplazará su carrito actual con estos productos.
+          </p>
+        </div>
 
-            {/* Client Info */}
-            {cart.client && (
-              <div className="m3-card !bg-primary-container/20 border-primary/20">
-                <h3 className="text-xs font-bold text-primary flex items-center gap-1 mb-2">
-                  CLIENTE ASOCIADO
-                </h3>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-bold">{cart.client.name}</p>
-                    <p className="text-xs text-on-surface-variant">{cart.client.email}</p>
-                  </div>
-                </div>
+        {/* Cart Items List */}
+        <div className="space-y-3">
+          {sharedCart?.items.map((item, index) => (
+            <div key={index} className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-4 flex flex-row items-center gap-4">
+              <div className="w-14 h-14 bg-[var(--color-surface-900)] rounded-xl flex items-center justify-center shrink-0 border border-[var(--color-border)]">
+                <Package className="text-[var(--color-text-muted)] opacity-50" size={20} />
               </div>
-            )}
-
-            {/* Cart Items */}
-            <div className="space-y-3">
-              {cart.items.map((item, index) => (
-                <div key={index} className="m3-card flex gap-4">
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-sm">{item.name}</h4>
-                    <p className="text-xs text-on-surface-variant">
-                      {formatCurrency(item.price)} c/u
-                    </p>
-                    <div className="flex items-center gap-4 mt-2">
-                      <div className="flex items-center bg-surface px-2 py-1 border border-outline/10">
-                        <span className="mx-3 font-bold text-xs">{item.quantity}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right flex flex-col justify-between items-end">
-                    <span className="font-bold text-primary">
-                      {formatCurrency(item.price * item.quantity)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Summary */}
-            <div className="m3-card !bg-surface sticky bottom-0 border-t-2 border-primary/10 shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.3)] -mx-4 px-4 py-6 space-y-4 z-10">
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-medium">Total</span>
-                <span className="text-2xl font-bold text-primary">
-                  {formatCurrency(cart.total)}
-                </span>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-bold text-sm truncate">{item.name}</h4>
+                <p className="text-xs text-[var(--color-text-muted)] font-medium">
+                  {item.quantity} x {formatCurrency(item.price)}
+                </p>
               </div>
-              <button onClick={handleContinueToCheckout} className="w-full m3-button-filled py-3">
-                Continuar al Checkout
-              </button>
+              <div className="text-right">
+                <p className="text-base font-bold text-primary">
+                  {formatCurrency(item.price * item.quantity)}
+                </p>
+              </div>
             </div>
+          ))}
+        </div>
+
+        {/* Summary Card */}
+        <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] shadow-2xl rounded-[2rem] overflow-hidden">
+          <div className="p-8 space-y-6">
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)] mb-1">Total del Carrito</p>
+                <h3 className="text-4xl font-black tracking-tighter text-primary">{formatCurrency(sharedCart?.total || 0)}</h3>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase">Items</p>
+                <p className="text-lg font-bold">{sharedCart?.items.length}</p>
+              </div>
+            </div>
+            
+            <button
+              onClick={handleContinueToCheckout}
+              className="btn btn-primary btn-lg w-full rounded-2xl h-16 font-black text-lg shadow-lg shadow-primary/20"
+            >
+              Cargar y Continuar <ShoppingBag size={20} className="ml-2" />
+            </button>
+            
+            <p className="text-[10px] text-center text-[var(--color-text-muted)] font-medium">
+              Expira el {new Date(sharedCart?.expiresAt || '').toLocaleDateString('es-AR')} a las {new Date(sharedCart?.expiresAt || '').toLocaleTimeString('es-AR')}
+            </p>
           </div>
         </div>
       </div>

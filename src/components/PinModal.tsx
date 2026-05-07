@@ -49,14 +49,14 @@ export function PinModal({ isOpen, onClose, onSuccess }: PinModalProps) {
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="relative bg-surface w-full max-w-xs p-8 shadow-2xl text-center space-y-6 border border-white/10"
+            className="relative bg-base-100 w-full max-w-xs p-8 shadow-2xl text-center space-y-6 border border-white/10"
           >
             <div className="w-16 h-16 bg-primary/10 text-primary flex items-center justify-center mx-auto">
               <FileText size={32} />
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-bold uppercase tracking-tight">PIN Vendedor</h3>
-              <p className="text-xs text-outline">Ingrese su código para autorizar el acceso.</p>
+              <p className="text-xs text-[var(--color-text-muted)]">Ingrese su código para autorizar el acceso.</p>
             </div>
 
             <div className="space-y-4">
@@ -67,7 +67,7 @@ export function PinModal({ isOpen, onClose, onSuccess }: PinModalProps) {
                   inputMode="numeric"
                   placeholder="••••••••"
                   maxLength={8}
-                  className="w-full bg-surface-variant p-4 text-center text-3xl tracking-[0.6rem] font-black focus:ring-2 focus:ring-primary outline-none"
+                  className="w-full bg-[var(--color-surface-800)] p-4 text-center text-3xl tracking-[0.6rem] font-black focus:ring-2 focus:ring-primary outline-none"
                   value={pin}
                   onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))}
                   autoFocus
@@ -76,7 +76,7 @@ export function PinModal({ isOpen, onClose, onSuccess }: PinModalProps) {
                   id="pinmodal-visibility-btn"
                   type="button"
                   onClick={() => setShowPin(!showPin)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-outline hover:text-primary transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-[var(--color-text-muted)] hover:text-primary transition-colors"
                 >
                   {showPin ? <EyeOff size={24} /> : <Eye size={24} />}
                 </button>
@@ -91,7 +91,7 @@ export function PinModal({ isOpen, onClose, onSuccess }: PinModalProps) {
                   id="pinmodal-cancel-btn"
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-3 bg-surface-variant font-bold text-sm"
+                  className="flex-1 py-3 bg-[var(--color-surface-800)] font-bold text-sm"
                 >
                   CANCELAR
                 </button>
@@ -100,7 +100,7 @@ export function PinModal({ isOpen, onClose, onSuccess }: PinModalProps) {
                   type="button"
                   onClick={handleValidate}
                   disabled={isLoading || pin.length !== 8}
-                  className="flex-1 py-3 bg-primary text-on-primary font-bold text-sm flex items-center justify-center"
+                  className="flex-1 py-3 bg-primary text-primary-content font-bold text-sm flex items-center justify-center"
                 >
                   {isLoading ? '...' : 'VALIDAR'}
                 </button>

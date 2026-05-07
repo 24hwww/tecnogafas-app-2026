@@ -13,7 +13,7 @@ export function DeployNotification() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="fixed top-20 left-4 right-4 z-50 bg-primary/95 text-on-primary p-4 rounded-xl shadow-lg border border-primary-container flex items-center gap-4"
+          className="fixed top-20 left-4 right-4 z-50 bg-primary/95 text-primary-content p-4 rounded-xl shadow-lg border border-primary-container flex items-center gap-4"
         >
           <RefreshCw className="animate-spin" size={24} />
           <div>

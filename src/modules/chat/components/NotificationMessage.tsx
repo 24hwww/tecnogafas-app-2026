@@ -107,7 +107,7 @@ export function NotificationMessage({ message }: NotificationMessageProps) {
               {STATUS_ICONS[message.order_data.status as string] || <Package className="w-5 h-5" />}
             </div>
           ) : (
-            <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-base-100 dark:bg-gray-700 flex items-center justify-center shadow-sm">
               {TYPE_ICONS[displayType] || TYPE_ICONS.system}
             </div>
           )}
@@ -127,7 +127,7 @@ export function NotificationMessage({ message }: NotificationMessageProps) {
 
           {/* Order-specific details */}
           {message.order_data && (
-            <div className="mt-3 p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+            <div className="mt-3 p-2 bg-base-100/50 dark:bg-gray-800/50 rounded-lg">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-500">Total:</span>
                 <span className="font-semibold text-gray-900 dark:text-white">

@@ -1,11 +1,11 @@
-import { Check, ChevronRight, Filter, Minus, Plus, Search, ShoppingCart, X } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Check, ChevronRight, Filter, Minus, Plus, Search, ShoppingCart, X, Package, Tag, ArrowRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useMemo, useState } from 'react';
 import { useApp } from '../AppContext';
 import { PullToRefresh } from '../components/PullToRefresh';
 import { ProductSkeleton } from '../components/Skeleton';
 import { useCart } from '../contexts/CartContext';
-import { formatCurrency } from '../lib/utils';
+import { cn, formatCurrency } from '../lib/utils';
 import { type Product, ProductVariation } from '../types';
 
 export default function Products() {
@@ -24,7 +24,6 @@ export default function Products() {
     setTimeout(() => setAddedProductId(null), 1000);
   };
 
-  // Helper to parse "Termino:Anteojos|Slug:anteojos;Termino:Receta|Slug:receta"
   const parseFiltros = (filtros: string): string[] => {
     if (!filtros) return [];
     return filtros
@@ -66,13 +65,8 @@ export default function Products() {
     return Array.from(terms);
   }, [products, activeFilters, nextLevel, productFiltrosMap]);
 
-  const handleAddFilter = (term: string) => {
-    setActiveFilters([...activeFilters, term]);
-  };
-
-  const handleRemoveFilter = (index: number) => {
-    setActiveFilters(activeFilters.slice(0, index));
-  };
+  const handleAddFilter = (term: string) => setActiveFilters([...activeFilters, term]);
+  const handleRemoveFilter = (index: number) => setActiveFilters(activeFilters.slice(0, index));
 
   const getInCart = (id: string) => cart.find((item) => item.id === id);
 
@@ -80,9 +74,7 @@ export default function Products() {
     setVariationModalProduct(product);
     const initialQuantities: Record<string, number> = {};
     if (product.variations && product.variations.length > 0) {
-      product.variations.forEach((v) => {
-        initialQuantities[v.vid] = 0;
-      });
+      product.variations.forEach((v) => { initialQuantities[v.vid] = 0; });
     } else {
       initialQuantities['base'] = 1;
     }
@@ -98,13 +90,10 @@ export default function Products() {
 
   const handleAddToCartFromModal = () => {
     if (!variationModalProduct) return;
-
     let anyAdded = false;
-
     Object.entries(variationQuantities).forEach(([vid, quantity]) => {
       if (quantity <= 0) return;
       anyAdded = true;
-
       if (vid === 'base') {
         addToCart(variationModalProduct, quantity);
         triggerAddedAnimation(variationModalProduct.id);
@@ -124,373 +113,227 @@ export default function Products() {
         }
       }
     });
-
-    if (anyAdded) {
-      setVariationModalProduct(null);
-    } else {
-      alert('Seleccione al menos una unidad');
-    }
+    if (anyAdded) setVariationModalProduct(null);
   };
 
   const totalSelected = Object.values(variationQuantities).reduce((acc, q) => acc + q, 0);
 
   return (
     <PullToRefresh onRefresh={() => refreshData(false)}>
-      <div className="space-y-4 min-h-[50vh]">
-        <div className="flex items-center justify-between">
-          <h2 id="products-title" className="text-2xl font-bold">
-            Productos
-          </h2>
-          <button
-            id="products-filters-btn"
-            onClick={() => setShowFilters(!showFilters)}
-            className={`p-2 hover:bg-surface-variant transition-all ${showFilters ? 'text-primary bg-primary/10' : 'text-outline'}`}
-            title="Filtros por categoría"
-          >
-            <Filter size={24} />
-          </button>
+      <div className="space-y-8 max-w-7xl mx-auto pb-20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 id="products-title" className="text-3xl font-black tracking-tight">Catálogo</h2>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">Explora nuestra colección premium</p>
+          </div>
+          <div className="flex items-center gap-2">
+             <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={cn(
+                  "btn btn-ghost rounded-2xl gap-2 h-12 bg-[var(--color-surface-800)] border border-[var(--color-border)] px-6",
+                  showFilters && "text-primary border-primary/30 bg-primary/5"
+                )}
+             >
+                <Filter size={18} /> <span>Filtros</span>
+             </button>
+             <div className="flex items-center gap-2 bg-[var(--color-surface-800)] px-4 py-2.5 rounded-2xl border border-[var(--color-border)]">
+                <span className="text-xs font-bold text-[var(--color-text-muted)]">Total:</span>
+                <span className="text-sm font-black text-primary">{filteredProducts.length}</span>
+             </div>
+          </div>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" size={20} />
+        <div className="relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] group-focus-within:text-primary transition-colors" size={20} />
           <input
             id="products-search-input"
             type="text"
-            placeholder="Buscar productos..."
-            className="w-full bg-surface-variant py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            placeholder="Buscar por nombre, modelo o código..."
+            className="w-full pl-12 pr-4 py-4 bg-[var(--color-surface-800)] rounded-3xl border border-[var(--color-border)] focus:ring-2 focus:ring-primary/20 outline-none font-medium text-base transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
 
         {showFilters && (
-          <div className="space-y-2 pb-2">
-            {/* Hierarchical Breadcrumbs */}
-            <div className="flex flex-wrap items-center gap-2 p-1">
-              <button
-                onClick={() => setActiveFilters([])}
-                className={`px-3 py-1 text-xs font-bold transition-all ${
-                  activeFilters.length === 0
-                    ? 'bg-primary text-on-primary shadow-md'
-                    : 'bg-surface-variant text-on-surface-variant'
-                }`}
-              >
-                Todos
-              </button>
-              {activeFilters.map((f, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-1 animate-in slide-in-from-left-2 fade-in"
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="overflow-hidden space-y-4">
+             <div className="flex flex-wrap items-center gap-2 p-1">
+                <button
+                   onClick={() => setActiveFilters([])}
+                   className={cn("btn btn-sm rounded-xl h-10 px-5", activeFilters.length === 0 ? "btn-primary" : "btn-ghost bg-[var(--color-surface-800)]")}
                 >
-                  <ChevronRight size={14} className="text-outline" />
-                  <div className="flex items-center bg-primary-container text-on-primary-container px-3 py-1 text-xs font-bold gap-1 shadow-sm">
-                    {f}
-                    <button
-                      onClick={() => handleRemoveFilter(i)}
-                      className="hover:bg-primary/10 p-0.5"
-                    >
-                      <X size={10} />
-                    </button>
+                   Todos
+                </button>
+                {activeFilters.map((f, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                     <ChevronRight size={14} className="opacity-30" />
+                     <button onClick={() => handleRemoveFilter(i)} className="btn btn-sm btn-primary rounded-xl h-10 gap-2">
+                        {f} <X size={14} />
+                     </button>
                   </div>
+                ))}
+             </div>
+             
+             {availableNextTerms.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                   {availableNextTerms.map((term) => (
+                      <button
+                        key={term}
+                        onClick={() => handleAddFilter(term)}
+                        className="btn btn-ghost btn-sm bg-[var(--color-surface-800)] rounded-xl h-12 justify-between border border-[var(--color-border)] hover:border-primary/30"
+                      >
+                         <span className="truncate">{term}</span>
+                         <ArrowRight size={14} className="opacity-30" />
+                      </button>
+                   ))}
                 </div>
-              ))}
-            </div>
-
-            {/* Sequential Filter Options */}
-            <div className="flex items-center gap-2 mb-4 p-2 bg-surface-variant/50">
-              <input
-                type="checkbox"
-                id="showZeroPrice"
-                checked={showZeroPrice}
-                onChange={(e) => setShowZeroPrice(e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-              />
-              <label
-                htmlFor="showZeroPrice"
-                className="text-xs font-bold text-on-surface-variant uppercase"
-              >
-                Mostrar productos precio 0
-              </label>
-            </div>
-            {availableNextTerms.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[0.625rem] font-black uppercase text-outline tracking-widest pl-1">
-                  Filtrar por {nextLevel === 0 ? 'Categoría' : 'Sub-Categoría'}
-                </p>
-                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-                  {availableNextTerms.map((term) => (
-                    <button
-                      key={term}
-                      onClick={() => handleAddFilter(term)}
-                      className="px-4 py-2 bg-surface-variant border border-white/5 text-primary text-xs font-bold whitespace-nowrap shadow-sm hover:bg-primary/5 active:scale-95 transition-all"
-                    >
-                      {term}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+             )}
+          </motion.div>
         )}
 
-        {/* Product List */}
-        <div className="space-y-3">
-          {isLoading && products.length === 0 ? (
-            Array(6)
-              .fill(0)
-              .map((_, i) => <ProductSkeleton key={i} />)
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {isLoading ? (
+            Array(8).fill(0).map((_, i) => <ProductSkeleton key={i} />)
           ) : filteredProducts.length === 0 ? (
-            <div className="text-center py-10 opacity-50 space-y-2">
-              <div className="flex justify-center">
-                <Search size={48} />
-              </div>
-              <p className="text-sm font-medium">No se encontraron productos</p>
+            <div className="col-span-full card bg-[var(--color-surface-800)] border border-[var(--color-border)] border-dashed py-32 flex flex-col items-center text-center opacity-50">
+              <Package size={80} className="mb-6" />
+              <p className="text-2xl font-black">No se encontraron productos</p>
+              <p className="text-sm mt-2">Intenta cambiar los filtros o la búsqueda</p>
             </div>
           ) : (
             filteredProducts.map((product) => {
-              const cartItem = getInCart(product.id);
-              const hasVariations = product.variations && product.variations.length > 0;
-              const isAdded =
-                addedProductId === product.id || addedProductId?.startsWith(`${product.id}-`);
+              const inCart = getInCart(product.id);
+              const isAdded = addedProductId === product.id;
               return (
-                <div
+                <motion.div
+                  layout
                   key={product.id}
-                  className={`m3-card flex gap-4 animate-in fade-in slide-in-from-bottom-2 relative overflow-hidden ${isAdded ? 'ring-2 ring-green-500' : ''}`}
-                >
-                  {isAdded && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute inset-0 bg-green-500/20 backdrop-blur-[1px] z-10 flex items-center justify-center"
-                    >
-                      <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                        className="bg-green-500 text-white rounded-full p-3 shadow-lg shadow-green-500/30"
-                      >
-                        <Check size={28} strokeWidth={3} />
-                      </motion.div>
-                    </motion.div>
+                  className={cn(
+                    "card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-[2rem] overflow-hidden hover:border-primary/40 transition-all group shadow-sm flex flex-col",
+                    isAdded && "ring-2 ring-primary scale-[1.02]"
                   )}
-                  <div className="flex-1 flex flex-col justify-between">
-                    <div>
-                      <h4 className="font-semibold text-sm leading-tight mb-1">{product.name}</h4>
-                      <div className="flex flex-col gap-0.5 mb-2">
-                        <span className="text-[0.625rem] text-yellow-500 font-bold">
-                          Stock: {product.stock}
-                        </span>
-                        <span className="font-bold text-lg text-on-surface">
-                          {formatCurrency(product.price)}
-                        </span>
-                      </div>
+                >
+                  <div className="p-6 space-y-4 flex-1 flex flex-col">
+                    <div className="flex-1">
+                       <div className="flex items-center gap-2 mb-2">
+                          <Tag size={12} className="text-primary" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest tracking-widest text-[var(--color-text-muted)]">
+                             {productFiltrosMap.get(product.id)?.[0] || 'Sin Categoría'}
+                          </span>
+                       </div>
+                       <h3 className="text-lg font-bold leading-tight line-clamp-2">{product.name}</h3>
                     </div>
-                    <div className="mt-1">
-                      {cartItem && !hasVariations ? (
-                        <div className="flex items-center justify-center bg-primary-container px-1 py-1 border border-primary/20 w-full">
-                          <button
-                            id={`products-decrease-qty-${product.id}`}
-                            onClick={() => updateCartQuantity(product.id, cartItem.quantity - 1)}
-                            className="p-1.5 text-on-primary-container hover:bg-primary/10 flex-1 flex justify-center"
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <span className="mx-4 font-black text-sm">{cartItem.quantity}</span>
-                          <button
-                            id={`products-increase-qty-${product.id}`}
-                            onClick={() => updateCartQuantity(product.id, cartItem.quantity + 1)}
-                            className="p-1.5 text-on-primary-container hover:bg-primary/10 flex-1 flex justify-center"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      ) : (
-                        <motion.button
-                          id={`products-add-btn-${product.id}`}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
+                    
+                    <div className="pt-4 border-t border-[var(--color-border)]/10 flex items-end justify-between gap-4">
+                       <div>
+                          <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Precio</p>
+                          <p className="text-2xl font-black text-primary leading-none">{formatCurrency(product.price)}</p>
+                       </div>
+                       <button
                           onClick={() => handleOpenVariationModal(product)}
-                          className={`m3-button-filled w-full !py-2 text-xs flex items-center justify-center gap-2 font-bold ${isAdded ? '!bg-green-600' : ''}`}
-                        >
-                          {isAdded ? <Check size={14} /> : <ShoppingCart size={14} />}
-                          {isAdded
-                            ? 'Agregado'
-                            : hasVariations
-                              ? 'Seleccionar Variaciones'
-                              : 'Agregar'}
-                        </motion.button>
-                      )}
+                          className={cn(
+                             "btn btn-primary rounded-2xl h-14 w-14 shadow-lg shadow-primary/20 p-0",
+                             inCart && "btn-success shadow-success/20"
+                          )}
+                       >
+                          {inCart ? <Check size={24} /> : <Plus size={24} />}
+                       </button>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             })
           )}
         </div>
 
         {/* Variation Modal */}
-        {variationModalProduct && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="m3-card bg-white w-full max-w-md flex flex-col max-h-[90vh] shadow-2xl animate-in fade-in zoom-in duration-200">
-              <div className="p-4 border-b border-surface-variant flex justify-between items-center bg-surface-variant/10">
-                <div>
-                  <h3
-                    id="products-variation-modal-title"
-                    className="font-black text-lg leading-tight"
-                  >
-                    {variationModalProduct.name}
-                  </h3>
-                  <p className="text-[10px] uppercase font-bold text-outline tracking-wider mt-1">
-                    Selección Múltiple de Variaciones
-                  </p>
-                </div>
-                <button
-                  onClick={() => setVariationModalProduct(null)}
-                  className="p-2 hover:bg-surface-variant rounded-full text-outline transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              <div className="p-4 flex-1 overflow-y-auto space-y-3 scroll-smooth">
-                {variationModalProduct.variations && variationModalProduct.variations.length > 0 ? (
-                  variationModalProduct.variations.map((v) => {
-                    const qty = variationQuantities[v.vid] || 0;
-                    return (
-                      <div
-                        key={v.vid}
-                        className={`p-4 border rounded-xl transition-all flex flex-col gap-3 ${
-                          v.stock === 0
-                            ? 'opacity-40 grayscale bg-outline/5 border-dashed'
-                            : qty > 0
-                              ? 'border-primary bg-primary/5 ring-1 ring-primary shadow-sm'
-                              : 'border-surface-variant'
-                        }`}
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <span
-                              className={`${v.stock === 0 ? 'text-outline' : 'font-black'} text-sm truncate`}
-                            >
-                              {v.title}
-                            </span>
-                            {v.stock === 0 && (
-                              <span className="text-[9px] bg-outline/10 px-2 py-0.5 rounded uppercase font-black text-outline">
-                                Sin Stock
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex justify-between items-center mt-1">
-                            <span className="text-xs text-outline font-bold">Stock: {v.stock}</span>
-                            <span
-                              className={`text-base font-black ${v.stock === 0 ? 'text-outline/40' : 'text-primary'}`}
-                            >
-                              {formatCurrency(v.price)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Quantity selector for this variation - Full width below */}
-                        <div className="flex items-center bg-white border border-outline/10 rounded-lg overflow-hidden shadow-sm h-12 w-full">
-                          <button
-                            disabled={v.stock === 0 || qty === 0}
-                            onClick={() => updateVariationQuantity(v.vid, -1)}
-                            className="flex-1 h-full hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-10 flex items-center justify-center border-r border-outline/5"
-                          >
-                            <Minus size={20} />
-                          </button>
-                          <span
-                            className={`flex-1 text-center font-black text-lg ${qty > 0 ? 'text-primary' : 'text-outline/20'}`}
-                          >
-                            {qty}
-                          </span>
-                          <button
-                            disabled={v.stock === 0 || qty >= v.stock}
-                            onClick={() => updateVariationQuantity(v.vid, 1)}
-                            className="flex-1 h-full hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-10 flex items-center justify-center border-l border-outline/5"
-                          >
-                            <Plus size={20} />
-                          </button>
-                        </div>
+        <AnimatePresence>
+          {variationModalProduct && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setVariationModalProduct(null)} />
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                className="relative bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-[2.5rem] w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+              >
+                <div className="p-8 border-b border-[var(--color-border)]/10 bg-primary/5 flex justify-between items-start">
+                   <div className="flex gap-4">
+                      <div className="w-16 h-16 bg-[var(--color-surface-900)] rounded-2xl flex items-center justify-center border border-[var(--color-border)] shrink-0">
+                         <Package className="text-primary/40" size={30} />
                       </div>
-                    );
-                  })
-                ) : (
-                  <div
-                    className={`p-6 border rounded-2xl text-center ${variationModalProduct.stock === 0 ? 'bg-outline/5 border-dashed border-outline/20' : 'bg-primary/5 border-primary/10'}`}
-                  >
-                    <p
-                      className={`text-sm font-bold ${variationModalProduct.stock === 0 ? 'text-outline' : 'text-primary'}`}
-                    >
-                      {variationModalProduct.stock === 0 ? 'Producto Agotado' : 'Producto base'}
-                    </p>
-                    <p
-                      className={`text-lg font-black mt-1 ${variationModalProduct.stock === 0 ? 'text-outline/40' : 'text-primary-900'}`}
-                    >
-                      {formatCurrency(variationModalProduct.price)}
-                    </p>
-
-                    <div className="flex justify-center mt-4">
-                      <div className="flex items-center bg-white border border-outline/20 rounded-full overflow-hidden shadow-sm h-12">
-                        <button
-                          disabled={variationModalProduct.stock === 0}
-                          onClick={() => updateVariationQuantity('base', -1)}
-                          className="p-3 px-5 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-30"
-                        >
-                          <Minus size={20} />
-                        </button>
-                        <span className="w-12 text-center font-black text-lg text-primary">
-                          {variationQuantities['base'] || 0}
-                        </span>
-                        <button
-                          disabled={
-                            variationModalProduct.stock === 0 ||
-                            (variationQuantities['base'] || 0) >= variationModalProduct.stock
-                          }
-                          onClick={() => updateVariationQuantity('base', 1)}
-                          className="p-3 px-5 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-30"
-                        >
-                          <Plus size={20} />
-                        </button>
+                      <div>
+                         <h3 className="text-xl font-bold tracking-tight">{variationModalProduct.name}</h3>
+                         <p className="text-sm text-[var(--color-text-muted)] mt-1 font-medium">{formatCurrency(variationModalProduct.price)}</p>
                       </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-4 bg-surface-variant/20 border-t border-surface-variant">
-                <div className="flex items-center justify-between mb-4 px-2">
-                  <span className="text-xs font-bold text-outline uppercase tracking-widest">
-                    Total Seleccionado
-                  </span>
-                  <span className="text-lg font-black text-primary">{totalSelected} un.</span>
+                   </div>
+                   <button onClick={() => setVariationModalProduct(null)} className="btn btn-ghost btn-square btn-sm rounded-xl">
+                      <X size={20} />
+                   </button>
                 </div>
-
-                <div className="flex gap-3">
-                  <button
-                    id="products-variation-modal-cancel-btn"
-                    onClick={() => setVariationModalProduct(null)}
-                    className="flex-1 py-4 text-xs font-bold text-outline hover:bg-surface-variant rounded-xl transition-colors uppercase tracking-widest"
-                  >
-                    Cancelar
-                  </button>
-                  <motion.button
-                    id="products-variation-modal-confirm-btn"
-                    whileHover={totalSelected > 0 ? { scale: 1.02 } : {}}
-                    whileTap={totalSelected > 0 ? { scale: 0.98 } : {}}
-                    onClick={handleAddToCartFromModal}
-                    disabled={totalSelected === 0}
-                    className="flex-[2] py-4 bg-primary text-on-primary rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 disabled:bg-outline/20 disabled:text-outline disabled:shadow-none disabled:cursor-not-allowed"
-                  >
-                    Agregar {totalSelected > 0 ? `(${totalSelected})` : ''} al Carrito
-                  </motion.button>
+                
+                <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                   <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Opciones Disponibles</p>
+                   
+                   <div className="grid gap-4">
+                      {variationModalProduct.variations && variationModalProduct.variations.length > 0 ? (
+                        variationModalProduct.variations.map((v) => (
+                           <div key={v.vid} className="p-5 bg-[var(--color-surface-900)] rounded-3xl border border-[var(--color-border)] space-y-4">
+                              <div className="min-w-0">
+                                 <p className="font-bold text-base truncate">{v.title}</p>
+                                 <p className="text-xs font-bold text-primary">{formatCurrency(v.price)}</p>
+                              </div>
+                              <div className="flex items-center justify-between bg-[var(--color-surface-800)]/50 p-2 pl-4 rounded-2xl border border-[var(--color-border)]/10">
+                                 <span className="text-xs font-bold uppercase tracking-widest opacity-40">Cantidad</span>
+                                 <div className="flex items-center gap-2">
+                                    <button onClick={() => updateVariationQuantity(v.vid, -1)} className="btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] hover:bg-error/10 hover:text-error">
+                                       <Minus size={18} />
+                                    </button>
+                                    <span className="w-10 text-center font-black text-lg">{variationQuantities[v.vid] || 0}</span>
+                                    <button onClick={() => updateVariationQuantity(v.vid, 1)} className="btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] text-primary hover:bg-primary/10">
+                                       <Plus size={18} />
+                                    </button>
+                                 </div>
+                              </div>
+                           </div>
+                        ))
+                      ) : (
+                        <div className="p-5 bg-[var(--color-surface-900)] rounded-3xl border border-[var(--color-border)] space-y-4">
+                           <div className="min-w-0">
+                              <p className="font-bold text-base">Unidad Base</p>
+                              <p className="text-xs font-bold text-primary">{formatCurrency(variationModalProduct.price)}</p>
+                           </div>
+                           <div className="flex items-center justify-between bg-[var(--color-surface-800)]/50 p-2 pl-4 rounded-2xl border border-[var(--color-border)]/10">
+                              <span className="text-xs font-bold uppercase tracking-widest opacity-40">Cantidad</span>
+                              <div className="flex items-center gap-2">
+                                 <button onClick={() => updateVariationQuantity('base', -1)} className="btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] hover:bg-error/10 hover:text-error">
+                                    <Minus size={18} />
+                                 </button>
+                                 <span className="w-10 text-center font-black text-lg">{variationQuantities['base'] || 0}</span>
+                                 <button onClick={() => updateVariationQuantity('base', 1)} className="btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] text-primary hover:bg-primary/10">
+                                    <Plus size={18} />
+                                 </button>
+                              </div>
+                           </div>
+                        </div>
+                      )}
+                   </div>
                 </div>
-              </div>
+                
+                <div className="p-8 bg-[var(--color-surface-900)] border-t border-[var(--color-border)]">
+                   <button
+                      onClick={handleAddToCartFromModal}
+                      disabled={totalSelected === 0}
+                      className="btn btn-primary btn-lg w-full rounded-2xl h-16 font-black text-lg gap-3"
+                   >
+                      <ShoppingCart size={22} />
+                      {totalSelected > 0 ? `Agregar ${totalSelected} items` : 'Seleccione cantidad'}
+                   </button>
+                </div>
+              </motion.div>
             </div>
-          </div>
-        )}
+          )}
+        </AnimatePresence>
       </div>
     </PullToRefresh>
   );

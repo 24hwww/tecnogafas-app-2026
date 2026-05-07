@@ -75,7 +75,7 @@ export function ChatInput() {
   };
 
   return (
-    <div className="flex items-end gap-2 bg-surface p-2 rounded-[28px] border border-outline/10 shadow-lg shadow-black/5 animate-in slide-in-from-bottom-2 duration-300">
+    <div className="flex items-end gap-2 bg-base-100 p-2 rounded-[28px] border border-[var(--color-border)]/10 shadow-lg shadow-black/5 animate-in slide-in-from-bottom-2 duration-300">
       {/* Text Input */}
       <textarea
         ref={textareaRef}
@@ -85,7 +85,7 @@ export function ChatInput() {
         onKeyDown={handleKeyDown}
         placeholder="Escribe un mensaje..."
         maxLength={MAX_LENGTH}
-        className="flex-1 px-2 py-3 bg-transparent resize-none outline-none text-sm text-on-surface placeholder:text-on-surface-variant/50 max-h-[120px] min-h-[44px]"
+        className="flex-1 px-2 py-3 bg-transparent resize-none outline-none text-sm text-base-content placeholder:text-[var(--color-text-muted)]/50 max-h-[120px] min-h-[44px]"
         rows={1}
         disabled={isSending || !activeConversation?.id || !currentUser?.id}
       />
@@ -97,8 +97,8 @@ export function ChatInput() {
         className={cn(
           'p-3 rounded-full transition-all duration-300 shrink-0',
           canSend
-            ? 'bg-primary text-on-primary shadow-md shadow-primary/20 scale-100'
-            : 'bg-surface-variant text-on-surface-variant/30 scale-95',
+            ? 'bg-primary text-primary-content shadow-md shadow-primary/20 scale-100'
+            : 'bg-[var(--color-surface-800)] text-[var(--color-text-muted)]/30 scale-95',
         )}
       >
         {isSending ? (

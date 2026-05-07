@@ -1,5 +1,4 @@
 import {
-  Activity,
   AlertTriangle,
   Download,
   Mail,
@@ -15,11 +14,51 @@ import {
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
-import { Skeleton } from '../components/Skeleton';
+import { Skeleton } from '../components/ui/Skeleton';
 import { useCart } from '../contexts/CartContext';
 import { useOrders } from '../contexts/OrdersContext';
-import { cn, formatCurrency, formatTimeBA, getRelativeTime } from '../lib/utils';
+import { cn, formatCurrency, formatTimeBA, getAnimationProps } from '../lib/utils';
 import { appDB } from '../stores/appDatabase';
+import { motion } from 'motion/react';
+
+/* ── Skeleton blocks ── */
+function StatsSkeleton() {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+      {Array(4).fill(0).map((_, i) => (
+        <div key={i} className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-4">
+          <div className="flex justify-between items-start">
+            <div className="space-y-2 flex-1">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-7 w-14" />
+            </div>
+            <Skeleton className="h-10 w-10 rounded-xl" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function OrdersSkeleton() {
+  return (
+    <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] divide-y divide-[var(--color-border)]">
+      {Array(5).fill(0).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 p-4">
+          <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+          <div className="text-right space-y-2">
+            <Skeleton className="h-4 w-16 ml-auto" />
+            <Skeleton className="h-5 w-14 ml-auto rounded-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const {
@@ -39,9 +78,6 @@ export default function Dashboard() {
   const [showDraftsModal, setShowDraftsModal] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
 
-  // Debug: Log para depurar isLoading
-  //console.log('🔄 Dashboard - isLoading:', isLoading);
-
   useEffect(() => {
     const checkCache = async () => {
       try {
@@ -55,263 +91,188 @@ export default function Dashboard() {
   }, []);
 
   const stats = [
-    { label: 'Vendedores', value: sellers.length, icon: Users, color: 'text-green-600' },
-    { label: 'Clientes', value: clients.length, icon: TrendingUp, color: 'text-blue-600' },
-    { label: 'Productos', value: products.length, icon: Package, color: 'text-purple-600' },
-    { label: 'Pedidos', value: grandTotalOrders, icon: ShoppingBag, color: 'text-orange-600' },
+    { label: 'Vendedores', value: sellers.length, icon: Users, color: 'text-emerald-400 bg-emerald-500/10' },
+    { label: 'Clientes', value: clients.length, icon: TrendingUp, color: 'text-sky-400 bg-sky-500/10' },
+    { label: 'Productos', value: products.length, icon: Package, color: 'text-violet-400 bg-violet-500/10' },
+    { label: 'Pedidos', value: grandTotalOrders, icon: ShoppingBag, color: 'text-amber-400 bg-amber-500/10' },
   ];
 
-  // Helper para obtener nombre del vendedor por ID
   const getSellerName = (sellerId: string) => {
     const seller = sellers.find((s) => s.id === sellerId);
     return seller?.name || 'Vendedor desconocido';
   };
 
-  // Helper para extraer número de pedido del título (formato: "Pedido #12345" o similar)
   const getOrderNumber = (title: string) => {
     const match = title.match(/#(\d+)/);
     return match ? `#${match[1]}` : '';
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <h2 id="dashboard-title" className="text-h2">
-          Inicio
-        </h2>
-        <div className="flex gap-1">
-          <button
-            id="dashboard-refresh-btn"
-            onClick={() => refreshData()}
-            disabled={isLoading}
-            className={`p-2.5 hover:bg-surface-variant rounded-full transition-all ${isLoading ? 'animate-spin' : ''}`}
-            title="Sincronizar"
-          >
-            <RefreshCw size={20} className="text-primary" />
+    <div className="space-y-8">
+      {/* Header */}
+      <motion.div {...getAnimationProps('fade')} className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Inicio</h1>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">Panel principal de gestión</p>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" className="btn btn-ghost btn-square btn-sm border border-[var(--color-border)]" onClick={() => refreshData()} disabled={isLoading} title="Sincronizar">
+            <RefreshCw size={16} className={cn(isLoading && 'animate-spin')} />
           </button>
           <button
-            id="dashboard-force-refresh-btn"
+            type="button"
+            className={cn('btn btn-square btn-sm', hasCache ? 'btn-error' : 'btn-ghost border border-[var(--color-border)]')}
             onClick={async () => {
-              // Verificar si hay borradores pendientes
               const pendingDrafts = drafts.filter((d) => d.status === 'no enviado');
-              if (pendingDrafts.length > 0) {
-                setShowDraftsModal(true);
-                return;
-              }
+              if (pendingDrafts.length > 0) { setShowDraftsModal(true); return; }
               await clearAllCaches();
               setHasCache(false);
-              // Recargar datos después de limpiar caché
               await refreshData(false);
             }}
             disabled={isLoading}
-            className={`p-2.5 rounded-full transition-colors ${isLoading ? 'animate-pulse' : ''} ${hasCache ? 'bg-error text-white' : 'hover:bg-surface-variant text-primary'}`}
             title={hasCache ? 'Limpiar Caché' : 'Caché vacía'}
           >
-            <Zap size={20} />
+            <Zap size={16} />
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {stats.map((stat, i) => (
-          <div
-            key={stat.label}
-            className="m3-card !items-start space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300"
-            style={{ animationDelay: `${i * 75}ms` }}
-          >
-            <div className="flex justify-between items-center w-full">
-              <span className="text-label">{stat.label}</span>
-              <div
-                className={cn(
-                  'p-1.5 rounded-lg bg-surface-variant/50',
-                  stat.color.replace('text-', 'text-'),
-                )}
-              >
-                <stat.icon size={16} />
+      {/* Stats Grid — with skeleton */}
+      {isLoading ? (
+        <StatsSkeleton />
+      ) : (
+        <motion.div {...getAnimationProps('slide')} className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+          {stats.map((stat, i) => (
+            <motion.div key={stat.label} {...getAnimationProps('scale')} transition={{ delay: i * 0.06 }}>
+              <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-4 hover:border-primary/30 transition-all duration-200">
+                <div className="flex justify-between items-start w-full">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-[var(--color-text-muted)]">{stat.label}</p>
+                    <p className="text-2xl font-bold tracking-tight">{stat.value}</p>
+                  </div>
+                  <div className={cn('p-2.5 rounded-xl', stat.color)}>
+                    <stat.icon size={18} />
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="space-y-1 w-full">
-              {isLoading ? (
-                <Skeleton className="h-9 w-20 mb-1" />
-              ) : (
-                <span className="text-3xl font-black tracking-tight text-on-surface">
-                  {stat.value}
-                </span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
 
-      <div className="space-y-4">
+      {/* Recent Orders — with skeleton */}
+      <motion.div {...getAnimationProps('slide')} className="space-y-4">
         <div className="flex justify-between items-end">
-          <h3 id="dashboard-orders-title" className="text-h3">
-            Pedidos Recientes
-          </h3>
-          <button
-            id="dashboard-view-all-orders-btn"
-            onClick={() => navigate('/pedidos')}
-            className="text-xs font-bold text-primary hover:underline"
-          >
+          <div>
+            <h2 className="text-xl lg:text-2xl font-semibold tracking-tight">Pedidos Recientes</h2>
+            <p className="text-sm text-[var(--color-text-muted)] mt-0.5">Últimas transacciones registradas</p>
+          </div>
+          <button type="button" className="btn btn-ghost btn-sm text-primary" onClick={() => navigate('/pedidos')}>
             Ver todos
           </button>
         </div>
 
-        <div className="m3-card !p-0 overflow-hidden divide-y divide-outline/5">
-          {isLoading ? (
-            <div className="p-4 space-y-4">
-              {Array(4)
-                .fill(0)
-                .map((_, i) => (
-                  <div key={i} className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="w-10 h-10 rounded-full" />
-                      <div className="space-y-2">
-                        <Skeleton className="w-32 h-4" />
-                        <Skeleton className="w-20 h-3" />
-                      </div>
-                    </div>
-                    <Skeleton className="w-16 h-4" />
-                  </div>
-                ))}
-            </div>
-          ) : dashboardOrders.length === 0 ? (
-            <div className="text-center py-10 px-4">
-              <ShoppingBag className="mx-auto text-on-surface-variant/20 mb-3" size={48} />
-              <p className="text-body-sm">No hay pedidos registrados.</p>
-            </div>
-          ) : (
-            dashboardOrders.slice(0, 5).map((order) => (
-              <div
+        {isLoading ? (
+          <OrdersSkeleton />
+        ) : dashboardOrders.length === 0 ? (
+          <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] text-center py-12 px-4">
+            <ShoppingBag className="mx-auto opacity-20 mb-4" size={48} />
+            <p className="text-[var(--color-text-muted)]">No hay pedidos registrados.</p>
+          </div>
+        ) : (
+          <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] divide-y divide-[var(--color-border)]">
+            {dashboardOrders.slice(0, 5).map((order, index) => (
+              <motion.div
                 key={order.id}
-                className="flex justify-between items-center p-4 hover:bg-surface-variant/30 transition-colors cursor-pointer group"
+                {...getAnimationProps('slide')}
+                transition={{ delay: index * 0.04 }}
+                className="flex justify-between items-center p-4 hover:bg-base-300/30 transition-colors cursor-pointer group"
                 onClick={() => navigate('/pedidos')}
               >
                 <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="w-10 h-10 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center font-bold shrink-0">
-                    {order.clientName.charAt(0)}
+                  <div className="avatar placeholder">
+                    <div className="bg-primary/10 text-primary rounded-full w-10 h-10 flex items-center justify-center border border-primary/20">
+                      <span className="text-sm font-black">{order.clientName.charAt(0)}</span>
+                    </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-bold text-sm text-on-surface truncate">
-                        {order.clientName}
-                      </p>
+                      <p className="font-semibold text-sm truncate">{order.clientName}</p>
                       {order.rawData?.post_title && getOrderNumber(order.rawData.post_title) && (
-                        <span className="text-[0.65rem] bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded-md font-mono font-bold">
+                        <span className="badge badge-ghost badge-sm font-mono text-[10px]">
                           {getOrderNumber(order.rawData.post_title)}
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-col gap-0.5">
-                      <p className="text-[0.65rem] text-on-surface-variant font-medium uppercase tracking-tighter">
-                        {new Date(order.createdAt).toLocaleDateString('es-AR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                        })}{' '}
-                        • {formatTimeBA(order.createdAt)} HS
+                    <div className="flex flex-col">
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        {new Date(order.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })} • {formatTimeBA(order.createdAt)}
                       </p>
-                      <p className="text-[0.6rem] text-on-surface-variant/70 italic">
-                        Por {getSellerName(order.sellerId)}
-                      </p>
+                      <p className="text-[10px] text-[var(--color-text-muted)]">Por {getSellerName(order.sellerId)}</p>
                     </div>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-bold text-sm text-primary">
-                    {formatCurrency(order.total || 0)}
+                  <p className="font-semibold text-sm text-primary">{formatCurrency(order.total || 0)}</p>
+                  <span className="badge badge-success badge-sm gap-1 text-[10px]">Guardado</span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+
+      {/* App Version Card */}
+      {appVersionInfo && appVersionInfo.success && (
+        <motion.div {...getAnimationProps('scale')}>
+          <div className="card bg-primary/5 border border-primary/20">
+            <div className="card-body">
+              <div className="flex items-center gap-4">
+                <div className="bg-primary text-primary-content p-3 rounded-2xl shadow-sm">
+                  <Smartphone size={24} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold">Nueva Versión Disponible</h3>
+                  <p className="text-sm text-[var(--color-text-muted)] mb-4">
+                    Actualiza a la versión {appVersionInfo.version} para obtener las últimas mejoras.
                   </p>
-                  <p className="text-[0.6rem] font-bold uppercase tracking-wider text-success">
-                    Guardado
-                  </p>
+                  <a href={appVersionInfo.apk_url} className="btn btn-primary w-full">
+                    <Download size={16} /> Descargar APK
+                  </a>
                 </div>
               </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {appVersionInfo && appVersionInfo.success && (
-        <div className="m3-card !bg-primary/5 border-primary/20">
-          <div className="flex items-center gap-5">
-            <div className="bg-primary-container p-4 rounded-2xl text-on-primary-container shadow-sm">
-              <Smartphone size={28} />
-            </div>
-            <div className="flex-1">
-              <h3 id="dashboard-download-apk-title" className="text-base font-bold text-on-surface">
-                Nueva Versión Disponible
-              </h3>
-              <p className="text-body-sm mb-3">
-                Actualiza a la versión {appVersionInfo.version} para obtener las últimas mejoras.
-              </p>
-              <a
-                id="dashboard-download-apk-btn"
-                href={appVersionInfo.apk_url}
-                className="m3-button-filled !py-2 !text-xs w-full"
-              >
-                <Download size={16} />
-                Descargar APK
-              </a>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
-      {/* Modal de confirmación para borradores */}
+      {/* Drafts Modal */}
       {showDraftsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="m3-card max-w-md w-full animate-in fade-in zoom-in duration-200">
-            <div className="text-center space-y-4">
+        <motion.div {...getAnimationProps('fade')} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div {...getAnimationProps('scale')} className="card bg-base-200 shadow-2xl max-w-md w-full border border-[var(--color-border)]">
+            <div className="card-body text-center space-y-4">
               <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mx-auto">
                 <AlertTriangle size={32} className="text-error" />
               </div>
-
-              <h3 className="text-xl font-bold text-on-surface">Pedidos en Borrador</h3>
-
-              <p className="text-body text-on-surface-variant">
-                Tienes{' '}
-                <strong>{drafts.filter((d) => d.status === 'no enviado').length} pedido(s)</strong>{' '}
-                en borrador que aún no han sido enviados.
-              </p>
-
-              <p className="text-sm text-on-surface-variant/70">
-                Si limpias el caché, estos pedidos se perderán permanentemente.
-              </p>
-
-              <div className="flex flex-col gap-3 pt-4">
-                <button
-                  onClick={() => {
-                    setShowDraftsModal(false);
-                    navigate('/pedidos', { state: { highlightDrafts: true } });
-                  }}
-                  className="m3-button-filled w-full flex items-center justify-center gap-2"
-                >
-                  <Mail size={18} />
-                  Ir a Pedidos para Enviar
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold">Pedidos en Borrador</h3>
+                <p className="text-[var(--color-text-muted)]">
+                  Tienes <strong>{drafts.filter((d) => d.status === 'no enviado').length} pedido(s)</strong> en borrador sin enviar.
+                </p>
+                <p className="text-sm text-[var(--color-text-muted)]">Si limpias el caché, se perderán permanentemente.</p>
+              </div>
+              <div className="flex flex-col gap-2 pt-2">
+                <button type="button" className="btn btn-primary w-full" onClick={() => { setShowDraftsModal(false); navigate('/pedidos', { state: { highlightDrafts: true } }); }}>
+                  <Mail size={18} /> Ir a Pedidos para Enviar
                 </button>
-
-                <button
-                  onClick={async () => {
-                    setShowDraftsModal(false);
-                    await clearAllCaches();
-                    setHasCache(false);
-                  }}
-                  disabled={isSendingEmail}
-                  className="m3-button-outlined w-full flex items-center justify-center gap-2 text-error border-error/30 hover:bg-error/5"
-                >
-                  <Trash2 size={18} />
-                  Limpiar de Todos Modos
+                <button type="button" className="btn btn-outline btn-error w-full" onClick={async () => { setShowDraftsModal(false); await clearAllCaches(); setHasCache(false); }} disabled={isSendingEmail}>
+                  <Trash2 size={18} /> Limpiar de Todos Modos
                 </button>
-
-                <button
-                  onClick={() => setShowDraftsModal(false)}
-                  className="text-sm font-medium text-on-surface-variant hover:text-on-surface py-2"
-                >
-                  Cancelar
-                </button>
+                <button type="button" className="btn btn-ghost w-full" onClick={() => setShowDraftsModal(false)}>Cancelar</button>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );
