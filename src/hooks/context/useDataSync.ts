@@ -26,8 +26,8 @@ export function useDataSync(
       const results = await Promise.allSettled([
         apiService.getProducts(),
         apiService.getClients(),
-        apiService.getOrders(1, 25, undefined),
-        apiService.getSellers(),
+        apiService.getOrders(1, 25, globalPin || undefined),
+        apiService.getSellers(globalPin || undefined),
         apiService.getStats(),
       ]);
 

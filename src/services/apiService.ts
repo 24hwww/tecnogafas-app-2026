@@ -167,12 +167,10 @@ export const apiService = {
     const json = await res.json() as { 
       success?: boolean; 
       data?: {
-        total_orders: number;
-        total_clients: number;
-        total_products: number;
-        total_sellers: number;
-        recent_orders: number;
-        pending_orders: number;
+        total_pedidos: number;
+        total_clientes: number;
+        total_productos: number;
+        total_usuarios: number;
       }; 
       message?: string;
     };
@@ -183,7 +181,14 @@ export const apiService = {
     
     return {
       success: json.success,
-      data: json.data!,
+      data: {
+        total_orders: json.data?.total_pedidos || 0,
+        total_clients: json.data?.total_clientes || 0,
+        total_products: json.data?.total_productos || 0,
+        total_sellers: json.data?.total_usuarios || 0,
+        recent_orders: 0,
+        pending_orders: 0
+      },
       message: json.message
     };
   },
@@ -251,8 +256,9 @@ export const apiService = {
     }
   },
 
-  async getSellers(): Promise<Seller[]> {
-    const res = await customFetch(`${BASE_URL}/usuarios`);
+  async getSellers(sellerId?: string): Promise<Seller[]> {
+    const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
+    const res = await customFetch(`${BASE_URL}/usuarios`, { headers });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json() as { data?: Array<{ ID?: number; display_name?: string }> };
     return (json.data || []).map((s) => ({
@@ -408,8 +414,6 @@ export const apiService = {
     try {
       // BASE_URL puede ser '/api', por lo que new URL necesita un base absoluto
       const url = new URL(`${BASE_URL}/events/unread`, window.location.origin);
-      if (sellerId) url.searchParams.set('pin', sellerId);
-
       
       const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
       if (sellerId) headers['Authorization'] = `Bearer ${sellerId}`;
@@ -611,8 +615,7 @@ export const apiService = {
     const firstName = names[0] || 'Cliente';
     const lastName = names.slice(1).join(' ') || '';
     
-    // Si tiene ID, es una actualización (ej: /cliente/123). Si no, crea un nuevo cliente (/cliente)
-    const url = client.id ? `${BASE_URL}/cliente/${client.id}` : `${BASE_URL}/cliente`;
+    const url = `${BASE_URL}/cliente`;
 
     const res = await customFetch(url, {
       method: 'POST',
@@ -622,7 +625,7 @@ export const apiService = {
         first_name: firstName,
         last_name: lastName,
         billing_phone: client.phone || '',
-        billing_address_1: client.address || '',
+        billing_address: client.address || '',
         billing_city: client.billing_city || '',
         billing_state: client.billing_state || '',
         info_fiscal: client.cuit || ''
@@ -632,8 +635,10 @@ export const apiService = {
   },
 
   async loginSeller(pin: string): Promise<Seller | null> {
-    const res = await customFetch(`${BASE_URL}/login?data=${encodeURIComponent(pin)}`, {
-      method: 'POST'
+    const res = await customFetch(`${BASE_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ data: pin })
     });
     if (!res.ok) {
       console.error('Login failed', res.status, await res.text());
