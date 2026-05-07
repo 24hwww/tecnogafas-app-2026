@@ -27,11 +27,10 @@ export function useDataSync(
         apiService.getProducts(),
         apiService.getClients(),
         apiService.getOrders(1, 25, globalPin || undefined),
-        apiService.getSellers(globalPin || undefined),
         apiService.getStats(),
       ]);
 
-      const [pRes, cRes, oRes, sRes, statsRes] = results;
+      const [pRes, cRes, oRes, statsRes] = results;
       let hasErrors = false;
 
       // 1. Productos
@@ -60,7 +59,7 @@ export function useDataSync(
         } catch(e) { console.error('Cache error clients:', e); }
       }
 
-      // 3. Pedidos
+      // 3. Pedidos & Vendedores
       let ordersCountFallback = 0;
       if (oRes.status === 'fulfilled') {
         const sortedOrders = [...oRes.value.orders].sort((a, b) => 
@@ -71,6 +70,17 @@ export function useDataSync(
         ordersCountFallback = oRes.value.total;
         setDashboardOrders(sortedOrders.slice(0, 5));
         
+        // Extraer vendedores de los pedidos
+        const uniqueSellersMap = new Map<string, string>();
+        sortedOrders.forEach((o: Order) => {
+          if (o.sellerId && o.sellerName) {
+            uniqueSellersMap.set(o.sellerId, o.sellerName);
+          }
+        });
+        const extractedSellers: Seller[] = Array.from(uniqueSellersMap.entries()).map(([id, name]) => ({ id, name }));
+        setSellers(extractedSellers);
+        appDB.sellers.clear().then(() => appDB.sellers.bulkAdd(extractedSellers)).catch(console.warn);
+
         const cachedOrders = sortedOrders.map(({ rawData, ...rest }: any) => rest);
         appDB.orders.clear().then(() => appDB.orders.bulkAdd(cachedOrders)).catch(console.warn);
       } else {
@@ -83,21 +93,23 @@ export function useDataSync(
             setTotalOrders(cached.length);
             ordersCountFallback = cached.length;
             setDashboardOrders(cached.slice(0, 5));
+            
+            // Extraer vendedores de la caché de pedidos
+            const uniqueSellersMap = new Map<string, string>();
+            cached.forEach((o: Order) => {
+              if (o.sellerId && o.sellerName) {
+                uniqueSellersMap.set(o.sellerId, o.sellerName);
+              }
+            });
+            const extractedSellers: Seller[] = Array.from(uniqueSellersMap.entries()).map(([id, name]) => ({ id, name }));
+            if (extractedSellers.length > 0) {
+              setSellers(extractedSellers);
+            } else {
+              const cachedSellers = await appDB.sellers.toArray();
+              if (cachedSellers.length > 0) setSellers(cachedSellers);
+            }
           }
         } catch(e) { console.error('Cache error orders:', e); }
-      }
-
-      // 4. Vendedores
-      if (sRes.status === 'fulfilled') {
-        setSellers(sRes.value);
-        appDB.sellers.clear().then(() => appDB.sellers.bulkAdd(sRes.value)).catch(console.warn);
-      } else {
-        hasErrors = true;
-        console.error('Error fetching sellers:', sRes.reason);
-        try {
-          const cached = await appDB.sellers.toArray();
-          if (cached.length > 0) setSellers(cached);
-        } catch(e) { console.error('Cache error sellers:', e); }
       }
 
       // 5. Estadísticas

@@ -203,26 +203,41 @@ export const apiService = {
     const res = await customFetch(url, { headers });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const json = await res.json() as { data?: ApiOrder[]; total?: number };
-    const orders = (json.data || []).map((o) => ({
-      id: o.ID?.toString() || Math.random().toString(),
-      clientId: o.customer_id?.toString() || '',
-      clientName: o.customer ? `${o.customer.first_name || ''} ${o.customer.last_name || ''}`.trim() : 'Sin cliente',
-      items: (o.items || []).map(i => ({
-        productId: i.product_id?.toString() || '',
-        productName: i.name || '',
-        quantity: i.quantity || 0,
-        price: i.price || 0,
-        vid: i.vid?.toString(),
-      })),
-      total: o.order_total ? parseFloat(o.order_total.toString()) : 0,
-      status: (o.post_status === 'unattended' ? 'Pendiente' : 'Completado') as Order['status'],
-      createdAt: o.post_date || '',
-      sellerId: o.post_author?.toString() || '',
-      rawData: {
-        ...o,
-        customer_note: o.observaciones || o.customer_note || (o as ApiOrder & { notes?: string }).notes || '',
-      },
-    }));
+    const orders = (json.data || []).map((o) => {
+      let clientName = 'Sin cliente';
+      if (o.customer) {
+        if (o.customer.display_name) {
+          clientName = o.customer.display_name;
+        } else if (o.customer.first_name || o.customer.last_name) {
+          clientName = `${o.customer.first_name || ''} ${o.customer.last_name || ''}`.trim();
+        }
+      } else if (o.post_title) {
+        // Fallback para cuando el endpoint es público y no devuelve el objeto customer
+        clientName = o.post_title;
+      }
+
+      return {
+        id: o.ID?.toString() || Math.random().toString(),
+        clientId: o.customer_id?.toString() || '',
+        clientName,
+        items: (o.items || []).map(i => ({
+          productId: i.product_id?.toString() || '',
+          productName: i.name || '',
+          quantity: i.quantity || 0,
+          price: i.price || 0,
+          vid: i.vid?.toString(),
+        })),
+        total: o.order_total ? parseFloat(o.order_total.toString()) : 0,
+        status: (o.post_status === 'unattended' ? 'Pendiente' : 'Completado') as Order['status'],
+        createdAt: o.post_date || '',
+        sellerId: o.post_author?.toString() || '',
+        sellerName: o.seller_name,
+        rawData: {
+          ...o,
+          customer_note: o.observaciones || o.customer_note || (o as ApiOrder & { notes?: string }).notes || '',
+        },
+      };
+    });
     return { orders, total: json.total || orders.length };
   },
 
@@ -256,16 +271,6 @@ export const apiService = {
     }
   },
 
-  async getSellers(sellerId?: string): Promise<Seller[]> {
-    const headers = sellerId ? { 'Authorization': `Bearer ${sellerId}` } : {};
-    const res = await customFetch(`${BASE_URL}/usuarios`, { headers });
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
-    const json = await res.json() as { data?: Array<{ ID?: number; display_name?: string }> };
-    return (json.data || []).map((s) => ({
-      id: s.ID?.toString() || Math.random().toString(),
-      name: s.display_name || 'Sin nombre',
-    }));
-  },
 
   async getAppVersion(): Promise<{ version?: string; apk_url?: string; release_notes?: string } | null> {
     try {

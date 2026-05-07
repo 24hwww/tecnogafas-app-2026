@@ -54,7 +54,6 @@ export default function TestApiPage() {
           <button className="bg-primary text-on-primary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('Get Products', () => apiService.getProducts())}>Get Products</button>
           <button className="bg-primary text-on-primary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('Get Clients', () => apiService.getClients())}>Get Clients</button>
           <button className="bg-primary text-on-primary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('Get Orders', () => apiService.getOrders(1, 25, sellerId))}>Get Orders</button>
-          <button className="bg-primary text-on-primary p-3 rounded-lg font-bold text-sm hover:scale-[1.02] transition-transform" onClick={() => runTest('Get Sellers', () => apiService.getSellers())}>Get Sellers</button>
         </div>
       </div>
 

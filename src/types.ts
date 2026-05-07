@@ -69,6 +69,7 @@ export interface ApiOrder {
   customer_id: number;
   ocode: string;
   seller_id: number;
+  seller_name?: string;
   post_author: number;
   discount: string;
   recargo: string;
@@ -94,10 +95,21 @@ export interface ApiOrderItem {
 
 export interface ApiCustomer {
   ID: number;
+  user_login?: string;
+  display_name?: string;
   user_email: string;
   first_name: string;
   last_name: string;
-  phone: string;
+  billing_first_name?: string;
+  billing_last_name?: string;
+  billing_company?: string;
+  billing_email?: string;
+  billing_address_1?: string;
+  billing_city?: string;
+  billing_state?: string;
+  billing_country?: string;
+  billing_phone?: string;
+  info_fiscal?: string;
 }
 
 export interface Product {
@@ -147,6 +159,7 @@ export interface Order {
   status: 'Pendiente' | 'En Proceso' | 'Completado' | 'Cancelado';
   createdAt: string;
   sellerId: string;
+  sellerName?: string;
   rawData: ApiOrder;
 }
 
