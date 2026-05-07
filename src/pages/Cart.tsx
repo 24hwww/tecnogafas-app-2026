@@ -376,29 +376,49 @@ export default function Cart() {
           <span className="text-2xl font-bold text-primary">{formatCurrency(total)}</span>
         </div>
         <div className="space-y-3">
-          <button 
-            id="cart-share-cart-btn"
-            onClick={handleShareCart}
-            disabled={!selectedClient || cart.length === 0 || isSharing}
-            className="w-full m3-button-outlined py-3 disabled:opacity-50"
-          >
-            {isSharing ? (
-              <>
-                <div className="inline-block animate-spin rounded-full border-2 border-primary/20 border-t-primary/20 h-4 w-4 mr-2"></div>
-                Guardando y Compartiendo...
-              </>
-            ) : (
-              <>
-                <Share2 size={18} className="mr-2" />
-                Guardar y Compartir Carrito
-              </>
-            )}
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button 
+              id="cart-share-cart-btn"
+              onClick={handleShareCart}
+              disabled={!selectedClient || cart.length === 0 || isSharing}
+              className="m3-button-outlined py-3 disabled:opacity-50 text-xs flex items-center justify-center"
+            >
+              {isSharing ? (
+                <>
+                  <div className="inline-block animate-spin rounded-full border-2 border-primary/20 border-t-primary/20 h-4 w-4 mr-1"></div>
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Share2 size={16} className="mr-1" />
+                  Guardar Carrito
+                </>
+              )}
+            </button>
+            <button 
+              id="cart-pdf-btn"
+              onClick={() => generateCartImage()}
+              disabled={cart.length === 0 || isGeneratingImage}
+              className="m3-button-outlined py-3 disabled:opacity-50 text-xs flex items-center justify-center"
+            >
+              {isGeneratingImage ? (
+                <>
+                  <div className="inline-block animate-spin rounded-full border-2 border-primary/20 border-t-primary/20 h-4 w-4 mr-1"></div>
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <Camera size={16} className="mr-1" />
+                  Generar PDF
+                </>
+              )}
+            </button>
+          </div>
           <button 
             id="cart-confirm-order-btn"
             onClick={handleConfirm}
             disabled={!selectedClient || cart.length === 0}
-            className="w-full m3-button-filled py-3 disabled:opacity-50"
+            className="w-full m3-button-filled py-3 disabled:opacity-50 font-bold uppercase tracking-widest"
           >
             Confirmar Pedido
           </button>

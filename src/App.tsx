@@ -59,7 +59,7 @@ function AppInner() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/carrito" element={<Cart />} />
-        <Route path="/carrito/:code" element={<SharedCart />} />
+        <Route path="/shared-cart/:code" element={<SharedCart />} />
         <Route path="/productos" element={<Products />} />
         <Route path="/clientes" element={<Clients />} />
         <Route path="/pedidos" element={<Orders />} />

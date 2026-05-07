@@ -75,24 +75,24 @@ export default function SharedCart() {
         clearCart();
         
         result.cart.items.forEach(item => {
-          addToCart(
-            {
-              id: item.id.toString(),
-              name: item.name,
-              category: item.category || '',
-              price: item.price,
-              stock: item.stock || 0,
-              image: item.image || '',
-              description: item.description || '',
-              variations: item.vid ? [{
-                vid: item.vid?.toString() || '',
-                title: item.name, // Fallback to item name if variation name not found
-                stock: item.quantity,
-                price: item.price
-              }] : undefined
-            },
-            item.quantity
-          );
+          // Mapeo robusto para asegurar que el item sea compatible con el contexto del carrito
+          const productToLoad = {
+            id: item.id.toString(),
+            name: item.name,
+            category: item.category || 'General',
+            price: item.price,
+            stock: item.stock || 999,
+            image: item.image || '',
+            description: item.description || '',
+            variations: item.vid ? [{
+              vid: item.vid.toString(),
+              title: item.variation_name || item.name,
+              stock: item.quantity,
+              price: item.price
+            }] : undefined
+          };
+          
+          addToCart(productToLoad, item.quantity);
         });
         
         navigate('/carrito');

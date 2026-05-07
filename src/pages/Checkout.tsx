@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { formatCurrency, formatTimeBA, formatDateBA } from '../lib/utils';
 import { LastOrder, Seller } from '../types';
 import { apiService } from '../services/apiService';
-import { Check, X, ArrowLeft, Download, FileText, RefreshCw } from 'lucide-react';
+import { Check, X, ArrowLeft, Download, FileText, RefreshCw, ShoppingBag, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 
@@ -52,14 +52,40 @@ export default function Checkout() {
 
   if (!orderFeedback && (!selectedClient || cart.length === 0)) {
     return (
-      <div className="p-8 text-center space-y-4 pt-20">
-        <div className="w-16 h-16 bg-surface-variant/30 rounded-full flex items-center justify-center mx-auto mb-4 text-outline">
-          <ArrowLeft size={32} />
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center min-h-[70vh] p-6 text-center space-y-8"
+      >
+        <div className="relative">
+          <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 text-primary animate-pulse">
+            <ShoppingBag size={48} strokeWidth={1.5} />
+          </div>
+          <div className="absolute -bottom-1 -right-1 bg-surface p-1 rounded-full border-2 border-background">
+            <AlertCircle size={24} className="text-red-500" />
+          </div>
         </div>
-        <p className="font-bold text-on-surface">No hay datos suficientes para el checkout.</p>
-        <p className="text-sm text-on-surface-variant">Regrese al carrito y seleccione un cliente y productos.</p>
-        <button onClick={() => navigate('/carrito')} className="m3-button-filled w-full max-w-xs uppercase tracking-widest font-bold">Volver al Carrito</button>
-      </div>
+
+        <div className="max-w-xs space-y-3">
+          <h3 className="text-2xl font-black uppercase tracking-tight text-on-surface">
+            Faltan Datos
+          </h3>
+          <p className="text-sm text-on-surface-variant leading-relaxed">
+            Para continuar con el checkout, primero debes tener productos en tu carrito y un cliente asignado.
+          </p>
+        </div>
+
+        <div className="w-full max-w-xs pt-4">
+          <button 
+            onClick={() => navigate('/carrito')} 
+            className="m3-button-filled w-full py-4 uppercase tracking-[0.2em] font-black shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-3"
+          >
+            <ArrowLeft size={20} />
+            Volver al Carrito
+          </button>
+        </div>
+
+      </motion.div>
     );
   }
 

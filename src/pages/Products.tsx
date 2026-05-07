@@ -16,8 +16,7 @@ export default function Products() {
   const [showZeroPrice, setShowZeroPrice] = useState(true);
   const [search, setSearch] = useState('');
   const [variationModalProduct, setVariationModalProduct] = useState<Product | null>(null);
-  const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
-  const [variationQuantity, setVariationQuantity] = useState(1);
+  const [variationQuantities, setVariationQuantities] = useState<Record<string, number>>({});
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
 
   const triggerAddedAnimation = (id: string) => {
@@ -76,37 +75,61 @@ export default function Products() {
 
   const handleOpenVariationModal = (product: Product) => {
     setVariationModalProduct(product);
-    const hasVariations = product.variations && product.variations.length > 0;
-    if (hasVariations) {
-      const firstAvailable = product.variations?.find(v => v.stock > 0) || product.variations?.[0] || null;
-      setSelectedVariation(firstAvailable);
-      setVariationQuantity(1);
+    const initialQuantities: Record<string, number> = {};
+    if (product.variations && product.variations.length > 0) {
+      product.variations.forEach(v => {
+        initialQuantities[v.vid] = 0;
+      });
     } else {
-      setSelectedVariation(null);
-      setVariationQuantity(1);
+      initialQuantities['base'] = 1;
     }
+    setVariationQuantities(initialQuantities);
+  };
+
+  const updateVariationQuantity = (vid: string, delta: number) => {
+    setVariationQuantities(prev => ({
+      ...prev,
+      [vid]: Math.max(0, (prev[vid] || 0) + delta)
+    }));
   };
 
   const handleAddToCartFromModal = () => {
     if (!variationModalProduct) return;
     
-    if (selectedVariation) {
-      const productToAdd = {
-        ...variationModalProduct,
-        id: `${variationModalProduct.id}-${selectedVariation.vid}`,
-        name: `${variationModalProduct.name} - ${selectedVariation.title}`,
-        price: selectedVariation.price,
-        stock: selectedVariation.stock,
-        vid: selectedVariation.vid
-      };
-      addToCart(productToAdd, variationQuantity);
-      triggerAddedAnimation(productToAdd.id);
+    let anyAdded = false;
+
+    Object.entries(variationQuantities).forEach(([vid, quantity]) => {
+      if (quantity <= 0) return;
+      anyAdded = true;
+
+      if (vid === 'base') {
+        addToCart(variationModalProduct, quantity);
+        triggerAddedAnimation(variationModalProduct.id);
+      } else {
+        const variation = variationModalProduct.variations?.find(v => v.vid === vid);
+        if (variation) {
+          const productToAdd = {
+            ...variationModalProduct,
+            id: `${variationModalProduct.id}-${variation.vid}`,
+            name: `${variationModalProduct.name} - ${variation.title}`,
+            price: variation.price,
+            stock: variation.stock,
+            vid: variation.vid
+          };
+          addToCart(productToAdd, quantity);
+          triggerAddedAnimation(productToAdd.id);
+        }
+      }
+    });
+
+    if (anyAdded) {
+      setVariationModalProduct(null);
     } else {
-      addToCart(variationModalProduct, variationQuantity);
-      triggerAddedAnimation(variationModalProduct.id);
+      alert('Seleccione al menos una unidad');
     }
-    setVariationModalProduct(null);
   };
+
+  const totalSelected = Object.values(variationQuantities).reduce((acc, q) => acc + q, 0);
 
   return (
     <PullToRefresh onRefresh={() => refreshData(false)}>
@@ -220,7 +243,7 @@ export default function Products() {
                       <motion.div
                         initial={{ scale: 0, rotate: -180 }}
                         animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                        transition={{ type: "spring", stiffness: 200, stiffness: 200, damping: 15 }}
                         className="bg-green-500 text-white rounded-full p-3 shadow-lg shadow-green-500/30"
                       >
                         <Check size={28} strokeWidth={3} />
@@ -255,7 +278,7 @@ export default function Products() {
                           className={`m3-button-filled w-full !py-2 text-xs flex items-center justify-center gap-2 font-bold ${isAdded ? '!bg-green-600' : ''}`}
                         >
                          {isAdded ? <Check size={14} /> : <ShoppingCart size={14} />}
-                          {isAdded ? 'Agregado' : (hasVariations ? 'Seleccionar...' : 'Agregar')}
+                          {isAdded ? 'Agregado' : (hasVariations ? 'Seleccionar Variaciones' : 'Agregar')}
                         </motion.button>
                       )}
                     </div>
@@ -269,102 +292,118 @@ export default function Products() {
         {/* Variation Modal */}
         {variationModalProduct && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="m3-card bg-white w-full max-w-sm flex flex-col max-h-[90vh] shadow-2xl animate-in fade-in zoom-in duration-200">
-              <div className="p-4 border-b border-surface-variant flex justify-between items-center">
-                <h3 id="products-variation-modal-title" className="font-black text-lg">{variationModalProduct.name}</h3>
-                <button onClick={() => setVariationModalProduct(null)} className="p-1 hover:bg-surface-variant rounded-full text-outline">
-                  <X size={20} />
+            <div className="m3-card bg-white w-full max-w-md flex flex-col max-h-[90vh] shadow-2xl animate-in fade-in zoom-in duration-200">
+              <div className="p-4 border-b border-surface-variant flex justify-between items-center bg-surface-variant/10">
+                <div>
+                  <h3 id="products-variation-modal-title" className="font-black text-lg leading-tight">{variationModalProduct.name}</h3>
+                  <p className="text-[10px] uppercase font-bold text-outline tracking-wider mt-1">Selección Múltiple de Variaciones</p>
+                </div>
+                <button onClick={() => setVariationModalProduct(null)} className="p-2 hover:bg-surface-variant rounded-full text-outline transition-colors">
+                  <X size={24} />
                 </button>
               </div>
               
-              <div className="p-4 flex-1 overflow-y-auto space-y-4 scroll-smooth">
-                <div className="space-y-2">
-                  {variationModalProduct.variations && variationModalProduct.variations.length > 0 ? (
-                    variationModalProduct.variations.map(v => (
-                      <button
+              <div className="p-4 flex-1 overflow-y-auto space-y-3 scroll-smooth">
+                {variationModalProduct.variations && variationModalProduct.variations.length > 0 ? (
+                  variationModalProduct.variations.map(v => {
+                    const qty = variationQuantities[v.vid] || 0;
+                    return (
+                      <div
                         key={v.vid}
-                        disabled={v.stock === 0}
-                        onClick={() => setSelectedVariation(v)}
-                        className={`w-full p-4 border text-left rounded-xl transition-all ${
-                          v.stock === 0 ? 'opacity-40 grayscale cursor-not-allowed border-dashed' : 
-                          selectedVariation?.vid === v.vid ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-surface-variant hover:border-outline/30'
+                        className={`p-4 border rounded-xl transition-all flex flex-col gap-3 ${
+                          v.stock === 0 ? 'opacity-40 grayscale bg-outline/5 border-dashed' : 
+                          qty > 0 ? 'border-primary bg-primary/5 ring-1 ring-primary shadow-sm' : 'border-surface-variant'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className={`${v.stock === 0 ? 'text-outline' : 'font-bold'} text-sm`}>{v.title}</span>
-                            {v.stock === 0 && <span className="text-[10px] bg-outline/10 px-1.5 py-0.5 rounded uppercase font-black text-outline">Sin Stock</span>}
+                        <div className="min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`${v.stock === 0 ? 'text-outline' : 'font-black'} text-sm truncate`}>{v.title}</span>
+                            {v.stock === 0 && <span className="text-[9px] bg-outline/10 px-2 py-0.5 rounded uppercase font-black text-outline">Sin Stock</span>}
                           </div>
-                          {addedProductId === `${variationModalProduct.id}-${v.vid}` && (
-                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-green-600">
-                              <Check size={16} />
-                            </motion.div>
-                          )}
+                          <div className="flex justify-between items-center mt-1">
+                             <span className="text-xs text-outline font-bold">Stock: {v.stock}</span>
+                             <span className={`text-base font-black ${v.stock === 0 ? 'text-outline/40' : 'text-primary'}`}>{formatCurrency(v.price)}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between items-baseline mt-1">
-                          <span className="text-xs text-outline font-medium">Stock: {v.stock}</span>
-                          <span className={`text-base font-black ${v.stock === 0 ? 'text-outline/40' : 'text-primary'}`}>{formatCurrency(v.price)}</span>
+
+                        {/* Quantity selector for this variation - Full width below */}
+                        <div className="flex items-center bg-white border border-outline/10 rounded-lg overflow-hidden shadow-sm h-12 w-full">
+                          <button 
+                            disabled={v.stock === 0 || qty === 0}
+                            onClick={() => updateVariationQuantity(v.vid, -1)}
+                            className="flex-1 h-full hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-10 flex items-center justify-center border-r border-outline/5"
+                          >
+                            <Minus size={20} />
+                          </button>
+                          <span className={`flex-1 text-center font-black text-lg ${qty > 0 ? 'text-primary' : 'text-outline/20'}`}>
+                            {qty}
+                          </span>
+                          <button 
+                            disabled={v.stock === 0 || qty >= v.stock}
+                            onClick={() => updateVariationQuantity(v.vid, 1)}
+                            className="flex-1 h-full hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-10 flex items-center justify-center border-l border-outline/5"
+                          >
+                            <Plus size={20} />
+                          </button>
                         </div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className={`p-6 border rounded-2xl text-center ${variationModalProduct.stock === 0 ? 'bg-outline/5 border-dashed border-outline/20' : 'bg-primary/5 border-primary/10'}`}>
-                      <p className={`text-sm font-bold ${variationModalProduct.stock === 0 ? 'text-outline' : 'text-primary'}`}>
-                        {variationModalProduct.stock === 0 ? 'Producto Agotado' : 'Producto base'}
-                      </p>
-                      <p className={`text-sm font-black mt-1 ${variationModalProduct.stock === 0 ? 'text-outline/40' : 'text-primary-900'}`}>{formatCurrency(variationModalProduct.price)}</p>
-                      <p className="text-xs text-outline mt-1 font-medium">Stock disponible: {variationModalProduct.stock}</p>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className={`p-6 border rounded-2xl text-center ${variationModalProduct.stock === 0 ? 'bg-outline/5 border-dashed border-outline/20' : 'bg-primary/5 border-primary/10'}`}>
+                    <p className={`text-sm font-bold ${variationModalProduct.stock === 0 ? 'text-outline' : 'text-primary'}`}>
+                      {variationModalProduct.stock === 0 ? 'Producto Agotado' : 'Producto base'}
+                    </p>
+                    <p className={`text-lg font-black mt-1 ${variationModalProduct.stock === 0 ? 'text-outline/40' : 'text-primary-900'}`}>{formatCurrency(variationModalProduct.price)}</p>
+                    
+                    <div className="flex justify-center mt-4">
+                      <div className="flex items-center bg-white border border-outline/20 rounded-full overflow-hidden shadow-sm h-12">
+                        <button 
+                          disabled={variationModalProduct.stock === 0}
+                          onClick={() => updateVariationQuantity('base', -1)}
+                          className="p-3 px-5 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-30"
+                        >
+                          <Minus size={20} />
+                        </button>
+                        <span className="w-12 text-center font-black text-lg text-primary">
+                          {variationQuantities['base'] || 0}
+                        </span>
+                        <button 
+                          disabled={variationModalProduct.stock === 0 || (variationQuantities['base'] || 0) >= variationModalProduct.stock}
+                          onClick={() => updateVariationQuantity('base', 1)}
+                          className="p-3 px-5 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-30"
+                        >
+                          <Plus size={20} />
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
-              <div className="p-4 bg-surface-variant/20 border-t border-surface-variant space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-outline uppercase tracking-wider">Cantidad</span>
-                  <div className="flex items-center bg-white border border-outline/20 rounded-full overflow-hidden shadow-sm">
-                    <button 
-                      disabled={(selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0)}
-                      onClick={() => setVariationQuantity(Math.max(1, variationQuantity - 1))}
-                      className="p-2 px-3 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-30"
-                    >
-                      <Minus size={18} />
-                    </button>
-                    <input 
-                      type="number" 
-                      min="1" 
-                      disabled={(selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0)}
-                      value={variationQuantity}
-                      onChange={(e) => setVariationQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-12 text-center bg-transparent focus:outline-none font-black text-primary disabled:text-outline/40"
-                    />
-                    <button 
-                      disabled={(selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0)}
-                      onClick={() => setVariationQuantity(variationQuantity + 1)}
-                      className="p-2 px-3 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-30"
-                    >
-                      <Plus size={18} />
-                    </button>
-                  </div>
+              <div className="p-4 bg-surface-variant/20 border-t border-surface-variant">
+                <div className="flex items-center justify-between mb-4 px-2">
+                  <span className="text-xs font-bold text-outline uppercase tracking-widest">Total Seleccionado</span>
+                  <span className="text-lg font-black text-primary">{totalSelected} un.</span>
                 </div>
 
-                <div className="flex flex-col gap-3">
+                <div className="flex gap-3">
                   <button 
                     id="products-variation-modal-cancel-btn"
                     onClick={() => setVariationModalProduct(null)} 
-                    className="flex-1 py-3 text-sm font-bold text-outline hover:bg-surface-variant rounded-xl transition-colors"
+                    className="flex-1 py-4 text-xs font-bold text-outline hover:bg-surface-variant rounded-xl transition-colors uppercase tracking-widest"
                   >
                     Cancelar
                   </button>
                   <motion.button 
                     id="products-variation-modal-confirm-btn"
-                    whileHover={!(selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0) ? { scale: 1.02 } : {}}
-                    whileTap={!(selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0) ? { scale: 0.98 } : {}}
+                    whileHover={totalSelected > 0 ? { scale: 1.02 } : {}}
+                    whileTap={totalSelected > 0 ? { scale: 0.98 } : {}}
                     onClick={handleAddToCartFromModal}
-                    disabled={variationQuantity < 1 || (selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0)}
-                    className="flex-[2] py-3 bg-primary text-on-primary rounded-xl font-black text-sm shadow-lg shadow-primary/20 disabled:bg-outline/20 disabled:text-outline disabled:shadow-none disabled:cursor-not-allowed"
+                    disabled={totalSelected === 0}
+                    className="flex-[2] py-4 bg-primary text-on-primary rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 disabled:bg-outline/20 disabled:text-outline disabled:shadow-none disabled:cursor-not-allowed"
                   >
-                    { (selectedVariation ? selectedVariation.stock === 0 : variationModalProduct.stock === 0) ? 'Sin Stock' : 'Confirmar Selección' }
+                    Agregar {totalSelected > 0 ? `(${totalSelected})` : ''} al Carrito
                   </motion.button>
                 </div>
               </div>
@@ -375,4 +414,3 @@ export default function Products() {
     </PullToRefresh>
   );
 }
-

@@ -620,10 +620,10 @@ export const apiService = {
   },
 
   async saveClient(client: Partial<Client>): Promise<boolean> {
-    const names = (client.name || '').split(' ');
-    const firstName = names[0] || 'Cliente';
-    const lastName = names.slice(1).join(' ') || '';
-    
+    const sellerId = localStorage.getItem('seller_id');
+    const [firstName, ...lastNames] = (client.name || '').split(' ');
+    const lastName = lastNames.join(' ');
+
     const url = `${BASE_URL}/cliente`;
 
     const res = await customFetch(url, {
@@ -646,7 +646,7 @@ export const apiService = {
   async loginSeller(pin: string): Promise<Seller | null> {
     const res = await customFetch(`${BASE_URL}/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: pin })
     });
     if (!res.ok) {
@@ -660,21 +660,15 @@ export const apiService = {
     };
   },
 
-  async downloadOrderPdf(orderId: string, sellerId: string): Promise<boolean> {
+  async downloadOrderPdf(orderId: number): Promise<Blob | false> {
+    const sellerId = localStorage.getItem('seller_id');
     try {
       const res = await customFetch(`${BASE_URL}/pedido/${orderId}/pdf`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${sellerId}` }
       });
       if (!res.ok) return false;
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Pedido_${orderId}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      return true;
+      return await res.blob();
     } catch {
       return false;
     }
