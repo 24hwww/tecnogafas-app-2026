@@ -27,6 +27,23 @@ export default function QRScanner() {
     
     try {
       const rawValue = detectedCodes[0].rawValue;
+      console.log('QR Code detected:', rawValue);
+
+      // 1. Verificar si es una URL de carrito compartido (Nuevo formato)
+      if (rawValue.includes('/shared-cart/')) {
+        const parts = rawValue.split('/');
+        const code = parts[parts.length - 1];
+        if (code) {
+          setScanning(false);
+          setSuccess(true);
+          setTimeout(() => {
+            navigate(`/shared-cart/${code}`);
+          }, 1000);
+          return;
+        }
+      }
+
+      // 2. Formato antiguo JSON
       const data: QRData = JSON.parse(rawValue);
       
       // Basic validation
@@ -57,9 +74,8 @@ export default function QRScanner() {
       
     } catch (err) {
       console.error('Error procesando el código QR:', err);
-      // Solo mostramos error si intentó parsear un JSON válido pero falló
-      // o si es un QR que no es nuestro (para evitar spam de errores al pasar cámara por otros QR)
-      if (detectedCodes[0].rawValue.includes('"items"')) {
+      const rawValue = detectedCodes[0].rawValue;
+      if (rawValue.includes('"items"') || rawValue.includes('/shared-cart/')) {
          setError('Error al leer los datos del carrito del código QR.');
          setScanning(false);
       }

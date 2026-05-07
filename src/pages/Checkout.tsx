@@ -71,8 +71,30 @@ export default function Checkout() {
   const finalTotal = baseForIva + ivaAmount;
 
   const handleConfirmOrder = async () => {
+    // 1. If no PIN, open PIN modal first
+    if (!globalPin) {
+      setIsConfirmModalOpen(false);
+      setIsPinModalOpen(true);
+      return;
+    }
+
     setIsLoading(true);
     try {
+      // 1. Primero logueamos al vendedor para obtener su ID real (Bearer Token)
+      const sellerInfo = await apiService.loginSeller(globalPin);
+      
+      if (!sellerInfo) {
+        // Si el PIN falló, pedimos PIN de nuevo
+        setGlobalPin(null);
+        setIsConfirmModalOpen(false);
+        setIsPinModalOpen(true);
+        setIsLoading(false);
+        return;
+      }
+
+      setSeller(sellerInfo);
+
+      // 2. Ahora verificamos productos usando el ID del vendedor (sellerInfo.id)
       const itemsToVerify = cart.map(item => {
         const baseProductId = parseInt(item.id.split('-')[0]);
         const verificationItem: Record<string, any> = {
@@ -86,13 +108,13 @@ export default function Checkout() {
         return verificationItem;
       });
 
-      const verifyRes = await apiService.verifyProducts(itemsToVerify);
+      const verifyRes = await apiService.verifyProducts(itemsToVerify, sellerInfo.id);
+      
       if (!verifyRes.success || (verifyRes.failed && verifyRes.failed > 0)) {
         const validationErrors: string[] = [];
         if (verifyRes.results) {
            verifyRes.results.forEach((r: Record<string, any>) => {
              if (r.status !== 'ok') {
-               // Find original item in cart
                const originalItem = cart.find(c => {
                  const baseId = r.product_id != null ? r.product_id.toString() : '';
                  const varId = r.variation_id != null ? r.variation_id.toString() : '';
@@ -126,22 +148,15 @@ export default function Checkout() {
       }
       
       setIsConfirmModalOpen(false);
-      if (globalPin) {
-        setIsLoading(true);
-        const sellerInfo = await apiService.loginSeller(globalPin);
-        if (sellerInfo) {
-           setSeller(sellerInfo);
-           await executeCreateOrder(sellerInfo.id);
-           return;
-        }
-      }
-      setIsPinModalOpen(true);
+      // 3. Proceder a crear el pedido
+      await executeCreateOrder(sellerInfo.id);
+
     } catch(e) {
-       console.error("Verification error", e);
+       console.error("Verification/Login error", e);
        setIsConfirmModalOpen(false);
        setOrderFeedback({
          title: 'Error de conexión',
-         message: 'Hubo un error al verificar los productos. Inténtelo de nuevo.',
+         message: 'Hubo un error al procesar el pedido. Inténtelo de nuevo.',
          type: 'error'
        });
     } finally {
@@ -157,8 +172,53 @@ export default function Checkout() {
       const sellerInfo = await apiService.loginSeller(sellerPin);
       if (sellerInfo) {
         setGlobalPin(sellerPin); // <-- save to global if successful
-        setIsPinModalOpen(false);
         setSeller(sellerInfo);
+
+        // Verification step after login
+        const itemsToVerify = cart.map(item => {
+          const baseProductId = parseInt(item.id.split('-')[0]);
+          const verificationItem: Record<string, any> = {
+            product_id: baseProductId,
+            price: item.price,
+            stock: item.quantity
+          };
+          if (item.vid) {
+            verificationItem.variation_id = parseInt(item.vid);
+          }
+          return verificationItem;
+        });
+
+        const verifyRes = await apiService.verifyProducts(itemsToVerify, sellerInfo.id);
+        if (!verifyRes.success || (verifyRes.failed && verifyRes.failed > 0)) {
+           const validationErrors: string[] = [];
+           if (verifyRes.results) {
+              verifyRes.results.forEach((r: Record<string, any>) => {
+                if (r.status !== 'ok') {
+                   const originalItem = cart.find(c => {
+                     const baseId = r.product_id != null ? r.product_id.toString() : '';
+                     const varId = r.variation_id != null ? r.variation_id.toString() : '';
+                     return baseId ? c.id.startsWith(baseId) && (!varId || c.vid === varId) : false;
+                   });
+                   const itemName = (r.variation_name ? `${r.product_name} - ${r.variation_name}` : r.product_name) || (originalItem ? originalItem.name : `Producto`);
+                   if (r.error) {
+                     validationErrors.push(r.error);
+                   } else {
+                     validationErrors.push(`Error con "${itemName}": ${r.status}`);
+                   }
+                }
+              });
+           }
+           setIsPinModalOpen(false);
+           setOrderFeedback({
+             title: 'Cambios en el catálogo',
+             message: "No se puede finalizar el pedido debido a cambios detectados:\n\n" + (validationErrors.length > 0 ? validationErrors.join("\n") : verifyRes.message),
+             type: 'error'
+           });
+           setIsLoading(false);
+           return;
+        }
+
+        setIsPinModalOpen(false);
         await executeCreateOrder(sellerInfo.id);
       } else {
         setPinError('PIN incorrecto');

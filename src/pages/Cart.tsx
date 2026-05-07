@@ -91,72 +91,59 @@ export default function Cart() {
     }
   };
 
-  const generateCartImage = async () => {
+  const generateCartImage = async (shareCode?: string) => {
     if (cart.length === 0) return;
     
     setIsGeneratingImage(true);
     try {
-      // Importar librerías dinámicamente
       const jsPDF = (await import('jspdf')).jsPDF;
       const html2canvas = (await import('html2canvas')).default;
       const QRCode = (await import('qrcode')).default;
       
-      // Generar código QR único para el carrito
-      const cartId = `cart_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      const qrCodeData = {
-        id: cartId,
-        client: selectedClient ? { name: selectedClient.name, email: selectedClient.email } : null,
-        items: cart,
-        total: total,
-        date: new Date().toISOString(),
-        version: '1.0'
-      };
-      
-      // Guardar QR data en localStorage para recuperación después
-      localStorage.setItem(`qr_cart_${cartId}`, JSON.stringify(qrCodeData));
-      
-      // Generar QR code
-      const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(qrCodeData), {
+      // Si tenemos un shareCode de Supabase, lo usamos. Si no, generamos uno temporal local.
+      const displayCode = shareCode || `LOCAL_${Date.now().toString(36).toUpperCase()}`;
+      const shareUrl = shareCode 
+        ? `${window.location.origin}/shared-cart/${shareCode}`
+        : `${window.location.origin}/carrito?recover=${displayCode}`;
+
+      // En el QR solo ponemos la URL o el código, NO todos los productos
+      const qrCodeDataUrl = await QRCode.toDataURL(shareUrl, {
         width: 150,
         margin: 1,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
+        color: { dark: '#000000', light: '#FFFFFF' }
       });
       
-      // Generar HTML del carrito
       const currentDate = new Date().toLocaleDateString('es-AR');
       const cartItemsHtml = cart.map(item => `
         <tr>
-          <td style="padding: 8px; border-bottom: 1px solid #000; font-size: 12px;">${item.name}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #000; font-size: 12px;">${formatCurrency(item.price)} c/u × ${item.quantity}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #000; font-size: 12px; text-align: right; font-weight: bold;">${formatCurrency(item.price * item.quantity)}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #000; font-size: 11px;">${item.name}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #000; font-size: 11px; text-align: center;">${item.quantity}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #000; font-size: 11px; text-align: right;">${formatCurrency(item.price * item.quantity)}</td>
         </tr>
       `).join('');
       
       const htmlContent = `
-        <div style="font-family: Arial, sans-serif; padding: 20px; background: white;">
-          <div style="text-align: center; margin-bottom: 25px;">
-            <h1 style="margin: 0; color: #000; font-size: 20px; font-weight: bold;">PEDIDO TECNOGAFAS</h1>
-            <p style="margin: 5px 0; color: #000; font-size: 12px;">${currentDate}</p>
+        <div style="font-family: Arial, sans-serif; padding: 20px; background: white; width: 550px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h1 style="margin: 0; color: #000; font-size: 22px; font-weight: bold;">PEDIDO TECNOGAFAS</h1>
+            <p style="margin: 5px 0; color: #000; font-size: 14px;">Fecha: ${currentDate}</p>
+            <p style="margin: 2px 0; color: #444; font-size: 12px;">Código: ${displayCode}</p>
           </div>
           
           ${selectedClient ? `
-          <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #000;">
-            <h2 style="margin: 0 0 8px 0; color: #000; font-size: 16px; font-weight: bold;">CLIENTE</h2>
-            <p style="margin: 0; font-weight: bold; color: #000; font-size: 14px;">${selectedClient.name}</p>
-            ${selectedClient.email ? `<p style="margin: 5px 0 0 0; color: #000; font-size: 12px;">${selectedClient.email}</p>` : ''}
+          <div style="margin-bottom: 20px; padding: 12px; border: 1px solid #000; border-radius: 4px;">
+            <h2 style="margin: 0 0 5px 0; color: #000; font-size: 14px; font-weight: bold;">CLIENTE</h2>
+            <p style="margin: 0; font-weight: bold; color: #000; font-size: 15px;">${selectedClient.name}</p>
+            ${selectedClient.email ? `<p style="margin: 3px 0 0 0; color: #444; font-size: 12px;">${selectedClient.email}</p>` : ''}
           </div>
           ` : ''}
           
           <div style="margin-bottom: 20px;">
-            <h2 style="margin: 0 0 12px 0; color: #000; font-size: 16px; font-weight: bold;">PRODUCTOS</h2>
-            <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
+            <table style="width: 100%; border-collapse: collapse;">
               <thead>
-                <tr>
+                <tr style="background-color: #f0f0f0;">
                   <th style="padding: 8px; border: 1px solid #000; text-align: left; font-size: 12px;">Producto</th>
-                  <th style="padding: 8px; border: 1px solid #000; text-align: left; font-size: 12px;">Cantidad</th>
+                  <th style="padding: 8px; border: 1px solid #000; text-align: center; font-size: 12px;">Cant.</th>
                   <th style="padding: 8px; border: 1px solid #000; text-align: right; font-size: 12px;">Subtotal</th>
                 </tr>
               </thead>
@@ -166,15 +153,14 @@ export default function Cart() {
             </table>
           </div>
           
-          <div style="text-align: right; margin-top: 20px; padding: 15px; border-top: 2px solid #000;">
-            <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #000;">TOTAL: ${formatCurrency(total)}</h2>
+          <div style="text-align: right; margin-top: 15px; padding: 10px; border-top: 2px solid #000;">
+            <h2 style="margin: 0; font-size: 20px; font-weight: bold; color: #000;">TOTAL: ${formatCurrency(total)}</h2>
           </div>
           
-          <div style="text-align: center; margin-top: 30px; padding: 20px; border: 2px dashed #000;">
-            <h3 style="margin: 0 0 10px 0; color: #000; font-size: 14px; font-weight: bold;">ESCANEAR PARA RECUPERAR PEDIDO</h3>
-            <img src="${qrCodeDataUrl}" alt="QR Code" style="width: 150px; height: 150px;" />
-            <p style="margin: 10px 0 0 0; color: #000; font-size: 12px;">ID: ${cartId}</p>
-            <p style="margin: 5px 0; color: #666; font-size: 10px;">Escanea este código QR con la app para recuperar este pedido</p>
+          <div style="text-align: center; margin-top: 25px; padding: 15px; border: 1px dashed #666; border-radius: 8px;">
+            <p style="margin: 0 0 10px 0; color: #000; font-size: 13px; font-weight: bold;">ESCANEAR PARA RECUPERAR PEDIDO</p>
+            <img src="${qrCodeDataUrl}" alt="QR Code" style="width: 140px; height: 140px;" />
+            <p style="margin: 10px 0 0 0; color: #666; font-size: 10px;">Escanea este código con la aplicación para cargar este carrito automáticamente.</p>
           </div>
         </div>
       `;

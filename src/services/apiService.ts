@@ -241,7 +241,7 @@ export const apiService = {
     return { orders, total: json.total || orders.length };
   },
 
-  async verifyProducts(products: {product_id: number, variation_id?: number, price: number, stock: number}[]): Promise<{
+  async verifyProducts(products: {product_id: number, variation_id?: number, price: number, stock: number}[], sellerId?: string): Promise<{
     success: boolean;
     message: string;
     total?: number;
@@ -259,9 +259,13 @@ export const apiService = {
     }>;
   }> {
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+      if (sellerId) {
+        headers['Authorization'] = `Bearer ${sellerId}`;
+      }
       const res = await customFetch(`${BASE_URL}/producto/verificar`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers,
         body: JSON.stringify({ products })
       });
       return await res.json();
