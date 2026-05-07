@@ -62,7 +62,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       try {
         const { appDB } = await import('../stores/appDatabase');
         await appDB.cart.clear();
-        if (cart.length > 0) await appDB.cart.bulkAdd(cart);
+        if (cart.length > 0) await appDB.cart.bulkPut(cart);
       } catch (e) {
         console.error('Error saving cart to Dexie:', e);
       }
@@ -144,7 +144,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       const { appDB } = await import('../stores/appDatabase');
       await appDB.drafts.clear();
-      if (updatedDrafts.length > 0) await appDB.drafts.bulkAdd(updatedDrafts);
+      if (updatedDrafts.length > 0) await appDB.drafts.bulkPut(updatedDrafts);
     } catch (e) {
       console.error('Error saving drafts to Dexie:', e);
     }
@@ -168,7 +168,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       const { appDB } = await import('../stores/appDatabase');
       await appDB.drafts.clear();
-      if (updatedDrafts.length > 0) await appDB.drafts.bulkAdd(updatedDrafts);
+      if (updatedDrafts.length > 0) await appDB.drafts.bulkPut(updatedDrafts);
     } catch (e) {
       console.error('Error saving drafts to Dexie:', e);
     }
@@ -248,7 +248,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       try {
         const { appDB } = await import('../stores/appDatabase');
         await appDB.sharedCarts.clear();
-        if (updatedSharedCarts.length > 0) await appDB.sharedCarts.bulkAdd(updatedSharedCarts);
+        if (updatedSharedCarts.length > 0) await appDB.sharedCarts.bulkPut(updatedSharedCarts);
       } catch (e) {
         console.error('Error saving shared carts to Dexie:', e);
       }

@@ -39,7 +39,7 @@ export function useDataSync(
           setProducts(pRes.value);
           appDB.products
             .clear()
-            .then(() => appDB.products.bulkAdd(pRes.value))
+            .then(() => appDB.products.bulkPut(pRes.value))
             .catch(console.warn);
         } else {
           hasErrors = true;
@@ -57,7 +57,7 @@ export function useDataSync(
           setClients(cRes.value);
           appDB.clients
             .clear()
-            .then(() => appDB.clients.bulkAdd(cRes.value))
+            .then(() => appDB.clients.bulkPut(cRes.value))
             .catch(console.warn);
         } else {
           hasErrors = true;
@@ -99,13 +99,13 @@ export function useDataSync(
           setSellers(extractedSellers);
           appDB.sellers
             .clear()
-            .then(() => appDB.sellers.bulkAdd(extractedSellers))
+            .then(() => appDB.sellers.bulkPut(extractedSellers))
             .catch(console.warn);
 
           const cachedOrders = sortedOrders.map(({ rawData, ...rest }: any) => rest);
           appDB.orders
             .clear()
-            .then(() => appDB.orders.bulkAdd(cachedOrders))
+            .then(() => appDB.orders.bulkPut(cachedOrders))
             .catch(console.warn);
         } else {
           hasErrors = true;
