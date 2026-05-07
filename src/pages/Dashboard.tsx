@@ -1,15 +1,37 @@
-import { useApp } from '../AppContext';
-import { useOrders } from '../contexts/OrdersContext';
-import { useCart } from '../contexts/CartContext';
-import React, { useState, useEffect } from 'react';
+import {
+  Activity,
+  AlertTriangle,
+  Download,
+  Mail,
+  Package,
+  RefreshCw,
+  ShoppingBag,
+  Smartphone,
+  Trash2,
+  TrendingUp,
+  Users,
+  Zap,
+} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { appDB } from '../stores/appDatabase';
-import { TrendingUp, Users, Package, ShoppingBag, RefreshCw, Activity, Zap, Download, Smartphone, AlertTriangle, Mail, Trash2 } from 'lucide-react';
-import { formatCurrency, getRelativeTime, formatTimeBA, cn } from '../lib/utils';
+import { useApp } from '../AppContext';
 import { Skeleton } from '../components/Skeleton';
+import { useCart } from '../contexts/CartContext';
+import { useOrders } from '../contexts/OrdersContext';
+import { cn, formatCurrency, formatTimeBA, getRelativeTime } from '../lib/utils';
+import { appDB } from '../stores/appDatabase';
 
 export default function Dashboard() {
-  const { products, clients, sellers, refreshData, forceRefresh, clearAllCaches, isLoading, appVersionInfo } = useApp();
+  const {
+    products,
+    clients,
+    sellers,
+    refreshData,
+    forceRefresh,
+    clearAllCaches,
+    isLoading,
+    appVersionInfo,
+  } = useApp();
   const { grandTotalOrders, dashboardOrders } = useOrders();
   const { drafts } = useCart();
   const navigate = useNavigate();
@@ -32,7 +54,6 @@ export default function Dashboard() {
     checkCache();
   }, []);
 
-
   const stats = [
     { label: 'Vendedores', value: sellers.length, icon: Users, color: 'text-green-600' },
     { label: 'Clientes', value: clients.length, icon: TrendingUp, color: 'text-blue-600' },
@@ -42,7 +63,7 @@ export default function Dashboard() {
 
   // Helper para obtener nombre del vendedor por ID
   const getSellerName = (sellerId: string) => {
-    const seller = sellers.find(s => s.id === sellerId);
+    const seller = sellers.find((s) => s.id === sellerId);
     return seller?.name || 'Vendedor desconocido';
   };
 
@@ -55,11 +76,13 @@ export default function Dashboard() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
-        <h2 id="dashboard-title" className="text-h2">Inicio</h2>
+        <h2 id="dashboard-title" className="text-h2">
+          Inicio
+        </h2>
         <div className="flex gap-1">
-          <button 
+          <button
             id="dashboard-refresh-btn"
-            onClick={() => refreshData()} 
+            onClick={() => refreshData()}
             disabled={isLoading}
             className={`p-2.5 hover:bg-surface-variant rounded-full transition-all ${isLoading ? 'animate-spin' : ''}`}
             title="Sincronizar"
@@ -70,7 +93,7 @@ export default function Dashboard() {
             id="dashboard-force-refresh-btn"
             onClick={async () => {
               // Verificar si hay borradores pendientes
-              const pendingDrafts = drafts.filter(d => d.status === 'no enviado');
+              const pendingDrafts = drafts.filter((d) => d.status === 'no enviado');
               if (pendingDrafts.length > 0) {
                 setShowDraftsModal(true);
                 return;
@@ -82,19 +105,28 @@ export default function Dashboard() {
             }}
             disabled={isLoading}
             className={`p-2.5 rounded-full transition-colors ${isLoading ? 'animate-pulse' : ''} ${hasCache ? 'bg-error text-white' : 'hover:bg-surface-variant text-primary'}`}
-            title={hasCache ? "Limpiar Caché" : "Caché vacía"}
+            title={hasCache ? 'Limpiar Caché' : 'Caché vacía'}
           >
             <Zap size={20} />
           </button>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-2 gap-4">
         {stats.map((stat, i) => (
-          <div key={stat.label} className="m3-card !items-start space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300" style={{ animationDelay: `${i * 75}ms` }}>
+          <div
+            key={stat.label}
+            className="m3-card !items-start space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300"
+            style={{ animationDelay: `${i * 75}ms` }}
+          >
             <div className="flex justify-between items-center w-full">
               <span className="text-label">{stat.label}</span>
-              <div className={cn("p-1.5 rounded-lg bg-surface-variant/50", stat.color.replace('text-', 'text-'))}>
+              <div
+                className={cn(
+                  'p-1.5 rounded-lg bg-surface-variant/50',
+                  stat.color.replace('text-', 'text-'),
+                )}
+              >
                 <stat.icon size={16} />
               </div>
             </div>
@@ -102,7 +134,9 @@ export default function Dashboard() {
               {isLoading ? (
                 <Skeleton className="h-9 w-20 mb-1" />
               ) : (
-                <span className="text-3xl font-black tracking-tight text-on-surface">{stat.value}</span>
+                <span className="text-3xl font-black tracking-tight text-on-surface">
+                  {stat.value}
+                </span>
               )}
             </div>
           </div>
@@ -111,8 +145,10 @@ export default function Dashboard() {
 
       <div className="space-y-4">
         <div className="flex justify-between items-end">
-          <h3 id="dashboard-orders-title" className="text-h3">Pedidos Recientes</h3>
-          <button 
+          <h3 id="dashboard-orders-title" className="text-h3">
+            Pedidos Recientes
+          </h3>
+          <button
             id="dashboard-view-all-orders-btn"
             onClick={() => navigate('/pedidos')}
             className="text-xs font-bold text-primary hover:underline"
@@ -120,22 +156,24 @@ export default function Dashboard() {
             Ver todos
           </button>
         </div>
-        
+
         <div className="m3-card !p-0 overflow-hidden divide-y divide-outline/5">
           {isLoading ? (
             <div className="p-4 space-y-4">
-              {Array(4).fill(0).map((_, i) => (
-                <div key={i} className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="w-10 h-10 rounded-full" />
-                    <div className="space-y-2">
-                      <Skeleton className="w-32 h-4" />
-                      <Skeleton className="w-20 h-3" />
+              {Array(4)
+                .fill(0)
+                .map((_, i) => (
+                  <div key={i} className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="w-10 h-10 rounded-full" />
+                      <div className="space-y-2">
+                        <Skeleton className="w-32 h-4" />
+                        <Skeleton className="w-20 h-3" />
+                      </div>
                     </div>
+                    <Skeleton className="w-16 h-4" />
                   </div>
-                  <Skeleton className="w-16 h-4" />
-                </div>
-              ))}
+                ))}
             </div>
           ) : dashboardOrders.length === 0 ? (
             <div className="text-center py-10 px-4">
@@ -144,8 +182,8 @@ export default function Dashboard() {
             </div>
           ) : (
             dashboardOrders.slice(0, 5).map((order) => (
-              <div 
-                key={order.id} 
+              <div
+                key={order.id}
                 className="flex justify-between items-center p-4 hover:bg-surface-variant/30 transition-colors cursor-pointer group"
                 onClick={() => navigate('/pedidos')}
               >
@@ -155,7 +193,9 @@ export default function Dashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-bold text-sm text-on-surface truncate">{order.clientName}</p>
+                      <p className="font-bold text-sm text-on-surface truncate">
+                        {order.clientName}
+                      </p>
                       {order.rawData?.post_title && getOrderNumber(order.rawData.post_title) && (
                         <span className="text-[0.65rem] bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded-md font-mono font-bold">
                           {getOrderNumber(order.rawData.post_title)}
@@ -164,7 +204,11 @@ export default function Dashboard() {
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <p className="text-[0.65rem] text-on-surface-variant font-medium uppercase tracking-tighter">
-                        {new Date(order.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })} • {formatTimeBA(order.createdAt)} HS
+                        {new Date(order.createdAt).toLocaleDateString('es-AR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                        })}{' '}
+                        • {formatTimeBA(order.createdAt)} HS
                       </p>
                       <p className="text-[0.6rem] text-on-surface-variant/70 italic">
                         Por {getSellerName(order.sellerId)}
@@ -173,8 +217,12 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-bold text-sm text-primary">{formatCurrency(order.total || 0)}</p>
-                  <p className="text-[0.6rem] font-bold uppercase tracking-wider text-success">Guardado</p>
+                  <p className="font-bold text-sm text-primary">
+                    {formatCurrency(order.total || 0)}
+                  </p>
+                  <p className="text-[0.6rem] font-bold uppercase tracking-wider text-success">
+                    Guardado
+                  </p>
                 </div>
               </div>
             ))
@@ -189,9 +237,13 @@ export default function Dashboard() {
               <Smartphone size={28} />
             </div>
             <div className="flex-1">
-              <h3 id="dashboard-download-apk-title" className="text-base font-bold text-on-surface">Nueva Versión Disponible</h3>
-              <p className="text-body-sm mb-3">Actualiza a la versión {appVersionInfo.version} para obtener las últimas mejoras.</p>
-              <a 
+              <h3 id="dashboard-download-apk-title" className="text-base font-bold text-on-surface">
+                Nueva Versión Disponible
+              </h3>
+              <p className="text-body-sm mb-3">
+                Actualiza a la versión {appVersionInfo.version} para obtener las últimas mejoras.
+              </p>
+              <a
                 id="dashboard-download-apk-btn"
                 href={appVersionInfo.apk_url}
                 className="m3-button-filled !py-2 !text-xs w-full"
@@ -212,15 +264,15 @@ export default function Dashboard() {
               <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mx-auto">
                 <AlertTriangle size={32} className="text-error" />
               </div>
-              
-              <h3 className="text-xl font-bold text-on-surface">
-                Pedidos en Borrador
-              </h3>
-              
+
+              <h3 className="text-xl font-bold text-on-surface">Pedidos en Borrador</h3>
+
               <p className="text-body text-on-surface-variant">
-                Tienes <strong>{drafts.filter(d => d.status === 'no enviado').length} pedido(s)</strong> en borrador que aún no han sido enviados.
+                Tienes{' '}
+                <strong>{drafts.filter((d) => d.status === 'no enviado').length} pedido(s)</strong>{' '}
+                en borrador que aún no han sido enviados.
               </p>
-              
+
               <p className="text-sm text-on-surface-variant/70">
                 Si limpias el caché, estos pedidos se perderán permanentemente.
               </p>
@@ -236,7 +288,7 @@ export default function Dashboard() {
                   <Mail size={18} />
                   Ir a Pedidos para Enviar
                 </button>
-                
+
                 <button
                   onClick={async () => {
                     setShowDraftsModal(false);
@@ -249,7 +301,7 @@ export default function Dashboard() {
                   <Trash2 size={18} />
                   Limpiar de Todos Modos
                 </button>
-                
+
                 <button
                   onClick={() => setShowDraftsModal(false)}
                   className="text-sm font-medium text-on-surface-variant hover:text-on-surface py-2"
@@ -262,6 +314,5 @@ export default function Dashboard() {
         </div>
       )}
     </div>
-
   );
 }

@@ -1,19 +1,24 @@
-import { useCart } from '../contexts/CartContext';
-import { useAuth } from '../contexts/AuthContext';
-import { Trash2, AlertCircle, ShoppingBag, User, Share2, Copy, Camera } from 'lucide-react';
+import { AlertCircle, Camera, Copy, Share2, ShoppingBag, Trash2, User } from 'lucide-react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatCurrency } from '../lib/utils';
-import { useState } from 'react';
 import { PinModal } from '../components/PinModal';
-import { Seller } from '../types';
-import React from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useCart } from '../contexts/CartContext';
+import { formatCurrency } from '../lib/utils';
+import type { Seller } from '../types';
 
 export default function Cart() {
-  const { cart, selectedClient, removeFromCart, updateCartQuantity, shareCart, clearCart } = useCart();
+  const { cart, selectedClient, removeFromCart, updateCartQuantity, shareCart, clearCart } =
+    useCart();
   const { globalPin, setGlobalPin } = useAuth();
   const navigate = useNavigate();
   const [isSharing, setIsSharing] = useState(false);
-  const [shareResult, setShareResult] = useState<{ success: boolean; code: string; message: string; link: string } | null>(null);
+  const [shareResult, setShareResult] = useState<{
+    success: boolean;
+    code: string;
+    message: string;
+    link: string;
+  } | null>(null);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
@@ -47,7 +52,7 @@ export default function Cart() {
     try {
       const result = await shareCart();
       setShareResult(result);
-      
+
       if (result.success) {
         // Copy link to clipboard
         if (navigator.clipboard) {
@@ -61,7 +66,7 @@ export default function Cart() {
             await navigator.share({
               title: 'Carrito Tecnogafas',
               text: `Mira mi carrito: ${result.link}`,
-              url: result.link
+              url: result.link,
             });
           } catch (shareError) {
             console.log('Native share failed:', shareError);
@@ -84,8 +89,12 @@ export default function Cart() {
 
   const handleClearCart = () => {
     if (cart.length === 0) return;
-    
-    if (confirm('¿Estás seguro de que quieres limpiar todo el carrito? Esta acción no se puede deshacer.')) {
+
+    if (
+      confirm(
+        '¿Estás seguro de que quieres limpiar todo el carrito? Esta acción no se puede deshacer.',
+      )
+    ) {
       clearCart();
       alert('Carrito limpiado exitosamente');
     }
@@ -93,16 +102,16 @@ export default function Cart() {
 
   const generateCartImage = async (shareCode?: string) => {
     if (cart.length === 0) return;
-    
+
     setIsGeneratingImage(true);
     try {
       const jsPDF = (await import('jspdf')).jsPDF;
       const html2canvas = (await import('html2canvas')).default;
       const QRCode = (await import('qrcode')).default;
-      
+
       // Si tenemos un shareCode de Supabase, lo usamos. Si no, generamos uno temporal local.
       const displayCode = shareCode || `LOCAL_${Date.now().toString(36).toUpperCase()}`;
-      const shareUrl = shareCode 
+      const shareUrl = shareCode
         ? `${window.location.origin}/shared-cart/${shareCode}`
         : `${window.location.origin}/carrito?recover=${displayCode}`;
 
@@ -110,18 +119,22 @@ export default function Cart() {
       const qrCodeDataUrl = await QRCode.toDataURL(shareUrl, {
         width: 150,
         margin: 1,
-        color: { dark: '#000000', light: '#FFFFFF' }
+        color: { dark: '#000000', light: '#FFFFFF' },
       });
-      
+
       const currentDate = new Date().toLocaleDateString('es-AR');
-      const cartItemsHtml = cart.map(item => `
+      const cartItemsHtml = cart
+        .map(
+          (item) => `
         <tr>
           <td style="padding: 8px; border-bottom: 1px solid #000; font-size: 11px;">${item.name}</td>
           <td style="padding: 8px; border-bottom: 1px solid #000; font-size: 11px; text-align: center;">${item.quantity}</td>
           <td style="padding: 8px; border-bottom: 1px solid #000; font-size: 11px; text-align: right;">${formatCurrency(item.price * item.quantity)}</td>
         </tr>
-      `).join('');
-      
+      `,
+        )
+        .join('');
+
       const htmlContent = `
         <div style="font-family: Arial, sans-serif; padding: 20px; background: white; width: 550px;">
           <div style="text-align: center; margin-bottom: 20px;">
@@ -130,13 +143,17 @@ export default function Cart() {
             <p style="margin: 2px 0; color: #444; font-size: 12px;">Código: ${displayCode}</p>
           </div>
           
-          ${selectedClient ? `
+          ${
+            selectedClient
+              ? `
           <div style="margin-bottom: 20px; padding: 12px; border: 1px solid #000; border-radius: 4px;">
             <h2 style="margin: 0 0 5px 0; color: #000; font-size: 14px; font-weight: bold;">CLIENTE</h2>
             <p style="margin: 0; font-weight: bold; color: #000; font-size: 15px;">${selectedClient.name}</p>
             ${selectedClient.email ? `<p style="margin: 3px 0 0 0; color: #444; font-size: 12px;">${selectedClient.email}</p>` : ''}
           </div>
-          ` : ''}
+          `
+              : ''
+          }
           
           <div style="margin-bottom: 20px;">
             <table style="width: 100%; border-collapse: collapse;">
@@ -164,14 +181,14 @@ export default function Cart() {
           </div>
         </div>
       `;
-      
+
       // Generar PDF con jsPDF
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4'
+        format: 'a4',
       });
-      
+
       // Convertir HTML a canvas y luego a imagen para el PDF
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = htmlContent;
@@ -179,29 +196,28 @@ export default function Cart() {
       tempDiv.style.left = '-9999px';
       tempDiv.style.top = '-9999px';
       document.body.appendChild(tempDiv);
-      
+
       // Generar canvas del contenido
       const canvas = await html2canvas(tempDiv, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
       });
-      
+
       // Agregar imagen al PDF
       const imgData = canvas.toDataURL('image/png');
       const imgWidth = 190; // Ancho en mm para A4
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
+
       pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
-      
+
       // Descargar PDF
       pdf.save(`pedido-tecnogafas-${Date.now()}.pdf`);
-      
+
       // Limpiar
       document.body.removeChild(tempDiv);
-      
+
       alert('PDF del pedido generado y descargado');
-      
     } catch (error) {
       console.error('Error generating cart PDF:', error);
       alert('Error al generar el PDF del pedido');
@@ -213,9 +229,11 @@ export default function Cart() {
   return (
     <div className="space-y-6 pb-24">
       <div className="flex items-center justify-between">
-        <h2 id="cart-title" className="text-2xl font-bold">Carrito</h2>
+        <h2 id="cart-title" className="text-2xl font-bold">
+          Carrito
+        </h2>
         {cart.length > 0 && (
-          <button 
+          <button
             id="cart-clear-all-btn"
             onClick={handleClearCart}
             className="text-sm text-red-500 hover:text-red-600 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
@@ -237,7 +255,13 @@ export default function Cart() {
               <p className="font-bold">{selectedClient.name}</p>
               <p className="text-xs text-on-surface-variant">{selectedClient.email}</p>
             </div>
-            <button id="cart-change-client-btn" onClick={() => navigate('/clientes')} className="text-xs text-primary font-bold">Cambiar</button>
+            <button
+              id="cart-change-client-btn"
+              onClick={() => navigate('/clientes')}
+              className="text-xs text-primary font-bold"
+            >
+              Cambiar
+            </button>
           </div>
         ) : (
           <div className="flex flex-col gap-3 w-full">
@@ -245,7 +269,13 @@ export default function Cart() {
               <AlertCircle size={20} />
               <span className="text-xs font-medium">Asigna un cliente para continuar</span>
             </div>
-            <button id="cart-assign-client-btn" onClick={() => navigate('/clientes')} className="m3-button-filled w-full">Asignar</button>
+            <button
+              id="cart-assign-client-btn"
+              onClick={() => navigate('/clientes')}
+              className="m3-button-filled w-full"
+            >
+              Asignar
+            </button>
           </div>
         )}
       </div>
@@ -258,7 +288,9 @@ export default function Cart() {
               <ShoppingBag size={48} className="text-outline" />
             </div>
             <h3 className="font-bold">Carrito Vacío</h3>
-            <p className="text-xs text-on-surface-variant">Agrega productos del catálogo para comenzar un pedido.</p>
+            <p className="text-xs text-on-surface-variant">
+              Agrega productos del catálogo para comenzar un pedido.
+            </p>
           </div>
         ) : (
           cart.map((item) => (
@@ -268,21 +300,35 @@ export default function Cart() {
                 <p className="text-xs text-on-surface-variant">{formatCurrency(item.price)} c/u</p>
                 <div className="flex items-center gap-4 mt-2">
                   <div className="flex items-center bg-surface px-2 py-1 border border-outline/10">
-                    <button id={`cart-decrease-qty-btn-${item.id}`} onClick={() => updateCartQuantity(item.id, item.quantity - 1)} className="p-1">
+                    <button
+                      id={`cart-decrease-qty-btn-${item.id}`}
+                      onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                      className="p-1"
+                    >
                       <span className="text-lg font-bold">−</span>
                     </button>
                     <span className="mx-3 font-bold text-xs">{item.quantity}</span>
-                    <button id={`cart-increase-qty-btn-${item.id}`} onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="p-1">
+                    <button
+                      id={`cart-increase-qty-btn-${item.id}`}
+                      onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                      className="p-1"
+                    >
                       <span className="text-lg font-bold">+</span>
                     </button>
                   </div>
-                  <button id={`cart-remove-item-btn-${item.id}`} onClick={() => removeFromCart(item.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
+                  <button
+                    id={`cart-remove-item-btn-${item.id}`}
+                    onClick={() => removeFromCart(item.id)}
+                    className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"
+                  >
                     <Trash2 size={18} />
                   </button>
                 </div>
               </div>
               <div className="text-right flex flex-col justify-between items-end">
-                <span className="font-bold text-primary">{formatCurrency(item.price * item.quantity)}</span>
+                <span className="font-bold text-primary">
+                  {formatCurrency(item.price * item.quantity)}
+                </span>
               </div>
             </div>
           ))
@@ -311,8 +357,10 @@ export default function Cart() {
                   <div className="bg-gray-100 p-3 rounded border">
                     <p className="text-sm font-bold mb-2">Código del carrito:</p>
                     <div className="flex items-center gap-2">
-                      <code className="bg-gray-200 px-3 py-2 rounded font-mono text-lg">{shareResult.code}</code>
-                      <button 
+                      <code className="bg-gray-200 px-3 py-2 rounded font-mono text-lg">
+                        {shareResult.code}
+                      </code>
+                      <button
                         onClick={() => navigator.clipboard.writeText(shareResult.link)}
                         className="m3-button-outlined text-sm"
                       >
@@ -322,11 +370,19 @@ export default function Cart() {
                     </div>
                   </div>
                   <p className="text-xs text-gray-600 mt-2">
-                    Enlace público: <a href={shareResult.link} target="_blank" className="text-blue-600 underline">{shareResult.link}</a>
+                    Enlace público:{' '}
+                    <a
+                      href={shareResult.link}
+                      target="_blank"
+                      className="text-blue-600 underline"
+                      rel="noopener"
+                    >
+                      {shareResult.link}
+                    </a>
                   </p>
                   <p className="text-xs text-gray-500">Este enlace expirará en 24 horas.</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setShareResult(null)}
                   className="w-full m3-button-filled mt-4"
                 >
@@ -338,7 +394,7 @@ export default function Cart() {
                 <div className="space-y-3">
                   <p className="text-red-600 font-medium">{shareResult.message}</p>
                   <div className="space-y-2">
-                    <button 
+                    <button
                       onClick={generateCartImage}
                       disabled={isGeneratingImage || cart.length === 0}
                       className="w-full m3-button-outlined flex items-center justify-center gap-2"
@@ -355,7 +411,7 @@ export default function Cart() {
                         </>
                       )}
                     </button>
-                    <button 
+                    <button
                       onClick={() => setShareResult(null)}
                       className="w-full m3-button-filled"
                     >
@@ -377,7 +433,7 @@ export default function Cart() {
         </div>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <button 
+            <button
               id="cart-share-cart-btn"
               onClick={handleShareCart}
               disabled={!selectedClient || cart.length === 0 || isSharing}
@@ -395,7 +451,7 @@ export default function Cart() {
                 </>
               )}
             </button>
-            <button 
+            <button
               id="cart-pdf-btn"
               onClick={() => generateCartImage()}
               disabled={cart.length === 0 || isGeneratingImage}
@@ -414,7 +470,7 @@ export default function Cart() {
               )}
             </button>
           </div>
-          <button 
+          <button
             id="cart-confirm-order-btn"
             onClick={handleConfirm}
             disabled={!selectedClient || cart.length === 0}
@@ -424,7 +480,7 @@ export default function Cart() {
           </button>
         </div>
       </div>
-    {/* PIN Modal */}
+      {/* PIN Modal */}
       <PinModal
         isOpen={isPinModalOpen}
         onClose={() => setIsPinModalOpen(false)}

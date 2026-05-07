@@ -1,9 +1,9 @@
+import { AlertCircle, ArrowLeft, ShoppingBag } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ShoppingBag, AlertCircle, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
-import { SharedCart as SharedCartType } from '../types';
+import type { SharedCart as SharedCartType } from '../types';
 
 export default function SharedCart() {
   const { code } = useParams<{ code: string }>();
@@ -41,7 +41,7 @@ export default function SharedCart() {
           total: data.metadata?.total || 0,
           createdAt: data.created_at,
           expiresAt: data.expires_at,
-          isActive: data.is_active
+          isActive: data.is_active,
         };
 
         setCart(mappedCart);
@@ -57,24 +57,29 @@ export default function SharedCart() {
     loadSharedCart();
   }, [code]);
 
-  const { loadSharedCart: loadSharedCartAction, addToCart, setSelectedClient, clearCart } = useCart();
+  const {
+    loadSharedCart: loadSharedCartAction,
+    addToCart,
+    setSelectedClient,
+    clearCart,
+  } = useCart();
 
   const handleContinueToCheckout = async () => {
     if (!cart) return;
-    
+
     try {
       const result = await loadSharedCartAction(cart.code);
-      
+
       if (result.success && result.cart) {
         // Set client in context
         if (result.cart.client) {
           setSelectedClient(result.cart.client);
         }
-        
+
         // Clear existing cart and add shared items
         clearCart();
-        
-        result.cart.items.forEach(item => {
+
+        result.cart.items.forEach((item) => {
           // Mapeo robusto para asegurar que el item sea compatible con el contexto del carrito
           const productToLoad = {
             id: item.id.toString(),
@@ -84,17 +89,21 @@ export default function SharedCart() {
             stock: item.stock || 999,
             image: item.image || '',
             description: item.description || '',
-            variations: item.vid ? [{
-              vid: item.vid.toString(),
-              title: item.variation_name || item.name,
-              stock: item.quantity,
-              price: item.price
-            }] : undefined
+            variations: item.vid
+              ? [
+                  {
+                    vid: item.vid.toString(),
+                    title: item.variation_name || item.name,
+                    stock: item.quantity,
+                    price: item.price,
+                  },
+                ]
+              : undefined,
           };
-          
+
           addToCart(productToLoad, item.quantity);
         });
-        
+
         navigate('/carrito');
       } else {
         setError(result.message || 'Error al cargar el carrito');
@@ -126,10 +135,7 @@ export default function SharedCart() {
               <h2 className="text-xl font-bold text-red-800">Error</h2>
             </div>
             <p className="text-red-600">{error}</p>
-            <button 
-              onClick={() => navigate('/carrito')}
-              className="w-full m3-button-filled mt-4"
-            >
+            <button onClick={() => navigate('/carrito')} className="w-full m3-button-filled mt-4">
               Volver al Carrito
             </button>
           </div>
@@ -156,7 +162,7 @@ export default function SharedCart() {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">Carrito Compartido</h1>
-            <button 
+            <button
               onClick={() => navigate('/carrito')}
               className="flex items-center text-primary hover:text-primary/80 transition-colors"
             >
@@ -175,9 +181,7 @@ export default function SharedCart() {
               <h2 className="text-xl font-bold text-gray-900">
                 Carrito: <span className="text-primary">{code}</span>
               </h2>
-              <div className="text-sm text-gray-600">
-                Expira en 24 horas
-              </div>
+              <div className="text-sm text-gray-600">Expira en 24 horas</div>
             </div>
 
             {/* Client Info */}
@@ -201,7 +205,9 @@ export default function SharedCart() {
                 <div key={index} className="m3-card flex gap-4">
                   <div className="flex-1">
                     <h4 className="font-semibold text-sm">{item.name}</h4>
-                    <p className="text-xs text-on-surface-variant">{formatCurrency(item.price)} c/u</p>
+                    <p className="text-xs text-on-surface-variant">
+                      {formatCurrency(item.price)} c/u
+                    </p>
                     <div className="flex items-center gap-4 mt-2">
                       <div className="flex items-center bg-surface px-2 py-1 border border-outline/10">
                         <span className="mx-3 font-bold text-xs">{item.quantity}</span>
@@ -209,7 +215,9 @@ export default function SharedCart() {
                     </div>
                   </div>
                   <div className="text-right flex flex-col justify-between items-end">
-                    <span className="font-bold text-primary">{formatCurrency(item.price * item.quantity)}</span>
+                    <span className="font-bold text-primary">
+                      {formatCurrency(item.price * item.quantity)}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -219,12 +227,11 @@ export default function SharedCart() {
             <div className="m3-card !bg-surface sticky bottom-0 border-t-2 border-primary/10 shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.3)] -mx-4 px-4 py-6 space-y-4 z-10">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-medium">Total</span>
-                <span className="text-2xl font-bold text-primary">{formatCurrency(cart.total)}</span>
+                <span className="text-2xl font-bold text-primary">
+                  {formatCurrency(cart.total)}
+                </span>
               </div>
-              <button 
-                onClick={handleContinueToCheckout}
-                className="w-full m3-button-filled py-3"
-              >
+              <button onClick={handleContinueToCheckout} className="w-full m3-button-filled py-3">
                 Continuar al Checkout
               </button>
             </div>

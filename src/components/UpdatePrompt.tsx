@@ -1,8 +1,8 @@
-import { useApp } from '../AppContext';
-import React from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { RefreshCw, X, Trash2, AlertTriangle } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AlertTriangle, RefreshCw, Trash2, X } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import React from 'react';
+import { useApp } from '../AppContext';
 
 export function UpdatePrompt() {
   const {
@@ -14,9 +14,9 @@ export function UpdatePrompt() {
       console.log('SW Registered: ', r);
       // Opcionalmente podemos verificar por actualizaciones cada X tiempo (e.g. 1 min)
       if (r) {
-         setInterval(() => {
-           r.update();
-         }, 60 * 1000);
+        setInterval(() => {
+          r.update();
+        }, 60 * 1000);
       }
     },
     onRegisterError(error) {
@@ -48,25 +48,29 @@ export function UpdatePrompt() {
             <div className="flex items-start justify-between">
               <div>
                 <h4 id="update-prompt-title" className="font-bold text-sm">
-                  {hasNewVersion ? "¡Nueva versión disponible!" : needRefresh ? "¡Nueva actualización!" : "App lista"}
+                  {hasNewVersion
+                    ? '¡Nueva versión disponible!'
+                    : needRefresh
+                      ? '¡Nueva actualización!'
+                      : 'App lista'}
                 </h4>
                 <p className="text-xs text-on-surface-variant mt-1">
-                  {hasNewVersion 
-                    ? `Hay una nueva versión (${currentAppVersion}) disponible. Se recomienda limpiar el cache para ver los cambios.` 
-                    : needRefresh 
-                    ? "Hay una nueva versión de la app disponible." 
-                    : "La aplicación está lista para funcionar sin conexión."}
+                  {hasNewVersion
+                    ? `Hay una nueva versión (${currentAppVersion}) disponible. Se recomienda limpiar el cache para ver los cambios.`
+                    : needRefresh
+                      ? 'Hay una nueva versión de la app disponible.'
+                      : 'La aplicación está lista para funcionar sin conexión.'}
                 </p>
               </div>
-              <button 
+              <button
                 id="update-prompt-close-btn"
-                onClick={close} 
+                onClick={close}
                 className="p-1 hover:bg-surface-variant rounded-full text-outline"
               >
                 <X size={16} />
               </button>
             </div>
-            
+
             {needRefresh && (
               <button
                 id="update-prompt-update-btn"
@@ -77,7 +81,7 @@ export function UpdatePrompt() {
                 Actualizar ahora
               </button>
             )}
-            
+
             {hasNewVersion && (
               <button
                 id="update-prompt-clear-btn"

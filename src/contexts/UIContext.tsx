@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 
 interface UIContextType {
   theme: 'light' | 'dark';
@@ -29,7 +36,9 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
   const detectBuenosAiresTheme = useCallback(() => {
     const now = new Date();
-    const buenosAiresTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+    const buenosAiresTime = new Date(
+      now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }),
+    );
     const hour = buenosAiresTime.getHours();
     return hour >= 6 && hour < 18 ? 'light' : 'dark';
   }, []);
@@ -58,7 +67,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
     const savedTheme = localStorage.getItem('tecnogafas_theme') as 'light' | 'dark' | null;
     const isManual = localStorage.getItem('tecnogafas_theme_manual') === 'true';
-    
+
     if (savedTheme && isManual) {
       setTheme(savedTheme);
       document.documentElement.setAttribute('data-theme', savedTheme);
@@ -95,10 +104,17 @@ export function UIProvider({ children }: { children: ReactNode }) {
   }, [detectBuenosAiresTheme]);
 
   return (
-    <UIContext.Provider value={{
-      theme, primaryColor, fontSize,
-      setTheme: updateTheme, setPrimaryColor: updatePrimaryColor, setFontSize: updateFontSize, resetThemeToAuto
-    }}>
+    <UIContext.Provider
+      value={{
+        theme,
+        primaryColor,
+        fontSize,
+        setTheme: updateTheme,
+        setPrimaryColor: updatePrimaryColor,
+        setFontSize: updateFontSize,
+        resetThemeToAuto,
+      }}
+    >
       {children}
     </UIContext.Provider>
   );

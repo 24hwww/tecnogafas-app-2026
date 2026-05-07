@@ -3,11 +3,15 @@
 // Manejo de reacciones emoji en mensajes
 // ============================================================================
 
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import { supabase, channelManager } from '../lib/supabase';
+import {
+  addReaction as dbAddReaction,
+  removeReaction as dbRemoveReaction,
+  getReactionsForMessage,
+} from '../../../stores/appDatabase';
+import { channelManager, supabase } from '../lib/supabase';
 import type { MessageReaction, ReactionGroup } from '../types';
-import { getReactionsForMessage, addReaction as dbAddReaction, removeReaction as dbRemoveReaction } from '../../../stores/appDatabase';
 
 interface UseReactionsOptions {
   messageId: string | null;
@@ -77,7 +81,7 @@ export function useReactions({
 
   const groupReactions = (
     reactions: MessageReaction[],
-    currentUserId: string | null
+    currentUserId: string | null,
   ): ReactionGroup[] => {
     const groups = new Map<string, { users: string[]; count: number }>();
 
@@ -114,18 +118,20 @@ export function useReactions({
           return prev.map((r) =>
             r.emoji === emoji
               ? { ...r, count: r.count + 1, users: [...r.users, currentUserId], me: true }
-              : r
+              : r,
           );
         }
         return [...prev, { emoji, count: 1, users: [currentUserId], me: true }];
       });
 
       try {
-        const { error } = await supabase.from('message_reactions').insert([{
-          message_id: messageId,
-          user_id: currentUserId,
-          emoji,
-        }] as unknown as never[]);
+        const { error } = await supabase.from('message_reactions').insert([
+          {
+            message_id: messageId,
+            user_id: currentUserId,
+            emoji,
+          },
+        ] as unknown as never[]);
 
         if (error) throw error;
 
@@ -140,7 +146,7 @@ export function useReactions({
         throw err;
       }
     },
-    [messageId, currentUserId, loadReactions]
+    [messageId, currentUserId, loadReactions],
   );
 
   // ============================================================================
@@ -187,7 +193,7 @@ export function useReactions({
         throw err;
       }
     },
-    [messageId, currentUserId, loadReactions]
+    [messageId, currentUserId, loadReactions],
   );
 
   // ============================================================================
@@ -203,7 +209,7 @@ export function useReactions({
         await addReaction(emoji);
       }
     },
-    [reactions, addReaction, removeReaction]
+    [reactions, addReaction, removeReaction],
   );
 
   // ============================================================================
@@ -214,13 +220,13 @@ export function useReactions({
     if (!messageId) return;
 
     const channelName = `reactions:${messageId}`;
-    
+
     const channel = channelManager.getChannel(channelName);
 
     // Agregar callbacks ANTES de suscribirse, con guardas de seguridad
-    // @ts-ignore - Accediendo a propiedad interna para máxima seguridad
+    // @ts-expect-error - Accediendo a propiedad interna para máxima seguridad
     const isReady = channel.state === 'closed' || channel.state === 'errored';
-    
+
     if (isReady) {
       channel
         .on(
@@ -234,7 +240,7 @@ export function useReactions({
           (payload: RealtimePostgresChangesPayload<MessageReaction>) => {
             const newReaction = payload.new as MessageReaction;
             if (!newReaction || !newReaction.emoji || !newReaction.user_id) return;
-            
+
             setReactions((prev) => {
               const existing = prev.find((r) => r.emoji === newReaction.emoji);
               if (existing) {
@@ -246,7 +252,7 @@ export function useReactions({
                         users: [...r.users, newReaction.user_id],
                         me: newReaction.user_id === currentUserId ? true : r.me,
                       }
-                    : r
+                    : r,
                 );
               }
               return [
@@ -259,7 +265,7 @@ export function useReactions({
                 },
               ];
             });
-          }
+          },
         )
         .on(
           'postgres_changes',
@@ -272,7 +278,7 @@ export function useReactions({
           (payload: RealtimePostgresChangesPayload<MessageReaction>) => {
             const deleted = payload.old as MessageReaction;
             if (!deleted || !deleted.emoji || !deleted.user_id) return;
-            
+
             setReactions((prev) => {
               return prev
                 .map((r) => {
@@ -290,7 +296,7 @@ export function useReactions({
                 })
                 .filter((r): r is ReactionGroup => r !== null);
             });
-          }
+          },
         );
     }
 

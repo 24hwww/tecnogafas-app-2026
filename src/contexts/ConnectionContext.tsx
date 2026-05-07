@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 
 interface ConnectionContextType {
   isOnline: boolean;
@@ -12,7 +12,9 @@ const ConnectionContext = createContext<ConnectionContextType | undefined>(undef
 
 export function ConnectionProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'syncing' | 'error'>('online');
+  const [connectionStatus, setConnectionStatus] = useState<
+    'online' | 'offline' | 'syncing' | 'error'
+  >('online');
   const [onlineUsersCount, setOnlineUsersCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -35,9 +37,15 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <ConnectionContext.Provider value={{
-      isOnline, connectionStatus, onlineUsersCount, setConnectionStatus, setOnlineUsersCount
-    }}>
+    <ConnectionContext.Provider
+      value={{
+        isOnline,
+        connectionStatus,
+        onlineUsersCount,
+        setConnectionStatus,
+        setOnlineUsersCount,
+      }}
+    >
       {children}
     </ConnectionContext.Provider>
   );

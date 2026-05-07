@@ -3,7 +3,7 @@
 // Arquitectura: Reconexión automática + Manejo de canales
 // ============================================================================
 
-import { createClient, RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../types';
 
 // ============================================================================
@@ -16,7 +16,7 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   throw new Error(
     'Missing Supabase environment variables. ' +
-    'Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY'
+      'Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY',
   );
 }
 
@@ -54,11 +54,11 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(
     ...REALTIME_CONFIG,
     global: {
       headers: {
-        'Accept': 'application/json',
-        'Prefer': 'return=representation',
+        Accept: 'application/json',
+        Prefer: 'return=representation',
       },
     },
-  }
+  },
 );
 
 // ============================================================================
@@ -89,7 +89,7 @@ class RealtimeChannelManager {
     }
 
     if (existing) {
-      // @ts-ignore - Accediendo a propiedad interna para verificar estado real
+      // @ts-expect-error - Accediendo a propiedad interna para verificar estado real
       const state = existing.state;
       const isSubscribed = state === 'joined' || state === 'joining';
 
@@ -129,7 +129,7 @@ class RealtimeChannelManager {
       onSubscribe?: () => void;
       onError?: (error: Error) => void;
       onClose?: () => void;
-    } = {}
+    } = {},
   ): Promise<RealtimeChannel> {
     // Si ya está suscrito, no hacer nada
     if (this.subscribedChannels.has(channelName)) {
@@ -179,7 +179,7 @@ class RealtimeChannelManager {
       onSubscribe?: () => void;
       onError?: (error: Error) => void;
       onClose?: () => void;
-    }
+    },
   ): void {
     const attempts = this.reconnectAttempts.get(channelName) || 0;
 
@@ -193,8 +193,8 @@ class RealtimeChannelManager {
 
     // Backoff exponencial con jitter
     const delay = Math.min(
-      this.reconnectDelay * Math.pow(2, attempts) + Math.random() * 1000,
-      30000 // Max 30 segundos
+      this.reconnectDelay * 2 ** attempts + Math.random() * 1000,
+      30000, // Max 30 segundos
     );
 
     console.log(`[Realtime] Reconnecting ${channelName} in ${delay}ms (attempt ${attempts + 1})`);
@@ -252,9 +252,7 @@ class RealtimeChannelManager {
    * Desuscribirse de todos los canales
    */
   async unsubscribeAll(): Promise<void> {
-    const promises = Array.from(this.channels.keys()).map((name) =>
-      this.unsubscribe(name)
-    );
+    const promises = Array.from(this.channels.keys()).map((name) => this.unsubscribe(name));
     await Promise.all(promises);
     this.channels.clear();
     this.subscribedChannels.clear();
@@ -272,9 +270,7 @@ class RealtimeChannelManager {
    * Obtener lista de canales activos
    */
   getActiveChannels(): string[] {
-    return Array.from(this.channels.keys()).filter((name) =>
-      this.isSubscribed(name)
-    );
+    return Array.from(this.channels.keys()).filter((name) => this.isSubscribed(name));
   }
 }
 
@@ -294,7 +290,7 @@ export const channelManager = new RealtimeChannelManager();
 export async function queryWithRetry<T>(
   operation: () => Promise<T>,
   maxRetries = 3,
-  delay = 1000
+  delay = 1000,
 ): Promise<T> {
   let lastError: Error | null = null;
 
@@ -303,14 +299,14 @@ export async function queryWithRetry<T>(
       return await operation();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      
+
       // Si es el último intento, throw
       if (attempt === maxRetries - 1) {
         throw lastError;
       }
 
       // Esperar antes de retry
-      await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, attempt)));
+      await new Promise((resolve) => setTimeout(resolve, delay * 2 ** attempt));
     }
   }
 
@@ -335,11 +331,9 @@ export async function checkConnection(): Promise<boolean> {
 export async function getSignedUrl(
   bucket: string,
   path: string,
-  expiresIn = 60
+  expiresIn = 60,
 ): Promise<string | null> {
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .createSignedUrl(path, expiresIn);
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
 
   if (error || !data) {
     console.error('Error getting signed URL:', error);
@@ -353,12 +347,10 @@ export async function getSignedUrl(
 // EVENTOS DE SISTEMA (online/offline)
 // ============================================================================
 
-export function subscribeToSystemEvents(
-  callbacks: {
-    onOnline?: () => void;
-    onOffline?: () => void;
-  }
-): () => void {
+export function subscribeToSystemEvents(callbacks: {
+  onOnline?: () => void;
+  onOffline?: () => void;
+}): () => void {
   const handleOnline = () => {
     console.log('[Supabase] Connection restored');
     callbacks.onOnline?.();

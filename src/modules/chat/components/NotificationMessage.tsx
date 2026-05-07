@@ -3,23 +3,23 @@
 // Soporta: Pedidos, Alertas, Sistema - con reacciones
 // ============================================================================
 
-import React from 'react';
-import type { MessageWithAuthor } from '../types';
-import { useReactions } from '../hooks/useReactions';
-import { useChat } from '../providers/ChatProvider';
-import { formatDistanceToNow } from '../lib/dateUtils';
-import { 
-  Package, 
-  AlertTriangle, 
-  Bell, 
-  Info,
+import {
+  AlertTriangle,
+  Bell,
   CheckCircle,
-  Truck,
   Clock,
-  XCircle,
   ExternalLink,
-  Settings
+  Info,
+  Package,
+  Settings,
+  Truck,
+  XCircle,
 } from 'lucide-react';
+import type React from 'react';
+import { useReactions } from '../hooks/useReactions';
+import { formatDistanceToNow } from '../lib/dateUtils';
+import { useChat } from '../providers/ChatProvider';
+import type { MessageWithAuthor } from '../types';
 
 interface NotificationMessageProps {
   message: MessageWithAuthor;
@@ -70,16 +70,23 @@ export function NotificationMessage({ message }: NotificationMessageProps) {
   const priority = metadata.priority as string | undefined;
 
   // Determinar tipo visual
-  const displayType = message.type === 'order' ? 'order' : 
-                     message.type === 'alert' ? 'alert' : 
-                     message.type === 'notification' ? 'notification' : 'system';
+  const displayType =
+    message.type === 'order'
+      ? 'order'
+      : message.type === 'alert'
+        ? 'alert'
+        : message.type === 'notification'
+          ? 'notification'
+          : 'system';
 
   const handleReaction = (emoji: string) => {
     toggleReaction(emoji);
   };
 
   return (
-    <div className={`flex flex-col gap-2 group max-w-md ${priority === 'urgent' ? 'animate-pulse' : ''}`}>
+    <div
+      className={`flex flex-col gap-2 group max-w-md ${priority === 'urgent' ? 'animate-pulse' : ''}`}
+    >
       {/* Timestamp separator (if needed) */}
       <div className="flex justify-center">
         <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
@@ -88,11 +95,15 @@ export function NotificationMessage({ message }: NotificationMessageProps) {
       </div>
 
       {/* Message Card */}
-      <div className={`flex gap-3 p-4 rounded-xl border ${TYPE_COLORS[displayType]} ${priority === 'urgent' ? 'ring-2 ring-red-400' : ''}`}>
+      <div
+        className={`flex gap-3 p-4 rounded-xl border ${TYPE_COLORS[displayType]} ${priority === 'urgent' ? 'ring-2 ring-red-400' : ''}`}
+      >
         {/* Icon */}
         <div className="flex-shrink-0">
           {displayType === 'order' && message.order_data?.status ? (
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${STATUS_COLORS[message.order_data.status as string] || STATUS_COLORS.pending}`}>
+            <div
+              className={`w-10 h-10 rounded-full flex items-center justify-center ${STATUS_COLORS[message.order_data.status as string] || STATUS_COLORS.pending}`}
+            >
               {STATUS_ICONS[message.order_data.status as string] || <Package className="w-5 h-5" />}
             </div>
           ) : (
@@ -108,7 +119,7 @@ export function NotificationMessage({ message }: NotificationMessageProps) {
           <h4 className="font-semibold text-gray-900 dark:text-white text-sm leading-tight">
             {message.content.split(':')[0]}
           </h4>
-          
+
           {/* Body */}
           <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
             {message.content.split(':').slice(1).join(':').trim()}
@@ -145,12 +156,17 @@ export function NotificationMessage({ message }: NotificationMessageProps) {
           {/* Alert-specific details */}
           {message.alert_data && (
             <div className="mt-2">
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
-                message.alert_data.level === 'error' ? 'bg-red-100 text-red-700' :
-                message.alert_data.level === 'warning' ? 'bg-yellow-100 text-yellow-700' :
-                message.alert_data.level === 'success' ? 'bg-green-100 text-green-700' :
-                'bg-blue-100 text-blue-700'
-              }`}>
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                  message.alert_data.level === 'error'
+                    ? 'bg-red-100 text-red-700'
+                    : message.alert_data.level === 'warning'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : message.alert_data.level === 'success'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-blue-100 text-blue-700'
+                }`}
+              >
                 {message.alert_data.level?.toUpperCase()}
               </span>
             </div>

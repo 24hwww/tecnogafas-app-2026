@@ -5,8 +5,8 @@
  */
 
 import { supabase } from '../modules/chat/lib/supabase';
+import type { CartItem, Client } from '../types';
 import { apiService } from './apiService';
-import { Client, CartItem } from '../types';
 
 export interface PendingOrderData {
   id?: string;
@@ -43,7 +43,7 @@ export async function savePendingOrder(
   sellerId: string,
   client: Client,
   items: CartItem[],
-  details: PendingOrderData['details']
+  details: PendingOrderData['details'],
 ): Promise<{ success: boolean; orderId?: string; error?: string }> {
   try {
     const { data, error } = await (supabase as any)
@@ -79,7 +79,7 @@ export async function savePendingOrder(
  */
 export async function getPendingOrders(
   sellerId: string,
-  status?: ('pending' | 'syncing' | 'failed')[]
+  status?: ('pending' | 'syncing' | 'failed')[],
 ): Promise<PendingOrderRecord[]> {
   try {
     let query = supabase
@@ -113,9 +113,11 @@ export async function getPendingOrders(
  * Intentar sincronizar un pedido pendiente con la API
  */
 export async function syncPendingOrder(
-  order: PendingOrderRecord
+  order: PendingOrderRecord,
 ): Promise<{ success: boolean; orderId?: string; error?: string }> {
-  console.log(`[PendingOrdersSync] Syncing order ${order.id} (attempt ${order.attemptCount || 0 + 1})`);
+  console.log(
+    `[PendingOrdersSync] Syncing order ${order.id} (attempt ${order.attemptCount || 0 + 1})`,
+  );
 
   try {
     // Marcar como syncing
@@ -124,14 +126,14 @@ export async function syncPendingOrder(
     // Intentar crear el pedido en la API
     const result = await apiService.createOrder(
       order.client.id,
-      order.items.map(item => ({
+      order.items.map((item) => ({
         id: item.id,
         vid: item.vid,
         price: item.price,
         quantity: item.quantity,
       })),
       order.details,
-      order.sellerId
+      order.sellerId,
     );
 
     if (result.success && result.orderId) {
@@ -159,7 +161,7 @@ export async function syncPendingOrder(
  */
 export async function syncAllPendingOrders(
   sellerId: string,
-  onProgress?: (current: number, total: number, orderId: string) => void
+  onProgress?: (current: number, total: number, orderId: string) => void,
 ): Promise<{
   success: number;
   failed: number;
@@ -197,21 +199,20 @@ export async function syncAllPendingOrders(
 
     // Pequeña pausa entre pedidos para no saturar la API
     if (i < orders.length - 1) {
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 1000));
     }
   }
 
-  console.log(`[PendingOrdersSync] Sync complete: ${success} success, ${failed} failed, ${orders.length} total`);
+  console.log(
+    `[PendingOrdersSync] Sync complete: ${success} success, ${failed} failed, ${orders.length} total`,
+  );
   return { success, failed, total: orders.length };
 }
 
 /**
  * Eliminar un pedido pendiente
  */
-export async function deletePendingOrder(
-  orderId: string,
-  sellerId: string
-): Promise<boolean> {
+export async function deletePendingOrder(orderId: string, sellerId: string): Promise<boolean> {
   try {
     const { error } = await (supabase as any)
       .from('pending_orders')
@@ -236,14 +237,15 @@ export async function deletePendingOrder(
  */
 export async function updatePendingOrder(
   orderId: string,
-  updates: Partial<PendingOrderData>
+  updates: Partial<PendingOrderData>,
 ): Promise<boolean> {
   try {
     const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
 
-    if (updates.client) updateData.client_data = updates.client as unknown as Record<string, unknown>;
+    if (updates.client)
+      updateData.client_data = updates.client as unknown as Record<string, unknown>;
     if (updates.items) updateData.items = updates.items as unknown as Record<string, unknown>[];
     if (updates.details) updateData.details = updates.details as unknown as Record<string, unknown>;
     if (updates.status) updateData.status = updates.status;
@@ -270,7 +272,7 @@ export async function updatePendingOrder(
  */
 export function subscribeToPendingOrders(
   sellerId: string,
-  onChange: (payload: { eventType: string; order: PendingOrderRecord }) => void
+  onChange: (payload: { eventType: string; order: PendingOrderRecord }) => void,
 ) {
   const channel = supabase
     .channel('pending_orders_changes')
@@ -287,7 +289,7 @@ export function subscribeToPendingOrders(
           eventType: payload.eventType,
           order: mapSupabaseRecord(payload.new),
         });
-      }
+      },
     )
     .subscribe();
 
@@ -319,7 +321,7 @@ function mapSupabaseRecord(record: Record<string, unknown>): PendingOrderRecord 
 
 async function updateOrderStatus(
   orderId: string,
-  status: 'pending' | 'syncing' | 'failed' | 'completed'
+  status: 'pending' | 'syncing' | 'failed' | 'completed',
 ): Promise<void> {
   const { error } = await (supabase as any)
     .from('pending_orders')
@@ -337,7 +339,7 @@ async function updateOrderStatus(
 async function markOrderCompleted(
   orderId: string,
   apiOrderId: string,
-  apiResponse: { orderId?: string; message?: string }
+  apiResponse: { orderId?: string; message?: string },
 ): Promise<void> {
   const { error } = await (supabase as any)
     .from('pending_orders')
@@ -386,7 +388,7 @@ function shouldRetry(order: PendingOrderRecord): boolean {
   }
 
   // Calcular backoff exponencial: 1min, 2min, 4min, 8min, 16min
-  const backoffMinutes = Math.pow(2, attempts);
+  const backoffMinutes = 2 ** attempts;
   const lastAttempt = order.lastError ? new Date(order.updatedAt) : null;
 
   if (!lastAttempt) {

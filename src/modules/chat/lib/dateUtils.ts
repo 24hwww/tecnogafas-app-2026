@@ -12,22 +12,22 @@ export function formatDistanceToNow(date: string | Date): string {
 
   if (diffInSeconds < 10) return 'ahora';
   if (diffInSeconds < 60) return `hace ${diffInSeconds}s`;
-  
+
   const diffInMinutes = Math.floor(diffInSeconds / 60);
   if (diffInMinutes < 60) return `hace ${diffInMinutes}m`;
-  
+
   const diffInHours = Math.floor(diffInMinutes / 60);
   if (diffInHours < 24) return `hace ${diffInHours}h`;
-  
+
   const diffInDays = Math.floor(diffInHours / 24);
   if (diffInDays < 7) return `hace ${diffInDays}d`;
-  
+
   const diffInWeeks = Math.floor(diffInDays / 7);
   if (diffInWeeks < 4) return `hace ${diffInWeeks}sem`;
-  
+
   const diffInMonths = Math.floor(diffInDays / 30);
   if (diffInMonths < 12) return `hace ${diffInMonths}m`;
-  
+
   const diffInYears = Math.floor(diffInDays / 365);
   return `hace ${diffInYears}a`;
 }
@@ -61,14 +61,14 @@ export function formatTime(date: string | Date): string {
 export function formatDateSeparator(date: string | Date): string {
   const d = new Date(date);
   const now = new Date();
-  
+
   const isToday = d.toDateString() === now.toDateString();
   if (isToday) return 'Hoy';
-  
+
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   if (d.toDateString() === yesterday.toDateString()) return 'Ayer';
-  
+
   return d.toLocaleDateString('es-ES', {
     weekday: 'long',
     day: 'numeric',
@@ -80,10 +80,10 @@ export function formatDateSeparator(date: string | Date): string {
  * Agrupa mensajes por fecha
  */
 export function groupMessagesByDate<T extends { created_at: string }>(
-  messages: T[]
+  messages: T[],
 ): Array<{ date: string; items: T[] }> {
   const groups = new Map<string, T[]>();
-  
+
   for (const message of messages) {
     const date = new Date(message.created_at).toDateString();
     if (!groups.has(date)) {
@@ -91,7 +91,7 @@ export function groupMessagesByDate<T extends { created_at: string }>(
     }
     groups.get(date)!.push(message);
   }
-  
+
   return Array.from(groups.entries()).map(([date, items]) => ({
     date: formatDateSeparator(date),
     items,

@@ -2,10 +2,10 @@
 // CHAT MESSAGE LIST - Lista de mensajes con virtualización básica
 // ============================================================================
 
-import React, { useRef, useEffect, useCallback } from 'react';
+import { Loader2 } from 'lucide-react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useChat } from '../providers/ChatProvider';
 import { MessageBubble } from './MessageBubble';
-import { Loader2 } from 'lucide-react';
 
 export function ChatMessageList() {
   const { messages, isLoading, hasMore, loadMore, currentUser } = useChat();
@@ -17,8 +17,10 @@ export function ChatMessageList() {
     if (bottomRef.current && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
       // Solo auto-scroll si el mensaje es del usuario actual o es muy reciente
-      if (lastMessage.user_id === currentUser?.id || 
-          new Date().getTime() - new Date(lastMessage.created_at).getTime() < 5000) {
+      if (
+        lastMessage.user_id === currentUser?.id ||
+        new Date().getTime() - new Date(lastMessage.created_at).getTime() < 5000
+      ) {
         bottomRef.current.scrollIntoView({ behavior: 'smooth' });
       }
     }
@@ -27,7 +29,7 @@ export function ChatMessageList() {
   // Infinite scroll (load more)
   const handleScroll = useCallback(() => {
     if (!listRef.current || !hasMore || isLoading) return;
-    
+
     const { scrollTop } = listRef.current;
     if (scrollTop < 100) {
       loadMore();
@@ -79,7 +81,9 @@ export function ChatMessageList() {
       {!isLoading && messages.length === 0 && (
         <div className="flex flex-col items-center justify-center h-full opacity-50 space-y-2">
           <p className="text-sm">No hay mensajes aún</p>
-          <p className="text-xs italic text-center px-8">Inicia la conversación enviando un mensaje abajo.</p>
+          <p className="text-xs italic text-center px-8">
+            Inicia la conversación enviando un mensaje abajo.
+          </p>
         </div>
       )}
 

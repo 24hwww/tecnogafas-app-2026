@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@prisma/client';
 import pg from 'pg';
 
 const connectionString = `${process.env.DIRECT_URL || process.env.DATABASE_URL}`;
@@ -14,7 +14,7 @@ async function main() {
   // 1. Asegurar que exista al menos un perfil (System User o Admin)
   // En Supabase auth.users y public.profiles están vinculados.
   const firstUser = await prisma.users.findFirst({
-    select: { id: true }
+    select: { id: true },
   });
 
   if (!firstUser) {
@@ -39,9 +39,9 @@ async function main() {
         allow_reactions: true,
         slow_mode: 0,
         allow_editing: false,
-        allow_deleting: false
-      }
-    }
+        allow_deleting: false,
+      },
+    },
   });
 
   console.log(`✅ Canal #notificaciones asegurado con ID: ${notifChannel.id}`);
@@ -51,16 +51,16 @@ async function main() {
     where: {
       conversation_id_user_id: {
         conversation_id: notifChannel.id,
-        user_id: systemUserId
-      }
+        user_id: systemUserId,
+      },
     },
     update: {},
     create: {
       conversation_id: notifChannel.id,
       user_id: systemUserId,
       role: 'owner',
-      notifications: { all: true, mentions: true, replies: true }
-    }
+      notifications: { all: true, mentions: true, replies: true },
+    },
   });
 
   console.log('🌱 Seeding finished successfully.');

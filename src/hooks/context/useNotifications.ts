@@ -1,10 +1,15 @@
 import { useCallback } from 'react';
 import { apiService } from '../../services/apiService';
 
-import { Seller, AppNotification } from '../../types';
+import type { AppNotification, Seller } from '../../types';
 
 // Events/notificaciones desactivadas temporalmente junto con SSE
-export function useNotifications(_globalPin: string | null, _currentSeller: Seller | null, setNotifications: (n: AppNotification[]) => void, setUnreadNotifications: (c: number) => void) {
+export function useNotifications(
+  _globalPin: string | null,
+  _currentSeller: Seller | null,
+  setNotifications: (n: AppNotification[]) => void,
+  setUnreadNotifications: (c: number) => void,
+) {
   // Desactivado temporalmente - retorna silenciosamente para evitar spam en consola
   const fetchNotifications = useCallback(async () => {
     setNotifications([]);
@@ -38,9 +43,16 @@ export function useNotifications(_globalPin: string | null, _currentSeller: Sell
   }, [setNotifications, setUnreadNotifications]);
 
   // Desactivado temporalmente - retorna silenciosamente
-  const sendNotification = useCallback(async (_toUserId: number, _content: string, _type: 'message' | 'notification' = 'notification', _currentSellerId?: string, _currentSellerName?: string) => {
-    return false;
-    /* Código comentado temporalmente:
+  const sendNotification = useCallback(
+    async (
+      _toUserId: number,
+      _content: string,
+      _type: 'message' | 'notification' = 'notification',
+      _currentSellerId?: string,
+      _currentSellerName?: string,
+    ) => {
+      return false;
+      /* Código comentado temporalmente:
     if (!globalPin || !currentSellerId) {
         console.error('Missing globalPin or currentSellerId');
         return false;
@@ -73,7 +85,9 @@ export function useNotifications(_globalPin: string | null, _currentSeller: Sell
       return false;
     }
     */
-  }, []);
+    },
+    [],
+  );
 
   return { fetchNotifications, sendNotification };
 }

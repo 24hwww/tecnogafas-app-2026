@@ -1,12 +1,24 @@
-import { useCart } from '../contexts/CartContext';
-import { useNotificationsContext } from '../contexts/NotificationsContext';
-import { useApp } from '../AppContext';
-import { useConnection } from '../contexts/ConnectionContext';
-import { ReactNode, useState, useEffect } from 'react';
+import {
+  ClipboardList,
+  House,
+  Menu,
+  MessageCircle,
+  Package,
+  RefreshCw,
+  ScanLine,
+  Settings,
+  ShoppingCart,
+  Users,
+  X,
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { House, Package, Users, ClipboardList, ShoppingCart, Menu, X, MessageCircle, Settings, RefreshCw, ScanLine } from 'lucide-react';
+import { useApp } from '../AppContext';
+import { useCart } from '../contexts/CartContext';
+import { useConnection } from '../contexts/ConnectionContext';
+import { useNotificationsContext } from '../contexts/NotificationsContext';
 import { cn } from '../lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
 
 const navItems = [
   { path: '/', label: 'Inicio', icon: House },
@@ -53,14 +65,16 @@ export function Layout({ children }: { children: ReactNode }) {
       {/* Loading Overlay */}
       <AnimatePresence>
         {isLoading && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 bg-surface/80 z-[100] flex flex-col items-center justify-center backdrop-blur-md"
           >
             <RefreshCw className="w-12 h-12 text-primary animate-spin mb-4" />
-            <p className="text-sm font-bold text-primary animate-pulse tracking-widest uppercase">Sincronizando...</p>
+            <p className="text-sm font-bold text-primary animate-pulse tracking-widest uppercase">
+              Sincronizando...
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -84,10 +98,17 @@ export function Layout({ children }: { children: ReactNode }) {
             >
               <div className="p-6 flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-on-primary font-bold text-xl shadow-lg shadow-primary/20">T</div>
-                  <span className="text-xl font-bold tracking-tight text-on-surface">Tecnogafas</span>
+                  <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-on-primary font-bold text-xl shadow-lg shadow-primary/20">
+                    T
+                  </div>
+                  <span className="text-xl font-bold tracking-tight text-on-surface">
+                    Tecnogafas
+                  </span>
                 </div>
-                <button onClick={closeSidebar} className="p-2 hover:bg-surface-variant rounded-full transition-colors text-on-surface-variant">
+                <button
+                  onClick={closeSidebar}
+                  className="p-2 hover:bg-surface-variant rounded-full transition-colors text-on-surface-variant"
+                >
                   <X size={20} />
                 </button>
               </div>
@@ -100,25 +121,35 @@ export function Layout({ children }: { children: ReactNode }) {
                     onClick={closeSidebar}
                     className={({ isActive }) =>
                       cn(
-                        "flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
-                        isActive 
-                          ? "bg-primary-container text-on-primary-container font-semibold" 
-                          : "text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
+                        'flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all',
+                        isActive
+                          ? 'bg-primary-container text-on-primary-container font-semibold'
+                          : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface',
                       )
                     }
                   >
-                    <item.icon size={20} className={cn("transition-colors", location.pathname === item.path ? "text-primary" : "text-on-surface-variant")} />
+                    <item.icon
+                      size={20}
+                      className={cn(
+                        'transition-colors',
+                        location.pathname === item.path
+                          ? 'text-primary'
+                          : 'text-on-surface-variant',
+                      )}
+                    />
                     <span>{item.label}</span>
                     {item.label === 'Carrito' && cart.length > 0 && (
                       <span className="ml-auto bg-primary text-on-primary text-[0.7rem] px-2 py-0.5 font-bold rounded-full">
                         {cart.reduce((a, b) => a + b.quantity, 0)}
                       </span>
                     )}
-                    {item.label === 'Chat' && unreadNotifications > 0 && location.pathname !== '/chat' && (
-                      <span className="ml-auto bg-error text-white text-[0.7rem] px-2 py-0.5 font-bold rounded-full">
-                        {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                      </span>
-                    )}
+                    {item.label === 'Chat' &&
+                      unreadNotifications > 0 &&
+                      location.pathname !== '/chat' && (
+                        <span className="ml-auto bg-error text-white text-[0.7rem] px-2 py-0.5 font-bold rounded-full">
+                          {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                        </span>
+                      )}
                   </NavLink>
                 ))}
               </nav>
@@ -130,7 +161,9 @@ export function Layout({ children }: { children: ReactNode }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-on-surface truncate">Sesión de Vendedor</p>
-                    <p className="text-[0.7rem] text-on-surface-variant font-medium">App {versions.app} • API {versions.api}</p>
+                    <p className="text-[0.7rem] text-on-surface-variant font-medium">
+                      App {versions.app} • API {versions.api}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -143,8 +176,8 @@ export function Layout({ children }: { children: ReactNode }) {
         {/* Header */}
         <header className="px-4 py-3 flex items-center justify-between bg-surface/80 backdrop-blur-md sticky top-0 z-30 border-b border-outline/5">
           <div className="flex items-center gap-2">
-            <h1 
-              onClick={() => navigate('/')} 
+            <h1
+              onClick={() => navigate('/')}
               className="text-xl font-black text-primary tracking-tighter cursor-pointer hover:opacity-80 transition-opacity"
             >
               TECNOGAFAS
@@ -153,29 +186,50 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-1">
             {/* Connection Status Indicator */}
             {connectionStatus !== 'online' && (
-              <div 
-                title={connectionStatus === 'offline' ? 'Sin conexión - Datos en caché' : connectionStatus === 'error' ? 'Error de API - Usando caché' : 'Sincronizando...'}
+              <div
+                title={
+                  connectionStatus === 'offline'
+                    ? 'Sin conexión - Datos en caché'
+                    : connectionStatus === 'error'
+                      ? 'Error de API - Usando caché'
+                      : 'Sincronizando...'
+                }
                 className={`flex items-center gap-1.5 px-2 py-1 font-bold text-[0.65rem] rounded-full mr-2 ${
-                  connectionStatus === 'offline' ? 'bg-error/10 text-error' : 
-                  connectionStatus === 'error' ? 'bg-warning/10 text-warning' : 
-                  'bg-primary/10 text-primary'
+                  connectionStatus === 'offline'
+                    ? 'bg-error/10 text-error'
+                    : connectionStatus === 'error'
+                      ? 'bg-warning/10 text-warning'
+                      : 'bg-primary/10 text-primary'
                 }`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${
-                  connectionStatus === 'offline' ? 'bg-error' : 
-                  connectionStatus === 'error' ? 'bg-warning' : 
-                  'bg-primary animate-pulse'
-                }`}></span>
-                <span>{connectionStatus === 'offline' ? 'Offline' : connectionStatus === 'error' ? 'Cache' : 'Sync'}</span>
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    connectionStatus === 'offline'
+                      ? 'bg-error'
+                      : connectionStatus === 'error'
+                        ? 'bg-warning'
+                        : 'bg-primary animate-pulse'
+                  }`}
+                ></span>
+                <span>
+                  {connectionStatus === 'offline'
+                    ? 'Offline'
+                    : connectionStatus === 'error'
+                      ? 'Cache'
+                      : 'Sync'}
+                </span>
               </div>
             )}
             {onlineUsersCount !== null && (
-              <div title="Vendedores activos" className="flex items-center gap-1.5 px-3 py-1 bg-success/10 text-success font-bold text-[0.65rem] rounded-full mr-2">
+              <div
+                title="Vendedores activos"
+                className="flex items-center gap-1.5 px-3 py-1 bg-success/10 text-success font-bold text-[0.65rem] rounded-full mr-2"
+              >
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span>
                 <span>{onlineUsersCount}</span>
               </div>
             )}
-            <button 
+            <button
               onClick={() => navigate('/carrito')}
               className="relative p-2.5 hover:bg-surface-variant rounded-full text-on-surface-variant transition-colors"
             >
@@ -186,7 +240,10 @@ export function Layout({ children }: { children: ReactNode }) {
                 </span>
               )}
             </button>
-            <button onClick={toggleSidebar} className="p-2.5 hover:bg-surface-variant rounded-full text-on-surface-variant transition-colors">
+            <button
+              onClick={toggleSidebar}
+              className="p-2.5 hover:bg-surface-variant rounded-full text-on-surface-variant transition-colors"
+            >
               <Menu size={22} />
             </button>
           </div>
@@ -207,6 +264,5 @@ export function Layout({ children }: { children: ReactNode }) {
         </main>
       </div>
     </div>
-
   );
 }

@@ -1,5 +1,5 @@
+import { type ReactNode, useEffect } from 'react';
 import { useUI } from '../contexts/UIContext';
-import { useEffect, ReactNode } from 'react';
 
 export function ThemeWrapper({ children }: { children: ReactNode }) {
   const { primaryColor, fontSize } = useUI();

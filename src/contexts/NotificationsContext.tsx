@@ -1,19 +1,32 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { PushNotifications } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { useAuth } from './AuthContext';
-import { useConnection } from './ConnectionContext';
+import { PushNotifications } from '@capacitor/push-notifications';
+import type React from 'react';
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useNotifications as useNotificationsHook } from '../hooks/context/useNotifications';
 import { apiService } from '../services/apiService';
-import { AppNotification, DeployEvent } from '../types';
+import type { AppNotification, DeployEvent } from '../types';
+import { useAuth } from './AuthContext';
+import { useConnection } from './ConnectionContext';
 
 interface NotificationsContextType {
   notifications: AppNotification[];
   unreadNotifications: number;
   deployEvent: DeployEvent | null;
   fetchNotifications: () => Promise<void>;
-  sendNotification: (toUserId: number, content: string, type?: 'message' | 'notification') => Promise<boolean>;
+  sendNotification: (
+    toUserId: number,
+    content: string,
+    type?: 'message' | 'notification',
+  ) => Promise<boolean>;
   markAllNotificationsAsRead: () => Promise<void>;
   markNotificationAsShown: (id: number) => void;
   hasNotificationBeenShown: (id: number) => boolean;
@@ -37,7 +50,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const shownNotificationIdsRef = useRef<Set<number>>(new Set());
 
   const { fetchNotifications, sendNotification: sendNotificationBase } = useNotificationsHook(
-    globalPin, currentSeller, setNotifications, setUnreadNotifications
+    globalPin,
+    currentSeller,
+    setNotifications,
+    setUnreadNotifications,
   );
 
   useEffect(() => {
@@ -46,18 +62,23 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, [supabaseUser]);
 
-  const sendNotification = useCallback(async (toUserId: number, content: string, type: 'message' | 'notification' = 'notification') => {
-    return sendNotificationBase(toUserId, content, type, currentSeller?.id, currentSeller?.name);
-  }, [sendNotificationBase, currentSeller]);
+  const sendNotification = useCallback(
+    async (
+      toUserId: number,
+      content: string,
+      type: 'message' | 'notification' = 'notification',
+    ) => {
+      return sendNotificationBase(toUserId, content, type, currentSeller?.id, currentSeller?.name);
+    },
+    [sendNotificationBase, currentSeller],
+  );
 
   const markAllNotificationsAsRead = useCallback(async () => {
     if (!globalPin || !currentSeller || notifications.length === 0) return;
-    const unread = notifications.filter(n => !n.read);
+    const unread = notifications.filter((n) => !n.read);
     if (unread.length === 0) return;
-    
-    await Promise.all(
-      unread.map(n => apiService.ackEvent(n.id, globalPin).catch(() => null))
-    );
+
+    await Promise.all(unread.map((n) => apiService.ackEvent(n.id, globalPin).catch(() => null)));
   }, [globalPin, currentSeller, notifications]);
 
   const markNotificationAsShown = useCallback((id: number) => {
@@ -70,7 +91,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         const value = iterator.next().value;
         if (value !== undefined) toDelete.push(value);
       }
-      toDelete.forEach(v => newSet.delete(v));
+      toDelete.forEach((v) => newSet.delete(v));
     }
   }, []);
 
@@ -83,7 +104,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     try {
       await LocalNotifications.requestPermissions();
       let permStatus = await PushNotifications.checkPermissions();
-      if (permStatus.receive === 'prompt') permStatus = await PushNotifications.requestPermissions();
+      if (permStatus.receive === 'prompt')
+        permStatus = await PushNotifications.requestPermissions();
       if (permStatus.receive !== 'granted') return;
 
       await PushNotifications.register();
@@ -91,7 +113,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         const eventId = notification?.data?.event_id || notification?.data?.id;
         if (eventId && hasNotificationBeenShown(eventId)) return;
         if (eventId) markNotificationAsShown(eventId);
-        setUnreadNotifications(prev => prev + 1);
+        setUnreadNotifications((prev) => prev + 1);
       });
     } catch (e) {
       console.error('Error initializing Push Notifications', e);
@@ -122,7 +144,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         const { data: conv, error: convError } = await apiService.getSupabaseNotificationChannel();
         if (convError || !conv) return;
 
-        const { data: member, error: memberError } = await apiService.getSupabaseMemberStatus(conv.id, supabaseUser.id);
+        const { data: member, error: memberError } = await apiService.getSupabaseMemberStatus(
+          conv.id,
+          supabaseUser.id,
+        );
         if (member && !memberError) {
           setUnreadNotifications(member.unread_count || 0);
         }
@@ -132,20 +157,22 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           `conversation_id=eq.${conv.id}`,
           (payload) => {
             if (payload.eventType === 'INSERT') {
-              setUnreadNotifications(prev => prev + 1);
+              setUnreadNotifications((prev) => prev + 1);
               if (window.location.pathname !== '/chat') {
                 const msg = payload.new;
                 LocalNotifications.schedule({
-                  notifications: [{
-                    title: 'Nueva Notificación',
-                    body: msg.content || 'Tienes un nuevo mensaje del sistema',
-                    id: Date.now(),
-                    extra: { event_id: msg.id }
-                  }]
+                  notifications: [
+                    {
+                      title: 'Nueva Notificación',
+                      body: msg.content || 'Tienes un nuevo mensaje del sistema',
+                      id: Date.now(),
+                      extra: { event_id: msg.id },
+                    },
+                  ],
                 });
               }
             }
-          }
+          },
         );
       } catch (err) {
         console.error('Error setting up global notifications:', err);
@@ -163,11 +190,22 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [supabaseUser, isOnline]);
 
   return (
-    <NotificationsContext.Provider value={{
-      notifications, unreadNotifications, deployEvent, fetchNotifications, sendNotification,
-      markAllNotificationsAsRead, markNotificationAsShown, hasNotificationBeenShown,
-      setDeployNotification, initializePushNotifications, setNotifications, setUnreadNotifications
-    }}>
+    <NotificationsContext.Provider
+      value={{
+        notifications,
+        unreadNotifications,
+        deployEvent,
+        fetchNotifications,
+        sendNotification,
+        markAllNotificationsAsRead,
+        markNotificationAsShown,
+        hasNotificationBeenShown,
+        setDeployNotification,
+        initializePushNotifications,
+        setNotifications,
+        setUnreadNotifications,
+      }}
+    >
       {children}
     </NotificationsContext.Provider>
   );
@@ -175,6 +213,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
 export function useNotificationsContext() {
   const context = useContext(NotificationsContext);
-  if (!context) throw new Error('useNotificationsContext must be used within NotificationsProvider');
+  if (!context)
+    throw new Error('useNotificationsContext must be used within NotificationsProvider');
   return context;
 }

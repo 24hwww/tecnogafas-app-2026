@@ -1,12 +1,19 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { appDB } from './stores/appDatabase';
-import { Product, Client, Seller } from './types';
-import { useDataSync } from './hooks/context/useDataSync';
-import { useCacheManager } from './hooks/context/useCacheManager';
-import { syncAllPendingOrders, getPendingOrders } from './services/pendingOrdersSync';
+import React, {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { useConnection } from './contexts/ConnectionContext';
 import { useOrders } from './contexts/OrdersContext';
+import { useCacheManager } from './hooks/context/useCacheManager';
+import { useDataSync } from './hooks/context/useDataSync';
+import { getPendingOrders, syncAllPendingOrders } from './services/pendingOrdersSync';
+import { appDB } from './stores/appDatabase';
+import type { Client, Product, Seller } from './types';
 
 interface AppContextType {
   products: Product[];
@@ -29,7 +36,13 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const { globalPin } = useAuth();
   const { isOnline, setConnectionStatus } = useConnection();
-  const { setOrders, setTotalOrders, setGrandTotalOrders, setDashboardOrders, setPendingOrdersCount } = useOrders();
+  const {
+    setOrders,
+    setTotalOrders,
+    setGrandTotalOrders,
+    setDashboardOrders,
+    setPendingOrdersCount,
+  } = useOrders();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -41,9 +54,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentAppVersion, setCurrentAppVersion] = useState<string | null>(null);
 
   const { refreshData } = useDataSync(
-    globalPin, setProducts, setClients, setOrders, setTotalOrders, setGrandTotalOrders, 
-    setDashboardOrders, setSellers, setAppVersionInfo, setCurrentAppVersion, setHasNewVersion, setIsLoading,
-    setConnectionStatus
+    globalPin,
+    setProducts,
+    setClients,
+    setOrders,
+    setTotalOrders,
+    setGrandTotalOrders,
+    setDashboardOrders,
+    setSellers,
+    setAppVersionInfo,
+    setCurrentAppVersion,
+    setHasNewVersion,
+    setIsLoading,
+    setConnectionStatus,
   );
 
   const { forceRefresh: forceRefreshBase, clearAllCaches } = useCacheManager(refreshData);
@@ -54,22 +77,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const syncPendingOrders = useCallback(async () => {
     if (!isOnline || !globalPin) return;
-    
+
     console.log('🔄 Checking for pending orders to sync...');
     try {
       setConnectionStatus('syncing');
       const result = await syncAllPendingOrders(globalPin);
-      
+
       if (result.total > 0) {
         console.log(`✅ Synced ${result.success} orders, ${result.failed} failed`);
         if (result.success > 0) {
           await refreshData();
         }
       }
-      
+
       const pending = await getPendingOrders(globalPin, ['pending', 'failed']);
       setPendingOrdersCount(pending.length);
-      
+
       setConnectionStatus('online');
     } catch (err) {
       console.error('Error syncing pending orders:', err);
@@ -85,9 +108,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const cachedClients = await appDB.clients.toArray();
         const cachedSellers = await appDB.sellers.toArray();
 
-        if (cachedProducts.length > 0) { setProducts(cachedProducts); hasCache = true; }
-        if (cachedClients.length > 0) { setClients(cachedClients); hasCache = true; }
-        if (cachedSellers.length > 0) { setSellers(cachedSellers); hasCache = true; }
+        if (cachedProducts.length > 0) {
+          setProducts(cachedProducts);
+          hasCache = true;
+        }
+        if (cachedClients.length > 0) {
+          setClients(cachedClients);
+          hasCache = true;
+        }
+        if (cachedSellers.length > 0) {
+          setSellers(cachedSellers);
+          hasCache = true;
+        }
       } catch (e) {
         console.error('Error reading cache', e);
       }
@@ -115,10 +147,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [globalPin, syncPendingOrders]);
 
   return (
-    <AppContext.Provider value={{
-      products, clients, sellers, isLoading, apiError, appVersionInfo, hasNewVersion, currentAppVersion,
-      setApiError, refreshData, forceRefresh, clearAllCaches, syncPendingOrders
-    }}>
+    <AppContext.Provider
+      value={{
+        products,
+        clients,
+        sellers,
+        isLoading,
+        apiError,
+        appVersionInfo,
+        hasNewVersion,
+        currentAppVersion,
+        setApiError,
+        refreshData,
+        forceRefresh,
+        clearAllCaches,
+        syncPendingOrders,
+      }}
+    >
       {children}
     </AppContext.Provider>
   );

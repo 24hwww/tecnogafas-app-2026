@@ -1,11 +1,8 @@
-import React, { createContext, useContext, useCallback, useMemo, useEffect } from 'react';
-import type {
-  ChatContextValue,
-  ConversationWithDetails,
-} from '../types';
+import React, { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 import { useConversations } from '../hooks/useConversations';
 import { useMessages } from '../hooks/useMessages';
 import { useTyping } from '../hooks/useTyping';
+import type { ChatContextValue, ConversationWithDetails } from '../types';
 
 export const ChatContext = createContext<ChatContextValue | null>(null);
 
@@ -55,11 +52,7 @@ export function ChatProvider({ children, currentUserId, currentUser }: ChatProvi
     currentUserId,
   });
 
-  const {
-    typingUsers,
-    startTyping,
-    stopTyping,
-  } = useTyping({
+  const { typingUsers, startTyping, stopTyping } = useTyping({
     conversationId: activeConversation?.id || null,
     currentUserId,
   });
@@ -131,7 +124,7 @@ export function ChatProvider({ children, currentUserId, currentUser }: ChatProvi
       archiveConversation,
       pinConversation,
       muteConversation,
-    ]
+    ],
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
@@ -143,22 +136,15 @@ function useConversationsState(currentUserId: string | null) {
 
   const conversationsHook = useConversations(currentUserId);
 
-  const setActiveConversation = useCallback(
-    (conversation: ConversationWithDetails | null) => {
-      setActiveConversationState(conversation);
-    },
-    []
-  );
+  const setActiveConversation = useCallback((conversation: ConversationWithDetails | null) => {
+    setActiveConversationState(conversation);
+  }, []);
 
   // Auto-select default conversation when list loads
   useEffect(() => {
     if (!activeConversation && conversationsHook.conversations.length > 0) {
-      const notifChannel = conversationsHook.conversations.find(
-        (c) => c.slug === 'notificaciones'
-      );
-      setActiveConversationState(
-        notifChannel || conversationsHook.conversations[0]
-      );
+      const notifChannel = conversationsHook.conversations.find((c) => c.slug === 'notificaciones');
+      setActiveConversationState(notifChannel || conversationsHook.conversations[0]);
     }
   }, [conversationsHook.conversations, activeConversation]);
 

@@ -6,9 +6,9 @@ export function usePermissions() {
 
   useEffect(() => {
     const unsub = kodular.on('PERMISSION_RESULT', ({ permission, status }) => {
-      setPermissions(prev => ({
+      setPermissions((prev) => ({
         ...prev,
-        [permission]: status as string
+        [permission]: status as string,
       }));
     });
 

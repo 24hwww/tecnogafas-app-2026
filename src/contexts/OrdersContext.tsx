@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Order } from '../types';
+import type React from 'react';
+import { createContext, type ReactNode, useContext, useState } from 'react';
 import { apiService } from '../services/apiService';
+import type { Order } from '../types';
 
 interface OrdersContextType {
   orders: Order[];
@@ -17,7 +18,12 @@ interface OrdersContextType {
   setPendingOrdersCount: React.Dispatch<React.SetStateAction<number>>;
   setIsOrdersLoading: React.Dispatch<React.SetStateAction<boolean>>;
   setOrdersError: React.Dispatch<React.SetStateAction<string | null>>;
-  fetchOrders: (page?: number, perPage?: number, sellerId?: number, customerId?: number) => Promise<void>;
+  fetchOrders: (
+    page?: number,
+    perPage?: number,
+    sellerId?: number,
+    customerId?: number,
+  ) => Promise<void>;
 }
 
 const OrdersContext = createContext<OrdersContextType | undefined>(undefined);
@@ -31,7 +37,12 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
 
-  const fetchOrders = async (page: number = 1, perPage: number = 25, sellerId?: number, customerId?: number) => {
+  const fetchOrders = async (
+    page: number = 1,
+    perPage: number = 25,
+    sellerId?: number,
+    customerId?: number,
+  ) => {
     setIsOrdersLoading(true);
     setOrdersError(null);
     try {
@@ -47,12 +58,25 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <OrdersContext.Provider value={{
-      orders, totalOrders, grandTotalOrders, dashboardOrders, pendingOrdersCount,
-      isOrdersLoading, ordersError,
-      setOrders, setTotalOrders, setGrandTotalOrders, setDashboardOrders, setPendingOrdersCount,
-      setIsOrdersLoading, setOrdersError, fetchOrders
-    }}>
+    <OrdersContext.Provider
+      value={{
+        orders,
+        totalOrders,
+        grandTotalOrders,
+        dashboardOrders,
+        pendingOrdersCount,
+        isOrdersLoading,
+        ordersError,
+        setOrders,
+        setTotalOrders,
+        setGrandTotalOrders,
+        setDashboardOrders,
+        setPendingOrdersCount,
+        setIsOrdersLoading,
+        setOrdersError,
+        fetchOrders,
+      }}
+    >
       {children}
     </OrdersContext.Provider>
   );

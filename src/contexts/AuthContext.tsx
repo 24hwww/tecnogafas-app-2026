@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Seller, SupabaseUser } from '../types';
+import React, { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 import { apiService } from '../services/apiService';
+import type { Seller, SupabaseUser } from '../types';
 
 interface AuthContextType {
   globalPin: string | null;
@@ -50,11 +50,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initAuth = async () => {
       const { supabase } = await import('../modules/chat/lib/supabase');
-      
-      const { data: { session } } = await supabase.auth.getSession();
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       setSupabaseUser(session?.user ?? null);
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
         setSupabaseUser(session?.user ?? null);
       });
       authSubscription = subscription;
@@ -76,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error('Error in Supabase Auth sync:', err);
       }
-      
+
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'START_POLLING', pin: pin });
         navigator.serviceWorker.controller.postMessage({ type: 'APP_ACTIVE' });
@@ -90,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error('Error signing out from Supabase:', err);
       }
-      
+
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'STOP_POLLING' });
       }
@@ -98,9 +102,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{
-      globalPin, currentSeller, supabaseUser, setGlobalPin, setCurrentSeller
-    }}>
+    <AuthContext.Provider
+      value={{
+        globalPin,
+        currentSeller,
+        supabaseUser,
+        setGlobalPin,
+        setCurrentSeller,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

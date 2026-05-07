@@ -3,12 +3,17 @@
 // Indicador de "escribiendo..." con debounce
 // ============================================================================
 
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import { supabase, channelManager } from '../lib/supabase';
-import type { TypingStatus, Profile, TypingUser } from '../types';
-import { getTypingUsers, setTypingStatus, clearTypingStatus, cleanupExpiredTyping } from '../../../stores/appDatabase';
-import { getProfile } from '../../../stores/appDatabase';
+import {
+  cleanupExpiredTyping,
+  clearTypingStatus,
+  getProfile,
+  getTypingUsers,
+  setTypingStatus,
+} from '../../../stores/appDatabase';
+import { channelManager, supabase } from '../lib/supabase';
+import type { Profile, TypingStatus, TypingUser } from '../types';
 
 interface UseTypingOptions {
   conversationId: string | null;
@@ -26,13 +31,10 @@ const TYPING_DEBOUNCE = 300; // ms antes de enviar "typing"
 const TYPING_DURATION = 30000; // 30 segundos de duración
 const TYPING_CLEANUP_INTERVAL = 10000; // Limpiar cada 10 segundos
 
-export function useTyping({
-  conversationId,
-  currentUserId,
-}: UseTypingOptions): UseTypingReturn {
+export function useTyping({ conversationId, currentUserId }: UseTypingOptions): UseTypingReturn {
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  
+
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const cleanupIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -50,12 +52,14 @@ export function useTyping({
 
       try {
         if (isTypingNow) {
-          await supabase.from('typing_status').upsert([{
-            conversation_id: conversationId,
-            user_id: currentUserId,
-            started_at: now.toISOString(),
-            expires_at: expiresAt.toISOString(),
-          }] as unknown as never[]);
+          await supabase.from('typing_status').upsert([
+            {
+              conversation_id: conversationId,
+              user_id: currentUserId,
+              started_at: now.toISOString(),
+              expires_at: expiresAt.toISOString(),
+            },
+          ] as unknown as never[]);
 
           // Guardar en cache local
           await setTypingStatus({
@@ -77,7 +81,7 @@ export function useTyping({
         console.debug('[useTyping] Error:', err);
       }
     },
-    [conversationId, currentUserId]
+    [conversationId, currentUserId],
   );
 
   // ============================================================================
@@ -194,33 +198,32 @@ export function useTyping({
     const channelName = `typing:${conversationId}`;
     const channel = channelManager.getChannel(channelName);
 
-    // @ts-ignore
+    // @ts-expect-error
     if (channel.state === 'closed' || channel.state === 'errored') {
-      channel
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'typing_status',
-            filter: `conversation_id=eq.${conversationId}`,
-          },
-          async (payload: RealtimePostgresChangesPayload<TypingStatus>) => {
-            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              const status = payload.new;
-              if (status.user_id === currentUserId) return;
+      channel.on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'typing_status',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        async (payload: RealtimePostgresChangesPayload<TypingStatus>) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const status = payload.new;
+            if (status.user_id === currentUserId) return;
 
-              const profile = await getProfile(status.user_id);
-              setTypingUsers((prev) => {
-                const filtered = prev.filter((u) => u.user_id !== status.user_id);
-                return [...filtered, { ...status, user: profile }];
-              });
-            } else if (payload.eventType === 'DELETE') {
-              const deleted = payload.old;
-              setTypingUsers((prev) => prev.filter((u) => u.user_id !== deleted.user_id));
-            }
+            const profile = await getProfile(status.user_id);
+            setTypingUsers((prev) => {
+              const filtered = prev.filter((u) => u.user_id !== status.user_id);
+              return [...filtered, { ...status, user: profile }];
+            });
+          } else if (payload.eventType === 'DELETE') {
+            const deleted = payload.old;
+            setTypingUsers((prev) => prev.filter((u) => u.user_id !== deleted.user_id));
           }
-        );
+        },
+      );
     }
 
     channelManager.subscribe(channelName, {

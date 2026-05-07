@@ -1,40 +1,39 @@
-import { UIProvider } from './contexts/UIContext';
-import { ConnectionProvider } from './contexts/ConnectionContext';
-import { AuthProvider } from './contexts/AuthContext';
-import { OrdersProvider } from './contexts/OrdersContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
+import { ConnectionProvider } from './contexts/ConnectionContext';
 import { NotificationsProvider } from './contexts/NotificationsContext';
-import { useAuth } from './contexts/AuthContext';
+import { OrdersProvider } from './contexts/OrdersContext';
+import { UIProvider } from './contexts/UIContext';
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AppProvider } from "./AppContext";
-import { ThemeWrapper } from './components/ThemeWrapper';
-import { Layout } from './components/Layout';
-import { UpdatePrompt } from './components/UpdatePrompt';
+import { Analytics } from '@vercel/analytics/react';
+import { useEffect } from 'react';
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { AppProvider } from './AppContext';
 import { DeployNotification } from './components/DeployNotification';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { useEffect } from 'react';
+import { Layout } from './components/Layout';
+import { ThemeWrapper } from './components/ThemeWrapper';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import { useAndroidBack } from './hooks/useAndroidBack';
 import { kodular } from './lib/kodularBridge';
 import { ChatProvider } from './modules/chat';
-import { Analytics } from '@vercel/analytics/react';
-
-import Dashboard from './pages/Dashboard';
-import Products from './pages/Products';
-import Clients from './pages/Clients';
-import Orders from './pages/Orders';
 import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
-import SharedCart from './pages/SharedCart';
-import QRScanner from './pages/QRScanner';
 import Chat from './pages/Chat';
-import Settings from './pages/Settings';
+import Checkout from './pages/Checkout';
+import Clients from './pages/Clients';
+import Dashboard from './pages/Dashboard';
 import NotFound from './pages/NotFound';
 import Notifications from './pages/Notifications';
+import Orders from './pages/Orders';
+import Products from './pages/Products';
+import QRScanner from './pages/QRScanner';
+import Settings from './pages/Settings';
+import SharedCart from './pages/SharedCart';
 
 function AppInner() {
   useAndroidBack();
@@ -50,8 +49,8 @@ function AppInner() {
       }
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   return (
@@ -77,8 +76,11 @@ function AppInner() {
 function AuthenticatedApp() {
   const { supabaseUser } = useAuth();
   return (
-    <ChatProvider currentUserId={supabaseUser?.id || null} currentUser={supabaseUser ? { id: supabaseUser.id, username: supabaseUser.email } : null}>
-       <AppInner />
+    <ChatProvider
+      currentUserId={supabaseUser?.id || null}
+      currentUser={supabaseUser ? { id: supabaseUser.id, username: supabaseUser.email } : null}
+    >
+      <AppInner />
     </ChatProvider>
   );
 }

@@ -51,40 +51,40 @@ const main = async () => {
   const files = [
     {
       url: 'https://placehold.co/512/1662E1/FFF/png?font=montserrat&text=TG',
-      dest: path.join(base, 'public/icon-512.png')
+      dest: path.join(base, 'public/icon-512.png'),
     },
     {
       url: 'https://placehold.co/1024/1662E1/FFF/png?font=montserrat&text=TG',
-      dest: path.join(base, 'assets/icon.png')
+      dest: path.join(base, 'assets/icon.png'),
     },
     {
       url: 'https://placehold.co/1024/1662E1/FFF/png?font=montserrat&text=TG',
-      dest: path.join(base, 'assets/icon-foreground.png')
+      dest: path.join(base, 'assets/icon-foreground.png'),
     },
     {
       url: 'https://placehold.co/1024/1662E1/FFF/png?font=montserrat&text=TG',
-      dest: path.join(base, 'assets/icon-only.png')
+      dest: path.join(base, 'assets/icon-only.png'),
     },
     {
       url: 'https://placehold.co/512/1662E1/FFF/png?font=montserrat&text=TecnoGafas',
-      dest: path.join(base, 'assets/logo.png')
+      dest: path.join(base, 'assets/logo.png'),
     },
     {
       url: 'https://placehold.co/2732/1662E1/FFF/png?font=montserrat&text=TG',
-      dest: path.join(base, 'assets/splash.png')
+      dest: path.join(base, 'assets/splash.png'),
     },
     {
       url: 'https://placehold.co/2732/1E1E1E/FFF/png?font=montserrat&text=TG',
-      dest: path.join(base, 'assets/splash-dark.png')
-    }
+      dest: path.join(base, 'assets/splash-dark.png'),
+    },
   ];
 
-  await Promise.all(files.map(f => downloadFile(f.url, f.dest)));
+  await Promise.all(files.map((f) => downloadFile(f.url, f.dest)));
 
   console.log('✅ Images replaced successfully');
 };
 
-main().catch(err => {
+main().catch((err) => {
   console.error('❌ Error downloading assets:', err);
   process.exit(1);
 });

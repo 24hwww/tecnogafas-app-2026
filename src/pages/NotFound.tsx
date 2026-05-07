@@ -1,5 +1,5 @@
+import { ArrowLeft, Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Home, ArrowLeft } from 'lucide-react';
 
 export default function NotFound() {
   const navigate = useNavigate();
@@ -11,7 +11,7 @@ export default function NotFound() {
           <h1 className="text-6xl font-bold text-primary">404</h1>
           <h2 className="text-2xl font-semibold text-on-surface">Página no encontrada</h2>
         </div>
-        
+
         <p className="text-on-surface-variant text-lg">
           La página que buscas no existe o ha sido movida.
         </p>
@@ -24,7 +24,7 @@ export default function NotFound() {
             <ArrowLeft size={18} />
             Volver
           </button>
-          
+
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary hover:bg-primary/90 rounded-lg transition-colors"

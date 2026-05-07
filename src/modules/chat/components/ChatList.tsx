@@ -2,9 +2,9 @@
 // CHAT LIST - Lista de conversaciones con badges y avatars
 // ============================================================================
 
+import { BellOff, MessageCircle, Pin, Users } from 'lucide-react';
 import React, { useMemo } from 'react';
 import type { ConversationWithDetails } from '../types';
-import { MessageCircle, Users, BellOff, Pin } from 'lucide-react';
 
 interface ChatListProps {
   conversations: ConversationWithDetails[];
@@ -78,10 +78,10 @@ export function ChatList({ conversations, selectedId, onSelect, isLoading }: Cha
                 </div>
               </div>
             </div>
-            
+
             {conv.is_pinned && <Pin className="w-3 h-3 text-primary fill-primary" />}
           </div>
-          
+
           {/* Cuerpo de la Card (estilo Orders details) */}
           <div className="p-4 flex justify-between items-center bg-surface">
             <div className="space-y-1">
@@ -91,7 +91,11 @@ export function ChatList({ conversations, selectedId, onSelect, isLoading }: Cha
               </div>
               {conv.last_message_at && (
                 <p className="text-[0.625rem] text-outline font-medium">
-                  ÚLTIMA ACTIVIDAD: {new Date(conv.last_message_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
+                  ÚLTIMA ACTIVIDAD:{' '}
+                  {new Date(conv.last_message_at).toLocaleDateString('es-AR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                  })}
                 </p>
               )}
             </div>

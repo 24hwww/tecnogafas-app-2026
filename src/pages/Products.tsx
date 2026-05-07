@@ -1,12 +1,12 @@
-import { useApp } from '../AppContext';
-import { useCart } from '../contexts/CartContext';
-import { useState, useMemo } from 'react';
-import { ShoppingCart, Plus, Minus, Search, X, ChevronRight, Check, Filter } from 'lucide-react';
+import { Check, ChevronRight, Filter, Minus, Plus, Search, ShoppingCart, X } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Product, ProductVariation } from '../types';
-import { formatCurrency } from '../lib/utils';
-import { ProductSkeleton } from '../components/Skeleton';
+import { useMemo, useState } from 'react';
+import { useApp } from '../AppContext';
 import { PullToRefresh } from '../components/PullToRefresh';
+import { ProductSkeleton } from '../components/Skeleton';
+import { useCart } from '../contexts/CartContext';
+import { formatCurrency } from '../lib/utils';
+import { type Product, ProductVariation } from '../types';
 
 export default function Products() {
   const { products, isLoading, refreshData } = useApp();
@@ -27,21 +27,24 @@ export default function Products() {
   // Helper to parse "Termino:Anteojos|Slug:anteojos;Termino:Receta|Slug:receta"
   const parseFiltros = (filtros: string): string[] => {
     if (!filtros) return [];
-    return filtros.split(';').map(part => {
-      const match = part.match(/Termino:([^|]+)/);
-      return match ? match[1] : '';
-    }).filter(t => t !== '');
+    return filtros
+      .split(';')
+      .map((part) => {
+        const match = part.match(/Termino:([^|]+)/);
+        return match ? match[1] : '';
+      })
+      .filter((t) => t !== '');
   };
 
   const productFiltrosMap = useMemo(() => {
     const map = new Map<string, string[]>();
-    products.forEach(p => {
+    products.forEach((p) => {
       map.set(p.id, parseFiltros(p.description));
     });
     return map;
   }, [products]);
 
-  const filteredProducts = products.filter(p => {
+  const filteredProducts = products.filter((p) => {
     const pFiltros = productFiltrosMap.get(p.id) || [];
     const matchesFilters = activeFilters.every((f, i) => pFiltros[i] === f);
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
@@ -50,10 +53,10 @@ export default function Products() {
   });
 
   const nextLevel = activeFilters.length;
-  
+
   const availableNextTerms = useMemo(() => {
     const terms = new Set<string>();
-    products.forEach(p => {
+    products.forEach((p) => {
       const pFiltros = productFiltrosMap.get(p.id) || [];
       const matchesActive = activeFilters.every((f, i) => pFiltros[i] === f);
       if (matchesActive && pFiltros[nextLevel]) {
@@ -71,13 +74,13 @@ export default function Products() {
     setActiveFilters(activeFilters.slice(0, index));
   };
 
-  const getInCart = (id: string) => cart.find(item => item.id === id);
+  const getInCart = (id: string) => cart.find((item) => item.id === id);
 
   const handleOpenVariationModal = (product: Product) => {
     setVariationModalProduct(product);
     const initialQuantities: Record<string, number> = {};
     if (product.variations && product.variations.length > 0) {
-      product.variations.forEach(v => {
+      product.variations.forEach((v) => {
         initialQuantities[v.vid] = 0;
       });
     } else {
@@ -87,15 +90,15 @@ export default function Products() {
   };
 
   const updateVariationQuantity = (vid: string, delta: number) => {
-    setVariationQuantities(prev => ({
+    setVariationQuantities((prev) => ({
       ...prev,
-      [vid]: Math.max(0, (prev[vid] || 0) + delta)
+      [vid]: Math.max(0, (prev[vid] || 0) + delta),
     }));
   };
 
   const handleAddToCartFromModal = () => {
     if (!variationModalProduct) return;
-    
+
     let anyAdded = false;
 
     Object.entries(variationQuantities).forEach(([vid, quantity]) => {
@@ -106,7 +109,7 @@ export default function Products() {
         addToCart(variationModalProduct, quantity);
         triggerAddedAnimation(variationModalProduct.id);
       } else {
-        const variation = variationModalProduct.variations?.find(v => v.vid === vid);
+        const variation = variationModalProduct.variations?.find((v) => v.vid === vid);
         if (variation) {
           const productToAdd = {
             ...variationModalProduct,
@@ -114,7 +117,7 @@ export default function Products() {
             name: `${variationModalProduct.name} - ${variation.title}`,
             price: variation.price,
             stock: variation.stock,
-            vid: variation.vid
+            vid: variation.vid,
           };
           addToCart(productToAdd, quantity);
           triggerAddedAnimation(productToAdd.id);
@@ -135,8 +138,10 @@ export default function Products() {
     <PullToRefresh onRefresh={() => refreshData(false)}>
       <div className="space-y-4 min-h-[50vh]">
         <div className="flex items-center justify-between">
-          <h2 id="products-title" className="text-2xl font-bold">Productos</h2>
-          <button 
+          <h2 id="products-title" className="text-2xl font-bold">
+            Productos
+          </h2>
+          <button
             id="products-filters-btn"
             onClick={() => setShowFilters(!showFilters)}
             className={`p-2 hover:bg-surface-variant transition-all ${showFilters ? 'text-primary bg-primary/10' : 'text-outline'}`}
@@ -149,10 +154,10 @@ export default function Products() {
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" size={20} />
-          <input 
+          <input
             id="products-search-input"
-            type="text" 
-            placeholder="Buscar productos..." 
+            type="text"
+            placeholder="Buscar productos..."
             className="w-full bg-surface-variant py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -166,17 +171,22 @@ export default function Products() {
               <button
                 onClick={() => setActiveFilters([])}
                 className={`px-3 py-1 text-xs font-bold transition-all ${
-                  activeFilters.length === 0 ? 'bg-primary text-on-primary shadow-md' : 'bg-surface-variant text-on-surface-variant'
+                  activeFilters.length === 0
+                    ? 'bg-primary text-on-primary shadow-md'
+                    : 'bg-surface-variant text-on-surface-variant'
                 }`}
               >
                 Todos
               </button>
               {activeFilters.map((f, i) => (
-                <div key={i} className="flex items-center gap-1 animate-in slide-in-from-left-2 fade-in">
+                <div
+                  key={i}
+                  className="flex items-center gap-1 animate-in slide-in-from-left-2 fade-in"
+                >
                   <ChevronRight size={14} className="text-outline" />
                   <div className="flex items-center bg-primary-container text-on-primary-container px-3 py-1 text-xs font-bold gap-1 shadow-sm">
                     {f}
-                    <button 
+                    <button
                       onClick={() => handleRemoveFilter(i)}
                       className="hover:bg-primary/10 p-0.5"
                     >
@@ -189,20 +199,27 @@ export default function Products() {
 
             {/* Sequential Filter Options */}
             <div className="flex items-center gap-2 mb-4 p-2 bg-surface-variant/50">
-               <input 
-                 type="checkbox" 
-                 id="showZeroPrice" 
-                 checked={showZeroPrice} 
-                 onChange={(e) => setShowZeroPrice(e.target.checked)}
-                 className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-               />
-               <label htmlFor="showZeroPrice" className="text-xs font-bold text-on-surface-variant uppercase">Mostrar productos precio 0</label>
-             </div>
+              <input
+                type="checkbox"
+                id="showZeroPrice"
+                checked={showZeroPrice}
+                onChange={(e) => setShowZeroPrice(e.target.checked)}
+                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+              />
+              <label
+                htmlFor="showZeroPrice"
+                className="text-xs font-bold text-on-surface-variant uppercase"
+              >
+                Mostrar productos precio 0
+              </label>
+            </div>
             {availableNextTerms.length > 0 && (
               <div className="space-y-2">
-                <p className="text-[0.625rem] font-black uppercase text-outline tracking-widest pl-1">Filtrar por {nextLevel === 0 ? 'Categoría' : 'Sub-Categoría'}</p>
+                <p className="text-[0.625rem] font-black uppercase text-outline tracking-widest pl-1">
+                  Filtrar por {nextLevel === 0 ? 'Categoría' : 'Sub-Categoría'}
+                </p>
                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-                  {availableNextTerms.map(term => (
+                  {availableNextTerms.map((term) => (
                     <button
                       key={term}
                       onClick={() => handleAddFilter(term)}
@@ -220,19 +237,27 @@ export default function Products() {
         {/* Product List */}
         <div className="space-y-3">
           {isLoading && products.length === 0 ? (
-            Array(6).fill(0).map((_, i) => <ProductSkeleton key={i} />)
+            Array(6)
+              .fill(0)
+              .map((_, i) => <ProductSkeleton key={i} />)
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-10 opacity-50 space-y-2">
-               <div className="flex justify-center"><Search size={48} /></div>
-               <p className="text-sm font-medium">No se encontraron productos</p>
+              <div className="flex justify-center">
+                <Search size={48} />
+              </div>
+              <p className="text-sm font-medium">No se encontraron productos</p>
             </div>
           ) : (
             filteredProducts.map((product) => {
               const cartItem = getInCart(product.id);
               const hasVariations = product.variations && product.variations.length > 0;
-              const isAdded = addedProductId === product.id || addedProductId?.startsWith(`${product.id}-`);
+              const isAdded =
+                addedProductId === product.id || addedProductId?.startsWith(`${product.id}-`);
               return (
-                <div key={product.id} className={`m3-card flex gap-4 animate-in fade-in slide-in-from-bottom-2 relative overflow-hidden ${isAdded ? 'ring-2 ring-green-500' : ''}`}>
+                <div
+                  key={product.id}
+                  className={`m3-card flex gap-4 animate-in fade-in slide-in-from-bottom-2 relative overflow-hidden ${isAdded ? 'ring-2 ring-green-500' : ''}`}
+                >
                   {isAdded && (
                     <motion.div
                       initial={{ opacity: 0 }}
@@ -243,7 +268,7 @@ export default function Products() {
                       <motion.div
                         initial={{ scale: 0, rotate: -180 }}
                         animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: "spring", stiffness: 200, stiffness: 200, damping: 15 }}
+                        transition={{ type: 'spring', stiffness: 200, damping: 15 }}
                         className="bg-green-500 text-white rounded-full p-3 shadow-lg shadow-green-500/30"
                       >
                         <Check size={28} strokeWidth={3} />
@@ -254,31 +279,47 @@ export default function Products() {
                     <div>
                       <h4 className="font-semibold text-sm leading-tight mb-1">{product.name}</h4>
                       <div className="flex flex-col gap-0.5 mb-2">
-                        <span className="text-[0.625rem] text-yellow-500 font-bold">Stock: {product.stock}</span>
-                        <span className="font-bold text-lg text-on-surface">{formatCurrency(product.price)}</span>
+                        <span className="text-[0.625rem] text-yellow-500 font-bold">
+                          Stock: {product.stock}
+                        </span>
+                        <span className="font-bold text-lg text-on-surface">
+                          {formatCurrency(product.price)}
+                        </span>
                       </div>
                     </div>
                     <div className="mt-1">
                       {cartItem && !hasVariations ? (
                         <div className="flex items-center justify-center bg-primary-container px-1 py-1 border border-primary/20 w-full">
-                          <button id={`products-decrease-qty-${product.id}`} onClick={() => updateCartQuantity(product.id, cartItem.quantity - 1)} className="p-1.5 text-on-primary-container hover:bg-primary/10 flex-1 flex justify-center">
+                          <button
+                            id={`products-decrease-qty-${product.id}`}
+                            onClick={() => updateCartQuantity(product.id, cartItem.quantity - 1)}
+                            className="p-1.5 text-on-primary-container hover:bg-primary/10 flex-1 flex justify-center"
+                          >
                             <Minus size={14} />
                           </button>
                           <span className="mx-4 font-black text-sm">{cartItem.quantity}</span>
-                          <button id={`products-increase-qty-${product.id}`} onClick={() => updateCartQuantity(product.id, cartItem.quantity + 1)} className="p-1.5 text-on-primary-container hover:bg-primary/10 flex-1 flex justify-center">
+                          <button
+                            id={`products-increase-qty-${product.id}`}
+                            onClick={() => updateCartQuantity(product.id, cartItem.quantity + 1)}
+                            className="p-1.5 text-on-primary-container hover:bg-primary/10 flex-1 flex justify-center"
+                          >
                             <Plus size={14} />
                           </button>
                         </div>
                       ) : (
-                        <motion.button 
+                        <motion.button
                           id={`products-add-btn-${product.id}`}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={() => handleOpenVariationModal(product)}
                           className={`m3-button-filled w-full !py-2 text-xs flex items-center justify-center gap-2 font-bold ${isAdded ? '!bg-green-600' : ''}`}
                         >
-                         {isAdded ? <Check size={14} /> : <ShoppingCart size={14} />}
-                          {isAdded ? 'Agregado' : (hasVariations ? 'Seleccionar Variaciones' : 'Agregar')}
+                          {isAdded ? <Check size={14} /> : <ShoppingCart size={14} />}
+                          {isAdded
+                            ? 'Agregado'
+                            : hasVariations
+                              ? 'Seleccionar Variaciones'
+                              : 'Agregar'}
                         </motion.button>
                       )}
                     </div>
@@ -288,57 +329,84 @@ export default function Products() {
             })
           )}
         </div>
-        
+
         {/* Variation Modal */}
         {variationModalProduct && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="m3-card bg-white w-full max-w-md flex flex-col max-h-[90vh] shadow-2xl animate-in fade-in zoom-in duration-200">
               <div className="p-4 border-b border-surface-variant flex justify-between items-center bg-surface-variant/10">
                 <div>
-                  <h3 id="products-variation-modal-title" className="font-black text-lg leading-tight">{variationModalProduct.name}</h3>
-                  <p className="text-[10px] uppercase font-bold text-outline tracking-wider mt-1">Selección Múltiple de Variaciones</p>
+                  <h3
+                    id="products-variation-modal-title"
+                    className="font-black text-lg leading-tight"
+                  >
+                    {variationModalProduct.name}
+                  </h3>
+                  <p className="text-[10px] uppercase font-bold text-outline tracking-wider mt-1">
+                    Selección Múltiple de Variaciones
+                  </p>
                 </div>
-                <button onClick={() => setVariationModalProduct(null)} className="p-2 hover:bg-surface-variant rounded-full text-outline transition-colors">
+                <button
+                  onClick={() => setVariationModalProduct(null)}
+                  className="p-2 hover:bg-surface-variant rounded-full text-outline transition-colors"
+                >
                   <X size={24} />
                 </button>
               </div>
-              
+
               <div className="p-4 flex-1 overflow-y-auto space-y-3 scroll-smooth">
                 {variationModalProduct.variations && variationModalProduct.variations.length > 0 ? (
-                  variationModalProduct.variations.map(v => {
+                  variationModalProduct.variations.map((v) => {
                     const qty = variationQuantities[v.vid] || 0;
                     return (
                       <div
                         key={v.vid}
                         className={`p-4 border rounded-xl transition-all flex flex-col gap-3 ${
-                          v.stock === 0 ? 'opacity-40 grayscale bg-outline/5 border-dashed' : 
-                          qty > 0 ? 'border-primary bg-primary/5 ring-1 ring-primary shadow-sm' : 'border-surface-variant'
+                          v.stock === 0
+                            ? 'opacity-40 grayscale bg-outline/5 border-dashed'
+                            : qty > 0
+                              ? 'border-primary bg-primary/5 ring-1 ring-primary shadow-sm'
+                              : 'border-surface-variant'
                         }`}
                       >
                         <div className="min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <span className={`${v.stock === 0 ? 'text-outline' : 'font-black'} text-sm truncate`}>{v.title}</span>
-                            {v.stock === 0 && <span className="text-[9px] bg-outline/10 px-2 py-0.5 rounded uppercase font-black text-outline">Sin Stock</span>}
+                            <span
+                              className={`${v.stock === 0 ? 'text-outline' : 'font-black'} text-sm truncate`}
+                            >
+                              {v.title}
+                            </span>
+                            {v.stock === 0 && (
+                              <span className="text-[9px] bg-outline/10 px-2 py-0.5 rounded uppercase font-black text-outline">
+                                Sin Stock
+                              </span>
+                            )}
                           </div>
                           <div className="flex justify-between items-center mt-1">
-                             <span className="text-xs text-outline font-bold">Stock: {v.stock}</span>
-                             <span className={`text-base font-black ${v.stock === 0 ? 'text-outline/40' : 'text-primary'}`}>{formatCurrency(v.price)}</span>
+                            <span className="text-xs text-outline font-bold">Stock: {v.stock}</span>
+                            <span
+                              className={`text-base font-black ${v.stock === 0 ? 'text-outline/40' : 'text-primary'}`}
+                            >
+                              {formatCurrency(v.price)}
+                            </span>
                           </div>
                         </div>
 
                         {/* Quantity selector for this variation - Full width below */}
                         <div className="flex items-center bg-white border border-outline/10 rounded-lg overflow-hidden shadow-sm h-12 w-full">
-                          <button 
+                          <button
                             disabled={v.stock === 0 || qty === 0}
                             onClick={() => updateVariationQuantity(v.vid, -1)}
                             className="flex-1 h-full hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-10 flex items-center justify-center border-r border-outline/5"
                           >
                             <Minus size={20} />
                           </button>
-                          <span className={`flex-1 text-center font-black text-lg ${qty > 0 ? 'text-primary' : 'text-outline/20'}`}>
+                          <span
+                            className={`flex-1 text-center font-black text-lg ${qty > 0 ? 'text-primary' : 'text-outline/20'}`}
+                          >
                             {qty}
                           </span>
-                          <button 
+                          <button
                             disabled={v.stock === 0 || qty >= v.stock}
                             onClick={() => updateVariationQuantity(v.vid, 1)}
                             className="flex-1 h-full hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-10 flex items-center justify-center border-l border-outline/5"
@@ -350,15 +418,23 @@ export default function Products() {
                     );
                   })
                 ) : (
-                  <div className={`p-6 border rounded-2xl text-center ${variationModalProduct.stock === 0 ? 'bg-outline/5 border-dashed border-outline/20' : 'bg-primary/5 border-primary/10'}`}>
-                    <p className={`text-sm font-bold ${variationModalProduct.stock === 0 ? 'text-outline' : 'text-primary'}`}>
+                  <div
+                    className={`p-6 border rounded-2xl text-center ${variationModalProduct.stock === 0 ? 'bg-outline/5 border-dashed border-outline/20' : 'bg-primary/5 border-primary/10'}`}
+                  >
+                    <p
+                      className={`text-sm font-bold ${variationModalProduct.stock === 0 ? 'text-outline' : 'text-primary'}`}
+                    >
                       {variationModalProduct.stock === 0 ? 'Producto Agotado' : 'Producto base'}
                     </p>
-                    <p className={`text-lg font-black mt-1 ${variationModalProduct.stock === 0 ? 'text-outline/40' : 'text-primary-900'}`}>{formatCurrency(variationModalProduct.price)}</p>
-                    
+                    <p
+                      className={`text-lg font-black mt-1 ${variationModalProduct.stock === 0 ? 'text-outline/40' : 'text-primary-900'}`}
+                    >
+                      {formatCurrency(variationModalProduct.price)}
+                    </p>
+
                     <div className="flex justify-center mt-4">
                       <div className="flex items-center bg-white border border-outline/20 rounded-full overflow-hidden shadow-sm h-12">
-                        <button 
+                        <button
                           disabled={variationModalProduct.stock === 0}
                           onClick={() => updateVariationQuantity('base', -1)}
                           className="p-3 px-5 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-30"
@@ -368,8 +444,11 @@ export default function Products() {
                         <span className="w-12 text-center font-black text-lg text-primary">
                           {variationQuantities['base'] || 0}
                         </span>
-                        <button 
-                          disabled={variationModalProduct.stock === 0 || (variationQuantities['base'] || 0) >= variationModalProduct.stock}
+                        <button
+                          disabled={
+                            variationModalProduct.stock === 0 ||
+                            (variationQuantities['base'] || 0) >= variationModalProduct.stock
+                          }
                           onClick={() => updateVariationQuantity('base', 1)}
                           className="p-3 px-5 hover:bg-primary/5 text-primary active:bg-primary/10 transition-colors disabled:opacity-30"
                         >
@@ -383,19 +462,21 @@ export default function Products() {
 
               <div className="p-4 bg-surface-variant/20 border-t border-surface-variant">
                 <div className="flex items-center justify-between mb-4 px-2">
-                  <span className="text-xs font-bold text-outline uppercase tracking-widest">Total Seleccionado</span>
+                  <span className="text-xs font-bold text-outline uppercase tracking-widest">
+                    Total Seleccionado
+                  </span>
                   <span className="text-lg font-black text-primary">{totalSelected} un.</span>
                 </div>
 
                 <div className="flex gap-3">
-                  <button 
+                  <button
                     id="products-variation-modal-cancel-btn"
-                    onClick={() => setVariationModalProduct(null)} 
+                    onClick={() => setVariationModalProduct(null)}
                     className="flex-1 py-4 text-xs font-bold text-outline hover:bg-surface-variant rounded-xl transition-colors uppercase tracking-widest"
                   >
                     Cancelar
                   </button>
-                  <motion.button 
+                  <motion.button
                     id="products-variation-modal-confirm-btn"
                     whileHover={totalSelected > 0 ? { scale: 1.02 } : {}}
                     whileTap={totalSelected > 0 ? { scale: 0.98 } : {}}

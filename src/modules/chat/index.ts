@@ -2,39 +2,34 @@
 // CHAT MODULE - Exports
 // ============================================================================
 
-// Types
-export * from './types';
-
-// Hooks
-export { useMessages } from './hooks/useMessages';
-export { useConversations } from './hooks/useConversations';
-export { useReactions } from './hooks/useReactions';
-export { useTyping } from './hooks/useTyping';
-
-// Provider
-export { ChatProvider, useChat, ChatContext } from './providers/ChatProvider';
-
 // Database
 export {
-  appDB,
-  saveConversations,
-  getConversations,
-  saveMessages,
-  getMessages,
   addReaction,
-  removeReaction,
+  appDB,
   clearAllData,
+  getConversations,
+  getMessages,
+  removeReaction,
+  saveConversations,
+  saveMessages,
 } from '../../stores/appDatabase';
-
-// Supabase
-export { supabase, channelManager, cleanupSupabase } from './lib/supabase';
-
+export { ChatInput } from './components/ChatInput';
 // Components
 export { ChatLayout } from './components/ChatLayout';
 export { ChatList } from './components/ChatList';
 export { ChatMessageList } from './components/ChatMessageList';
 export { MessageBubble } from './components/MessageBubble';
-export { ChatInput } from './components/ChatInput';
-export { TypingIndicator } from './components/TypingIndicator';
-export { OrderMessageCard } from './components/OrderMessageCard';
 export { NotificationMessage } from './components/NotificationMessage';
+export { OrderMessageCard } from './components/OrderMessageCard';
+export { TypingIndicator } from './components/TypingIndicator';
+export { useConversations } from './hooks/useConversations';
+// Hooks
+export { useMessages } from './hooks/useMessages';
+export { useReactions } from './hooks/useReactions';
+export { useTyping } from './hooks/useTyping';
+// Supabase
+export { channelManager, cleanupSupabase, supabase } from './lib/supabase';
+// Provider
+export { ChatContext, ChatProvider, useChat } from './providers/ChatProvider';
+// Types
+export * from './types';

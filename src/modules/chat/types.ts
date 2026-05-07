@@ -67,17 +67,25 @@ export interface Database {
       };
       conversations: {
         Row: Conversation;
-        Insert: Omit<Conversation, 'id' | 'created_at' | 'updated_at' | 'message_count' | 'last_message_at'>;
+        Insert: Omit<
+          Conversation,
+          'id' | 'created_at' | 'updated_at' | 'message_count' | 'last_message_at'
+        >;
         Update: Partial<Omit<Conversation, 'id' | 'created_by' | 'created_at'>>;
       };
       conversation_members: {
         Row: ConversationMember;
         Insert: Omit<ConversationMember, 'id' | 'created_at' | 'updated_at'>;
-        Update: Partial<Omit<ConversationMember, 'id' | 'conversation_id' | 'user_id' | 'joined_at'>>;
+        Update: Partial<
+          Omit<ConversationMember, 'id' | 'conversation_id' | 'user_id' | 'joined_at'>
+        >;
       };
       messages: {
         Row: Message;
-        Insert: Omit<Message, 'id' | 'created_at' | 'updated_at' | 'reply_count' | 'reaction_count' | 'is_edited'>;
+        Insert: Omit<
+          Message,
+          'id' | 'created_at' | 'updated_at' | 'reply_count' | 'reaction_count' | 'is_edited'
+        >;
         Update: Partial<Omit<Message, 'id' | 'conversation_id' | 'user_id' | 'created_at'>>;
       };
       message_reactions: {
@@ -102,7 +110,10 @@ export interface Database {
       };
       pending_orders: {
         Row: PendingOrderRow;
-        Insert: Omit<PendingOrderRow, 'id' | 'created_at' | 'updated_at' | 'attempt_count' | 'status'>;
+        Insert: Omit<
+          PendingOrderRow,
+          'id' | 'created_at' | 'updated_at' | 'attempt_count' | 'status'
+        >;
         Update: Partial<Omit<PendingOrderRow, 'id' | 'seller_id' | 'created_at'>>;
       };
     };
@@ -334,7 +345,10 @@ export interface TypingUser extends TypingStatus {
 // ============================================================================
 
 export interface RealtimeMessagePayload {
-  type: RealtimeEventType.MESSAGE_INSERT | RealtimeEventType.MESSAGE_UPDATE | RealtimeEventType.MESSAGE_DELETE;
+  type:
+    | RealtimeEventType.MESSAGE_INSERT
+    | RealtimeEventType.MESSAGE_UPDATE
+    | RealtimeEventType.MESSAGE_DELETE;
   conversationId: string;
   message: MessageWithAuthor;
   previous?: Partial<Message>;
@@ -531,7 +545,7 @@ export interface ChatContextValue {
   isLoading: boolean;
   hasMore: boolean;
   error: Error | null;
-  
+
   // Acciones
   setActiveConversation: (conversation: ConversationWithDetails | null) => void;
   sendMessage: (input: Omit<SendMessageInput, 'conversation_id'>) => Promise<void>;

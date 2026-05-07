@@ -2,10 +2,11 @@
 // CHAT INPUT - Input moderno integrado con M3
 // ============================================================================
 
-import React, { useState, useRef } from 'react';
-import { useChat } from '../providers/ChatProvider';
 import { Send } from 'lucide-react';
+import type React from 'react';
+import { useRef, useState } from 'react';
 import { cn } from '../../../lib/utils';
+import { useChat } from '../providers/ChatProvider';
 
 const MAX_LENGTH = 140;
 
@@ -47,7 +48,8 @@ export function ChatInput() {
 
   const handleSubmit = async () => {
     const trimmed = content.trim();
-    if (!trimmed || trimmed.length > MAX_LENGTH || !activeConversation?.id || !currentUser?.id) return;
+    if (!trimmed || trimmed.length > MAX_LENGTH || !activeConversation?.id || !currentUser?.id)
+      return;
 
     setIsSending(true);
     try {
@@ -93,16 +95,21 @@ export function ChatInput() {
         onClick={handleSubmit}
         disabled={!canSend || isSending}
         className={cn(
-          "p-3 rounded-full transition-all duration-300 shrink-0",
-          canSend 
-            ? "bg-primary text-on-primary shadow-md shadow-primary/20 scale-100" 
-            : "bg-surface-variant text-on-surface-variant/30 scale-95"
+          'p-3 rounded-full transition-all duration-300 shrink-0',
+          canSend
+            ? 'bg-primary text-on-primary shadow-md shadow-primary/20 scale-100'
+            : 'bg-surface-variant text-on-surface-variant/30 scale-95',
         )}
       >
         {isSending ? (
           <div className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
         ) : (
-          <Send className={cn("w-5 h-5 transition-transform", content.trim() && "translate-x-0.5 -translate-y-0.5")} />
+          <Send
+            className={cn(
+              'w-5 h-5 transition-transform',
+              content.trim() && 'translate-x-0.5 -translate-y-0.5',
+            )}
+          />
         )}
       </button>
     </div>

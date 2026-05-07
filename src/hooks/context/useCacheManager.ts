@@ -2,28 +2,31 @@ import { useCallback } from 'react';
 import { appDB } from '../../stores/appDatabase';
 
 export function useCacheManager(refreshData: (showLoading?: boolean) => Promise<void>) {
-  const forceRefresh = useCallback(async (setIsLoading: (l: boolean) => void) => {
-    setIsLoading(true);
-    try {
-      await Promise.all([
-        appDB.products.clear(),
-        appDB.clients.clear(),
-        appDB.orders.clear(),
-        appDB.sellers.clear()
-      ]);
-      await refreshData(false);
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for (const registration of registrations) {
-          registration.update();
+  const forceRefresh = useCallback(
+    async (setIsLoading: (l: boolean) => void) => {
+      setIsLoading(true);
+      try {
+        await Promise.all([
+          appDB.products.clear(),
+          appDB.clients.clear(),
+          appDB.orders.clear(),
+          appDB.sellers.clear(),
+        ]);
+        await refreshData(false);
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (const registration of registrations) {
+            registration.update();
+          }
         }
+      } catch (error) {
+        console.error('Force refresh failed', error);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Force refresh failed', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [refreshData]);
+    },
+    [refreshData],
+  );
 
   const clearAllCaches = useCallback(async () => {
     try {
@@ -36,7 +39,7 @@ export function useCacheManager(refreshData: (showLoading?: boolean) => Promise<
         appDB.drafts.clear(),
         appDB.sharedCarts.clear(),
         appDB.cart.clear(),
-        appDB.selectedClient.clear()
+        appDB.selectedClient.clear(),
       ]);
 
       // 2. Limpiar TODO el localStorage de la app
@@ -57,13 +60,13 @@ export function useCacheManager(refreshData: (showLoading?: boolean) => Promise<
       // 6. Limpiar Cache API del navegador
       if ('caches' in window) {
         const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map(name => caches.delete(name)));
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
       }
 
       // 7. Unregister service workers
       if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map(reg => reg.unregister()));
+        await Promise.all(registrations.map((reg) => reg.unregister()));
       }
 
       // No recargar la página, dejar que refreshData() maneje la sincronización

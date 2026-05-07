@@ -1,19 +1,38 @@
-import { useAuth } from '../contexts/AuthContext';
-import { useApp } from '../AppContext';
-import { AppNotification } from '../types';
-import { useNotificationsContext } from '../contexts/NotificationsContext';
+import {
+  Bell,
+  Check,
+  CheckCircle2,
+  Clock,
+  Info,
+  Loader2,
+  MessageSquare,
+  Send,
+  UserPlus,
+  X,
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
-import { Bell, Info, Loader2, Send, MessageSquare, Check, UserPlus, X, Clock, CheckCircle2 } from 'lucide-react';
-import { getRelativeTime, formatTimeBA } from '../lib/utils';
-import { apiService } from '../services/apiService';
+import { useApp } from '../AppContext';
 import { PinModal } from '../components/PinModal';
-import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '../contexts/AuthContext';
+import { useNotificationsContext } from '../contexts/NotificationsContext';
+import { formatTimeBA, getRelativeTime } from '../lib/utils';
+import { apiService } from '../services/apiService';
+import type { AppNotification } from '../types';
 
 export default function Notifications() {
   const { globalPin, setGlobalPin, currentSeller } = useAuth();
   const { sellers } = useApp();
-  const { notifications, setNotifications, unreadNotifications, setUnreadNotifications, fetchNotifications, sendNotification, markAllNotificationsAsRead } = useNotificationsContext();
-  
+  const {
+    notifications,
+    setNotifications,
+    unreadNotifications,
+    setUnreadNotifications,
+    fetchNotifications,
+    sendNotification,
+    markAllNotificationsAsRead,
+  } = useNotificationsContext();
+
   const [showSendForm, setShowSendForm] = useState(false);
   const [targetUser, setTargetUser] = useState('');
   const [messageContent, setMessageContent] = useState('');
@@ -46,7 +65,13 @@ export default function Notifications() {
     } else {
       setIsPinModalOpen(true);
     }
-  }, [globalPin, fetchNotifications, unreadNotifications, setUnreadNotifications, markAllNotificationsAsRead]);
+  }, [
+    globalPin,
+    fetchNotifications,
+    unreadNotifications,
+    setUnreadNotifications,
+    markAllNotificationsAsRead,
+  ]);
 
   return (
     <div className="space-y-4 pb-20">
@@ -60,7 +85,9 @@ export default function Notifications() {
       />
 
       <div className="flex justify-between items-center">
-        <h2 id="notifications-title" className="text-2xl font-bold">Notificaciones</h2>
+        <h2 id="notifications-title" className="text-2xl font-bold">
+          Notificaciones
+        </h2>
         <button
           id="notifications-show-send-form-btn"
           onClick={() => setShowSendForm(!showSendForm)}
@@ -79,28 +106,35 @@ export default function Notifications() {
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-surface p-6 shadow-2xl w-full max-w-sm space-y-4 border border-outline/10 rounded-2xl"
             >
-              <h3 id="notifications-new-title" className="font-bold flex items-center gap-2 text-primary text-lg">
+              <h3
+                id="notifications-new-title"
+                className="font-bold flex items-center gap-2 text-primary text-lg"
+              >
                 <Send size={18} /> Enviar Mensaje
               </h3>
-              
+
               <div className="space-y-2">
                 <label className="text-xs font-bold text-on-surface-variant">Para:</label>
-                <select 
+                <select
                   className="w-full p-3 m3-input rounded-xl border border-outline/20 bg-surface text-sm"
                   value={targetUser}
                   onChange={(e) => setTargetUser(e.target.value)}
                 >
                   <option value="">Seleccionar Vendedor</option>
                   <option value="0">Todos (Broadcast)</option>
-                  {sellers.filter(s => s.id !== currentSeller?.id).map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
+                  {sellers
+                    .filter((s) => s.id !== currentSeller?.id)
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
                 </select>
               </div>
 
               <div className="space-y-2">
                 <label className="text-xs font-bold text-on-surface-variant">Mensaje:</label>
-                <textarea 
+                <textarea
                   className="w-full p-3 m3-input rounded-xl border border-outline/20 bg-surface text-sm h-24"
                   placeholder="Escribe tu mensaje aquí..."
                   value={messageContent}
@@ -109,14 +143,14 @@ export default function Notifications() {
               </div>
 
               <div className="flex gap-2 pt-2">
-                <button 
+                <button
                   id="notifications-close-send-form-btn"
                   className="flex-1 py-3 font-bold text-sm bg-surface-variant text-on-surface rounded-xl"
                   onClick={() => setShowSendForm(false)}
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   id="notifications-send-btn"
                   className="flex-1 py-3 font-bold text-sm bg-primary text-on-primary rounded-xl disabled:opacity-50"
                   onClick={handleSend}
@@ -129,7 +163,7 @@ export default function Notifications() {
           </div>
         )}
       </AnimatePresence>
-      
+
       {/* Listado de notificaciones */}
       <div className="space-y-3">
         {notifications.length === 0 ? (
@@ -139,13 +173,15 @@ export default function Notifications() {
           </div>
         ) : (
           notifications.map((notif: AppNotification) => (
-            <motion.div 
+            <motion.div
               key={notif.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="m3-card !p-4 flex items-start gap-3"
             >
-              <div className={`mt-1 p-2 rounded-full ${notif.read ? 'bg-surface-variant text-outline' : 'bg-primary/10 text-primary'}`}>
+              <div
+                className={`mt-1 p-2 rounded-full ${notif.read ? 'bg-surface-variant text-outline' : 'bg-primary/10 text-primary'}`}
+              >
                 {notif.type === 'message' ? <MessageSquare size={18} /> : <Info size={18} />}
               </div>
               <div className="flex-1">

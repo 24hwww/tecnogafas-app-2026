@@ -2,7 +2,7 @@
 // CHAT TEST - Componente para probar conexión con Supabase
 // ============================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../modules/chat/lib/supabase';
 
 export default function ChatTest() {
@@ -19,7 +19,10 @@ export default function ChatTest() {
 
   // Test 0: Verificar autenticación
   const checkAuth = async () => {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
     setCurrentUser(user);
     console.log('👤 Usuario Supabase:', user);
     console.log('🔑 Auth UID:', user?.id);
@@ -28,7 +31,8 @@ export default function ChatTest() {
   };
 
   const AuthBadge = () => {
-    if (!currentUser) return <span className="text-xs text-on-surface-variant italic">No autenticado</span>;
+    if (!currentUser)
+      return <span className="text-xs text-on-surface-variant italic">No autenticado</span>;
     return (
       <span className="text-xs bg-secondary/10 text-secondary px-2 py-1 rounded-lg font-mono">
         {currentUser.email}
@@ -40,7 +44,7 @@ export default function ChatTest() {
   const testConnection = async () => {
     setStatus('testing');
     setError(null);
-    
+
     // Verificar auth primero
     const user = await checkAuth();
     if (!user) {
@@ -51,25 +55,25 @@ export default function ChatTest() {
         const { apiService } = await import('../services/apiService');
         const res = await apiService.syncSupabaseAuth(pin);
         if (res.error) {
-           setStatus('error');
-           setError('No hay sesión y falló el auto-login: ' + res.error);
-           return;
+          setStatus('error');
+          setError('No hay sesión y falló el auto-login: ' + res.error);
+          return;
         }
         // Reintentar
         testConnection();
         return;
       }
-      
+
       setStatus('error');
       setError('No hay sesión de Supabase y no se encontró un PIN configurado.');
       return;
     }
-    
+
     try {
       const { data, error } = await supabase.from('conversations').select('*').limit(1);
-      
+
       if (error) throw error;
-      
+
       setStatus('success');
       console.log('✅ Conexión exitosa:', data);
     } catch (err: any) {
@@ -87,9 +91,9 @@ export default function ChatTest() {
         .select('*')
         .order('created_at', { ascending: false })
         .limit(10);
-      
+
       if (error) throw error;
-      
+
       setMessages(data || []);
     } catch (err: any) {
       setError(err.message);
@@ -99,16 +103,19 @@ export default function ChatTest() {
   // Test 3: Enviar mensaje
   const sendTestMessage = async () => {
     if (!newMessage.trim()) return;
-    
+
     // Verificar autenticación primero
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
       setError('❌ No autenticado en Supabase. Auth UID: ' + (user?.id || 'null'));
       console.error('Auth error:', authError);
       return;
     }
     console.log('✅ Autenticado como:', user.id);
-    
+
     try {
       // Primero buscar una conversación
       const { data: conv, error: convError } = await supabase
@@ -117,31 +124,31 @@ export default function ChatTest() {
         .limit(1)
         .returns<{ id: string }[]>()
         .single();
-      
+
       if (convError) {
         console.error('Error buscando conversación:', convError);
       }
-      
+
       if (!conv) {
         setError('No hay conversaciones. Crea una primero en SQL.');
         return;
       }
-      
+
       const { data: msgData, error: insertError } = await (supabase as any)
         .from('messages')
         .insert({
           conversation_id: conv.id,
           content: newMessage,
-          type: 'text'
+          type: 'text',
         })
         .select()
         .single();
-      
+
       if (insertError) {
         console.error('❌ Error insertando mensaje:', insertError);
         throw insertError;
       }
-      
+
       setNewMessage('');
       loadMessages();
       console.log('✅ Mensaje enviado:', msgData);
@@ -154,13 +161,14 @@ export default function ChatTest() {
   useEffect(() => {
     const subscription = supabase
       .channel('test-messages')
-      .on('postgres_changes', 
+      .on(
+        'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           console.log('📨 Mensaje en tiempo real:', payload);
           setRealtimeMessage(payload.new);
           loadMessages();
-        }
+        },
       )
       .subscribe();
 
@@ -177,7 +185,7 @@ export default function ChatTest() {
         .select('id')
         .eq('slug', 'notificaciones')
         .single();
-      
+
       if (!conv) {
         setError('Canal #notificaciones no encontrado. Ejecuta el SQL primero.');
         return;
@@ -187,7 +195,7 @@ export default function ChatTest() {
         p_title: '🧪 Test Sistema',
         p_message: 'Esta es una notificación de prueba desde el Bridge',
         p_type: 'system',
-        p_priority: 'normal'
+        p_priority: 'normal',
       });
 
       if (error) throw error;
@@ -201,17 +209,19 @@ export default function ChatTest() {
   return (
     <div className="p-6 bg-surface rounded-2xl border border-outline/20 max-w-2xl mx-auto space-y-6">
       <h2 className="text-2xl font-bold text-on-surface">🧪 Test de Chat</h2>
-      
+
       {/* Status */}
       <div className="flex items-center gap-3">
         <span className="text-on-surface-variant">Estado:</span>
-        <span className={`
+        <span
+          className={`
           px-3 py-1 rounded-full text-sm font-medium
           ${status === 'idle' ? 'bg-surface-variant text-on-surface-variant' : ''}
           ${status === 'testing' ? 'bg-primary-container text-on-primary-container' : ''}
           ${status === 'success' ? 'bg-green-100 text-green-700' : ''}
           ${status === 'error' ? 'bg-error-container text-on-error-container' : ''}
-        `}>
+        `}
+        >
           {status === 'idle' && '⏸️ Sin probar'}
           {status === 'testing' && '⏳ Probando...'}
           {status === 'success' && '✅ Conectado'}
@@ -236,7 +246,7 @@ export default function ChatTest() {
         >
           1. Probar Conexión
         </button>
-        
+
         <button
           onClick={loadMessages}
           className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-xl hover:opacity-90 transition-opacity"
@@ -276,12 +286,8 @@ export default function ChatTest() {
       {/* Realtime indicator */}
       {realtimeMessage && (
         <div className="p-4 bg-tertiary-container rounded-xl">
-          <p className="text-sm text-on-tertiary-container">
-            📨 Mensaje en tiempo real recibido:
-          </p>
-          <p className="font-medium text-on-tertiary-container">
-            {realtimeMessage.content}
-          </p>
+          <p className="text-sm text-on-tertiary-container">📨 Mensaje en tiempo real recibido:</p>
+          <p className="font-medium text-on-tertiary-container">{realtimeMessage.content}</p>
         </div>
       )}
 
@@ -291,10 +297,7 @@ export default function ChatTest() {
           <h3 className="font-medium text-on-surface">Mensajes recientes:</h3>
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {messages.map((msg) => (
-              <div 
-                key={msg.id}
-                className="p-3 bg-surface-variant rounded-xl"
-              >
+              <div key={msg.id} className="p-3 bg-surface-variant rounded-xl">
                 <p className="text-on-surface">{msg.content}</p>
                 <p className="text-xs text-on-surface-variant mt-1">
                   {new Date(msg.created_at).toLocaleString()}
@@ -307,12 +310,13 @@ export default function ChatTest() {
 
       {/* Debug info */}
       <details className="text-sm">
-        <summary className="text-on-surface-variant cursor-pointer">
-          Información de debug
-        </summary>
+        <summary className="text-on-surface-variant cursor-pointer">Información de debug</summary>
         <div className="mt-2 p-3 bg-surface-variant rounded-xl text-on-surface-variant font-mono text-xs">
           <p>Supabase URL: {import.meta.env.VITE_SUPABASE_URL || 'NO CONFIGURADO'}</p>
-          <p>Anon Key: {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ Configurado' : '❌ No configurado'}</p>
+          <p>
+            Anon Key:{' '}
+            {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ Configurado' : '❌ No configurado'}
+          </p>
         </div>
       </details>
     </div>

@@ -2,45 +2,45 @@
 // ORDER MESSAGE CARD - Card visual para mensajes tipo pedido
 // ============================================================================
 
-import React from 'react';
+import { CheckCircle, Clock, ExternalLink, Package, Settings, Truck, XCircle } from 'lucide-react';
+import type React from 'react';
 import type { MessageWithAuthor } from '../types';
-import { Package, Truck, CheckCircle, Clock, XCircle, Settings, ExternalLink } from 'lucide-react';
 
 interface OrderMessageCardProps {
   message: MessageWithAuthor;
 }
 
 const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  pending: { 
-    icon: <Clock className="w-4 h-4" />, 
+  pending: {
+    icon: <Clock className="w-4 h-4" />,
     color: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    label: 'Pendiente'
+    label: 'Pendiente',
   },
-  processing: { 
-    icon: <Settings className="w-4 h-4" />, 
+  processing: {
+    icon: <Settings className="w-4 h-4" />,
     color: 'bg-blue-100 text-blue-700 border-blue-200',
-    label: 'Procesando'
+    label: 'Procesando',
   },
-  shipped: { 
-    icon: <Truck className="w-4 h-4" />, 
+  shipped: {
+    icon: <Truck className="w-4 h-4" />,
     color: 'bg-purple-100 text-purple-700 border-purple-200',
-    label: 'Enviado'
+    label: 'Enviado',
   },
-  completed: { 
-    icon: <CheckCircle className="w-4 h-4" />, 
+  completed: {
+    icon: <CheckCircle className="w-4 h-4" />,
     color: 'bg-green-100 text-green-700 border-green-200',
-    label: 'Completado'
+    label: 'Completado',
   },
-  cancelled: { 
-    icon: <XCircle className="w-4 h-4" />, 
+  cancelled: {
+    icon: <XCircle className="w-4 h-4" />,
     color: 'bg-red-100 text-red-700 border-red-200',
-    label: 'Cancelado'
+    label: 'Cancelado',
   },
 };
 
 export function OrderMessageCard({ message }: OrderMessageCardProps) {
   const orderData = message.order_data;
-  
+
   if (!orderData) {
     return (
       <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
@@ -49,14 +49,7 @@ export function OrderMessageCard({ message }: OrderMessageCardProps) {
     );
   }
 
-  const { 
-    order_number, 
-    total, 
-    status = 'pending',
-    customer_name,
-    items_count,
-    url 
-  } = orderData;
+  const { order_number, total, status = 'pending', customer_name, items_count, url } = orderData;
 
   const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
 
@@ -71,11 +64,11 @@ export function OrderMessageCard({ message }: OrderMessageCardProps) {
           <h4 className="font-medium text-gray-900 dark:text-white text-sm">
             Pedido #{order_number}
           </h4>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            {customer_name || 'Cliente'}
-          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{customer_name || 'Cliente'}</p>
         </div>
-        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
+        <span
+          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}
+        >
           {statusConfig.icon}
           {statusConfig.label}
         </span>

@@ -13,8 +13,8 @@ class SystemBridge {
 
   constructor() {
     this.listeners = {};
-    this.isKodular = typeof window !== 'undefined' &&
-                     typeof (window as any).AppInventor !== 'undefined';
+    this.isKodular =
+      typeof window !== 'undefined' && typeof (window as any).AppInventor !== 'undefined';
     this.isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNative;
 
     this._initGlobalListener();
@@ -36,8 +36,7 @@ class SystemBridge {
         if (!msg || !msg.action) return;
 
         const handlers = this.listeners[msg.action] || [];
-        handlers.forEach(fn => fn(msg));
-
+        handlers.forEach((fn) => fn(msg));
       } catch (err) {
         console.error('[SystemBridge] parse error', err);
       }
@@ -69,8 +68,7 @@ class SystemBridge {
         (window as any).AppInventor.setWebViewString(message);
       } catch (e) {
         console.warn('[SystemBridge] fallback appinventor://');
-        window.location.href =
-          `appinventor://do?action=${encodeURIComponent(message)}`;
+        window.location.href = `appinventor://do?action=${encodeURIComponent(message)}`;
       }
     } else {
       console.log(`[Bridge → ${this.isCapacitor ? 'Capacitor' : 'Web Mock'}]`, message);
@@ -87,8 +85,7 @@ class SystemBridge {
     this.listeners[action].push(callback);
 
     return () => {
-      this.listeners[action] =
-        this.listeners[action].filter(fn => fn !== callback);
+      this.listeners[action] = this.listeners[action].filter((fn) => fn !== callback);
     };
   }
 
@@ -97,9 +94,9 @@ class SystemBridge {
   // ─────────────────────────────
   init() {
     this.send('INIT', {
-      platform: this.isCapacitor ? 'capacitor' : (this.isKodular ? 'kodular' : 'pwa'),
+      platform: this.isCapacitor ? 'capacitor' : this.isKodular ? 'kodular' : 'pwa',
       userAgent: navigator.userAgent,
-      version: import.meta.env.VITE_APP_VERSION || '1.0.0'
+      version: import.meta.env.VITE_APP_VERSION || '1.0.0',
     });
   }
 

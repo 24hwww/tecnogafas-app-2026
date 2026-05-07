@@ -2,31 +2,26 @@
 // CHAT LAYOUT - Layout minimalista integrado con la App
 // ============================================================================
 
+import { ArrowLeft, RefreshCw } from 'lucide-react';
 import React, { useState } from 'react';
+import { PullToRefresh } from '../../../components/PullToRefresh';
 import { useChat } from '../providers/ChatProvider';
-import { ChatMessageList } from './ChatMessageList';
 import { ChatInput } from './ChatInput';
 import { ChatList } from './ChatList';
+import { ChatMessageList } from './ChatMessageList';
 import { TypingIndicator } from './TypingIndicator';
-import { RefreshCw, ArrowLeft } from 'lucide-react';
-import { PullToRefresh } from '../../../components/PullToRefresh';
 
 interface ChatLayoutProps {
   className?: string;
 }
 
 export function ChatLayout({ className = '' }: ChatLayoutProps) {
-  const { 
-    activeConversation, 
-    setActiveConversation, 
-    conversations, 
-    isLoading
-  } = useChat();
+  const { activeConversation, setActiveConversation, conversations, isLoading } = useChat();
 
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredConversations = conversations.filter(conv => 
-    conv.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredConversations = conversations.filter((conv) =>
+    conv.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const handleRefresh = async () => {
@@ -80,11 +75,10 @@ export function ChatLayout({ className = '' }: ChatLayoutProps) {
           </button>
         </div>
 
-
         {/* Lista estilo Orders cards */}
         <div className="flex-1 overflow-hidden">
-          <ChatList 
-            conversations={filteredConversations} 
+          <ChatList
+            conversations={filteredConversations}
             onSelect={setActiveConversation}
             isLoading={isLoading}
           />

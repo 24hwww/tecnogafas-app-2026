@@ -6,14 +6,7 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ className }: SkeletonProps) {
-  return (
-    <div 
-      className={cn(
-        "bg-surface-variant animate-pulse",
-        className
-      )}
-    />
-  );
+  return <div className={cn('bg-surface-variant animate-pulse', className)} />;
 }
 
 export function ProductSkeleton() {

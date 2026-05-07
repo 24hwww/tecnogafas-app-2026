@@ -3,27 +3,27 @@
 // Manejo de mensajes con realtime + offline-first
 // ============================================================================
 
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import { supabase, channelManager } from '../lib/supabase';
+import {
+  addPendingOperation,
+  deleteMessage,
+  getMessages,
+  getProfile,
+  markMessageAsFailed,
+  markMessageAsSent,
+  saveMessages,
+  savePendingMessage,
+  saveProfiles,
+} from '../../../stores/appDatabase';
+import { channelManager, supabase } from '../lib/supabase';
 import type {
+  CachedMessage,
   Message,
   MessageWithAuthor,
   SendMessageInput,
   UpdateMessageInput,
-  CachedMessage,
 } from '../types';
-import {
-  getMessages,
-  saveMessages,
-  savePendingMessage,
-  markMessageAsSent,
-  markMessageAsFailed,
-  deleteMessage,
-  addPendingOperation,
-  getProfile,
-  saveProfiles,
-} from '../../../stores/appDatabase';
 
 const MESSAGES_PER_PAGE = 50;
 
@@ -62,107 +62,104 @@ export function useMessages({
   // CARGAR MENSAJES INICIALES (CACHE + SERVER)
   // ============================================================================
 
-  const loadMessages = useCallback(async (loadMore = false) => {
-    if (!conversationId) return;
+  const loadMessages = useCallback(
+    async (loadMore = false) => {
+      if (!conversationId) return;
 
-    if (loadMore) {
-      setIsLoadingMore(true);
-    } else {
-      setIsLoading(true);
-    }
-    setError(null);
-
-    try {
-      // 1. Cargar desde cache primero (instantáneo)
-      const cached = await getMessages(conversationId, {
-        before: loadMore ? cursorRef.current || undefined : undefined,
-        limit: MESSAGES_PER_PAGE,
-        includePending: true,
-      });
-
-      // Enriquecer con perfiles del cache
-      const enriched = await enrichMessagesWithAuthors(cached);
-
-      if (!loadMore) {
-        setMessages(enriched.reverse()); // Más nuevo al final
+      if (loadMore) {
+        setIsLoadingMore(true);
       } else {
-        setMessages((prev) => [...enriched.reverse(), ...prev]);
+        setIsLoading(true);
       }
+      setError(null);
 
-      // 2. Fetch desde servidor
-      let query = supabase
-        .from('messages')
-        .select(`
+      try {
+        // 1. Cargar desde cache primero (instantáneo)
+        const cached = await getMessages(conversationId, {
+          before: loadMore ? cursorRef.current || undefined : undefined,
+          limit: MESSAGES_PER_PAGE,
+          includePending: true,
+        });
+
+        // Enriquecer con perfiles del cache
+        const enriched = await enrichMessagesWithAuthors(cached);
+
+        if (!loadMore) {
+          setMessages(enriched.reverse()); // Más nuevo al final
+        } else {
+          setMessages((prev) => [...enriched.reverse(), ...prev]);
+        }
+
+        // 2. Fetch desde servidor
+        let query = supabase
+          .from('messages')
+          .select(`
           *,
           author:profiles!messages_user_id_fkey(*)
         `)
-        .eq('conversation_id', conversationId)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: false })
-        .limit(MESSAGES_PER_PAGE);
+          .eq('conversation_id', conversationId)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false })
+          .limit(MESSAGES_PER_PAGE);
 
-      if (loadMore && cursorRef.current) {
-        query = query.lt('created_at', cursorRef.current);
-      }
-
-      const { data: serverMessages, error: serverError } = await query;
-
-      if (serverError) throw serverError;
-
-      if (serverMessages && serverMessages.length > 0) {
-        // Guardar en cache
-        const typed = serverMessages as unknown as MessageWithAuthor[];
-        await saveMessages(typed as CachedMessage[], {
-          conversationId,
-          prepend: loadMore,
-        });
-
-        // Guardar perfiles
-        const profiles = typed
-          .map((m) => m.author)
-          .filter((p): p is NonNullable<typeof p> => !!p);
-        await saveProfiles(profiles);
-
-        // Actualizar UI
-        if (!loadMore) {
-          setMessages(typed.reverse());
-        } else {
-          setMessages((prev) => {
-            const merged = mergeMessages(typed.reverse(), prev);
-            return merged;
-          });
+        if (loadMore && cursorRef.current) {
+          query = query.lt('created_at', cursorRef.current);
         }
 
-        // Actualizar cursor
-        const oldest = serverMessages[serverMessages.length - 1] as { created_at: string };
-        cursorRef.current = oldest.created_at;
-        setHasMore(serverMessages.length === MESSAGES_PER_PAGE);
+        const { data: serverMessages, error: serverError } = await query;
+
+        if (serverError) throw serverError;
+
+        if (serverMessages && serverMessages.length > 0) {
+          // Guardar en cache
+          const typed = serverMessages as unknown as MessageWithAuthor[];
+          await saveMessages(typed as CachedMessage[], {
+            conversationId,
+            prepend: loadMore,
+          });
+
+          // Guardar perfiles
+          const profiles = typed
+            .map((m) => m.author)
+            .filter((p): p is NonNullable<typeof p> => !!p);
+          await saveProfiles(profiles);
+
+          // Actualizar UI
+          if (!loadMore) {
+            setMessages(typed.reverse());
+          } else {
+            setMessages((prev) => {
+              const merged = mergeMessages(typed.reverse(), prev);
+              return merged;
+            });
+          }
+
+          // Actualizar cursor
+          const oldest = serverMessages[serverMessages.length - 1] as { created_at: string };
+          cursorRef.current = oldest.created_at;
+          setHasMore(serverMessages.length === MESSAGES_PER_PAGE);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error(String(err)));
+      } finally {
+        if (loadMore) {
+          setIsLoadingMore(false);
+        } else {
+          setIsLoading(false);
+        }
       }
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
-    } finally {
-      if (loadMore) {
-        setIsLoadingMore(false);
-      } else {
-        setIsLoading(false);
-      }
-    }
-  }, [conversationId]);
+    },
+    [conversationId],
+  );
 
   // ============================================================================
   // ENRIQUECER MENSAJES CON AUTORES
   // ============================================================================
 
-  const enrichMessagesWithAuthors = async (
-    msgs: Message[]
-  ): Promise<MessageWithAuthor[]> => {
+  const enrichMessagesWithAuthors = async (msgs: Message[]): Promise<MessageWithAuthor[]> => {
     const userIds = [...new Set(msgs.map((m) => m.user_id).filter(Boolean))];
-    const profiles = await Promise.all(
-      userIds.map((id) => getProfile(id as string))
-    );
-    const profileMap = new Map(
-      profiles.filter(Boolean).map((p) => [p!.id, p!])
-    );
+    const profiles = await Promise.all(userIds.map((id) => getProfile(id as string)));
+    const profileMap = new Map(profiles.filter(Boolean).map((p) => [p!.id, p!]));
 
     return msgs.map((m) => ({
       ...m,
@@ -176,7 +173,7 @@ export function useMessages({
 
   const mergeMessages = (
     newMsgs: MessageWithAuthor[],
-    existing: MessageWithAuthor[]
+    existing: MessageWithAuthor[],
   ): MessageWithAuthor[] => {
     const seen = new Set(existing.map((m) => m.id));
     const unique = newMsgs.filter((m) => !seen.has(m.id));
@@ -265,26 +262,19 @@ export function useMessages({
 
         // 5. Reemplazar mensaje temporal con el real
         await markMessageAsSent(tempId, data as Message);
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? (data as MessageWithAuthor) : m))
-        );
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? (data as MessageWithAuthor) : m)));
       } catch (err) {
         // Marcar como fallido
-        await markMessageAsFailed(
-          tempId,
-          err instanceof Error ? err.message : 'Failed to send'
-        );
+        await markMessageAsFailed(tempId, err instanceof Error ? err.message : 'Failed to send');
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === tempId
-              ? { ...m, pending: false, error: 'Failed to send' }
-              : m
-          )
+            m.id === tempId ? { ...m, pending: false, error: 'Failed to send' } : m,
+          ),
         );
         throw err;
       }
     },
-    [conversationId, currentUserId]
+    [conversationId, currentUserId],
   );
 
   // ============================================================================
@@ -298,10 +288,8 @@ export function useMessages({
       // Optimistic update
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === messageId
-            ? { ...m, content: input.content, is_edited: true }
-            : m
-        )
+          m.id === messageId ? { ...m, content: input.content, is_edited: true } : m,
+        ),
       );
 
       try {
@@ -321,7 +309,7 @@ export function useMessages({
         throw err;
       }
     },
-    [conversationId, loadMessages]
+    [conversationId, loadMessages],
   );
 
   // ============================================================================
@@ -353,7 +341,7 @@ export function useMessages({
         throw err;
       }
     },
-    [conversationId, loadMessages]
+    [conversationId, loadMessages],
   );
 
   // ============================================================================
@@ -368,7 +356,7 @@ export function useMessages({
     const setupSubscription = async () => {
       const channel = channelManager.getChannel(channelName);
 
-      // @ts-ignore
+      // @ts-expect-error
       if (channel.state === 'closed' || channel.state === 'errored') {
         channel
           .on(
@@ -400,12 +388,10 @@ export function useMessages({
               if (author) {
                 await saveProfiles([author]);
                 setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === newMessage.id ? { ...m, author } : m
-                  )
+                  prev.map((m) => (m.id === newMessage.id ? { ...m, author } : m)),
                 );
               }
-            }
+            },
           )
           .on(
             'postgres_changes',
@@ -419,11 +405,9 @@ export function useMessages({
               const updated = payload.new as Message;
 
               setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === updated.id ? { ...m, ...updated } : m
-                )
+                prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)),
               );
-            }
+            },
           )
           .on(
             'postgres_changes',
@@ -436,7 +420,7 @@ export function useMessages({
             (payload: RealtimePostgresChangesPayload<Message>) => {
               const deleted = payload.old as Message;
               setMessages((prev) => prev.filter((m) => m.id !== deleted.id));
-            }
+            },
           );
       }
 

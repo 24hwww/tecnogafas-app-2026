@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, useMotionValue, useTransform, animate } from 'motion/react';
-import { Loader2, ArrowDown } from 'lucide-react';
+import { ArrowDown, Loader2 } from 'lucide-react';
+import { animate, motion, useMotionValue, useTransform } from 'motion/react';
+import type React from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void>;
@@ -40,7 +41,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
 
       if (diff > 0) {
         // Apply resistance
-        const newY = Math.pow(diff, 0.8);
+        const newY = diff ** 0.8;
         y.set(newY);
 
         // Prevent default behavior to avoid browser pull-to-refresh
@@ -60,7 +61,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
       if (y.get() >= PULL_THRESHOLD) {
         setIsRefreshing(true);
         animate(y, 100, { duration: 0.2 });
-        
+
         try {
           await onRefresh();
         } finally {
@@ -97,9 +98,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
           </motion.div>
         )}
       </motion.div>
-      <motion.div style={{ y }}>
-        {children}
-      </motion.div>
+      <motion.div style={{ y }}>{children}</motion.div>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
@@ -56,9 +56,10 @@ export class ErrorBoundary extends Component<Props, State> {
               </div>
               <h2 className="text-lg font-bold text-on-surface">Algo salió mal</h2>
             </div>
-            
+
             <p className="text-sm text-on-surface-variant mb-4">
-              La aplicación encontró un error inesperado. Puedes intentar recargar la página o limpiar la caché.
+              La aplicación encontró un error inesperado. Puedes intentar recargar la página o
+              limpiar la caché.
             </p>
 
             {this.state.error && (
@@ -75,12 +76,14 @@ export class ErrorBoundary extends Component<Props, State> {
 
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={this.handleReload}
                 className="flex-1 bg-primary text-on-primary py-3 font-bold text-sm hover:brightness-110 transition-all"
               >
                 Recargar página
               </button>
               <button
+                type="button"
                 onClick={this.handleClearCache}
                 className="flex-1 bg-surface border border-outline text-on-surface py-3 font-bold text-sm hover:bg-surface-variant transition-all"
               >

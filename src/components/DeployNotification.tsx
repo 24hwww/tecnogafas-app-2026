@@ -1,7 +1,7 @@
-import { useNotificationsContext } from '../contexts/NotificationsContext';
-import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { RefreshCw } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import React from 'react';
+import { useNotificationsContext } from '../contexts/NotificationsContext';
 
 export function DeployNotification() {
   const { deployEvent } = useNotificationsContext();
@@ -18,7 +18,9 @@ export function DeployNotification() {
           <RefreshCw className="animate-spin" size={24} />
           <div>
             <h4 className="font-bold text-sm">Nueva Versión Desplegada</h4>
-            <p className="text-xs opacity-90">{deployEvent.content?.message || 'La aplicación ha sido actualizada.'}</p>
+            <p className="text-xs opacity-90">
+              {deployEvent.content?.message || 'La aplicación ha sido actualizada.'}
+            </p>
           </div>
         </motion.div>
       )}

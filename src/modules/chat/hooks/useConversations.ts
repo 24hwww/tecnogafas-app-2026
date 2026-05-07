@@ -3,21 +3,21 @@
 // Manejo de conversaciones con realtime
 // ============================================================================
 
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import { supabase, channelManager } from '../lib/supabase';
-import type {
-  Conversation,
-  ConversationWithDetails,
-  CreateConversationInput,
-  ConversationMember,
-  MemberRole,
-} from '../types';
 import {
   getConversations,
   saveConversations,
   updateConversation,
 } from '../../../stores/appDatabase';
+import { channelManager, supabase } from '../lib/supabase';
+import type {
+  Conversation,
+  ConversationMember,
+  ConversationWithDetails,
+  CreateConversationInput,
+  MemberRole,
+} from '../types';
 
 interface UseConversationsReturn {
   conversations: ConversationWithDetails[];
@@ -74,14 +74,16 @@ export function useConversations(currentUserId: string | null): UseConversations
       let formatted: ConversationWithDetails[] = [];
 
       if (serverConvs && serverConvs.length > 0) {
-        formatted = (serverConvs as unknown as Array<{
-          conversation: Conversation;
-          unread_count: number;
-          last_read_at: string;
-          role: ConversationMember['role'];
-          is_muted: boolean;
-          is_pinned: boolean;
-        }>).map((cm) => ({
+        formatted = (
+          serverConvs as unknown as Array<{
+            conversation: Conversation;
+            unread_count: number;
+            last_read_at: string;
+            role: ConversationMember['role'];
+            is_muted: boolean;
+            is_pinned: boolean;
+          }>
+        ).map((cm) => ({
           ...cm.conversation,
           member: cm as unknown as ConversationMember,
           unread_count: cm.unread_count,
@@ -103,30 +105,36 @@ export function useConversations(currentUserId: string | null): UseConversations
             .maybeSingle();
 
           if (notifConv) {
-            await supabase.from('conversation_members').insert([{
-              conversation_id: (notifConv as { id: string }).id,
-              user_id: currentUserId,
-            }] as unknown as never[]);
+            await supabase.from('conversation_members').insert([
+              {
+                conversation_id: (notifConv as { id: string }).id,
+                user_id: currentUserId,
+              },
+            ] as unknown as never[]);
           } else {
             const { data: newConv } = await supabase
               .from('conversations')
-              .insert([{
-                type: 'channel',
-                name: 'Notificaciones',
-                slug: 'notificaciones',
-                description: 'Canal de notificaciones del sistema',
-                is_private: false,
-                created_by: currentUserId,
-              }] as unknown as never[])
+              .insert([
+                {
+                  type: 'channel',
+                  name: 'Notificaciones',
+                  slug: 'notificaciones',
+                  description: 'Canal de notificaciones del sistema',
+                  is_private: false,
+                  created_by: currentUserId,
+                },
+              ] as unknown as never[])
               .select()
               .single();
 
             if (newConv) {
-              await supabase.from('conversation_members').insert([{
-                conversation_id: (newConv as { id: string }).id,
-                user_id: currentUserId,
-                role: 'owner' as MemberRole,
-              }] as unknown as never[]);
+              await supabase.from('conversation_members').insert([
+                {
+                  conversation_id: (newConv as { id: string }).id,
+                  user_id: currentUserId,
+                  role: 'owner' as MemberRole,
+                },
+              ] as unknown as never[]);
             }
           }
 
@@ -138,14 +146,16 @@ export function useConversations(currentUserId: string | null): UseConversations
             .order('updated_at', { foreignTable: 'conversations', ascending: false });
 
           if (reloaded && reloaded.length > 0) {
-            formatted = (reloaded as unknown as Array<{
-              conversation: Conversation;
-              unread_count: number;
-              last_read_at: string;
-              role: ConversationMember['role'];
-              is_muted: boolean;
-              is_pinned: boolean;
-            }>).map((cm) => ({
+            formatted = (
+              reloaded as unknown as Array<{
+                conversation: Conversation;
+                unread_count: number;
+                last_read_at: string;
+                role: ConversationMember['role'];
+                is_muted: boolean;
+                is_pinned: boolean;
+              }>
+            ).map((cm) => ({
               ...cm.conversation,
               member: cm as unknown as ConversationMember,
               unread_count: cm.unread_count,
@@ -183,15 +193,17 @@ export function useConversations(currentUserId: string | null): UseConversations
       // Crear conversación
       const { data: conv, error: convError } = await supabase
         .from('conversations')
-        .insert([{
-          type: input.type,
-          name: input.name,
-          description: input.description,
-          slug: input.slug,
-          is_private: input.is_private,
-          created_by: currentUserId,
-          metadata: input.metadata,
-        }] as unknown as never[])
+        .insert([
+          {
+            type: input.type,
+            name: input.name,
+            description: input.description,
+            slug: input.slug,
+            is_private: input.is_private,
+            created_by: currentUserId,
+            metadata: input.metadata,
+          },
+        ] as unknown as never[])
         .select()
         .single();
 
@@ -201,19 +213,20 @@ export function useConversations(currentUserId: string | null): UseConversations
       const members = [currentUserId, ...(input.member_ids || [])];
       const uniqueMembers = [...new Set(members)];
 
-      const { error: membersError } = await supabase
-        .from('conversation_members')
-        .insert(
-          uniqueMembers.map((userId, idx) => ({
-            conversation_id: (conv as { id: string }).id,
-            user_id: userId,
-            role: (idx === 0 ? 'owner' : 'member') as MemberRole,
-          })) as unknown as never[]
-        );
+      const { error: membersError } = await supabase.from('conversation_members').insert(
+        uniqueMembers.map((userId, idx) => ({
+          conversation_id: (conv as { id: string }).id,
+          user_id: userId,
+          role: (idx === 0 ? 'owner' : 'member') as MemberRole,
+        })) as unknown as never[],
+      );
 
       if (membersError) {
         // Rollback: eliminar conversación
-        await supabase.from('conversations').delete().eq('id', (conv as { id: string }).id);
+        await supabase
+          .from('conversations')
+          .delete()
+          .eq('id', (conv as { id: string }).id);
         throw membersError;
       }
 
@@ -246,7 +259,7 @@ export function useConversations(currentUserId: string | null): UseConversations
       setConversations((prev) => [withDetails, ...prev]);
       return conv as unknown as Conversation;
     },
-    [currentUserId]
+    [currentUserId],
   );
 
   // ============================================================================
@@ -257,17 +270,19 @@ export function useConversations(currentUserId: string | null): UseConversations
     async (conversationId: string) => {
       if (!currentUserId) return;
 
-      const { error } = await supabase.from('conversation_members').insert([{
-        conversation_id: conversationId,
-        user_id: currentUserId,
-      }] as unknown as never[]);
+      const { error } = await supabase.from('conversation_members').insert([
+        {
+          conversation_id: conversationId,
+          user_id: currentUserId,
+        },
+      ] as unknown as never[]);
 
       if (error) throw error;
 
       // Recargar conversaciones
       await loadConversations();
     },
-    [currentUserId, loadConversations]
+    [currentUserId, loadConversations],
   );
 
   // ============================================================================
@@ -286,32 +301,25 @@ export function useConversations(currentUserId: string | null): UseConversations
 
       if (error) throw error;
 
-      setConversations((prev) =>
-        prev.filter((c) => c.id !== conversationId)
-      );
+      setConversations((prev) => prev.filter((c) => c.id !== conversationId));
     },
-    [currentUserId]
+    [currentUserId],
   );
 
   // ============================================================================
   // ARCHIVAR CONVERSACIÓN
   // ============================================================================
 
-  const archiveConversation = useCallback(
-    async (conversationId: string) => {
-      const { error } = await supabase
-        .from('conversations')
-        .update({ is_archived: true } as unknown as never)
-        .eq('id', conversationId);
+  const archiveConversation = useCallback(async (conversationId: string) => {
+    const { error } = await supabase
+      .from('conversations')
+      .update({ is_archived: true } as unknown as never)
+      .eq('id', conversationId);
 
-      if (error) throw error;
+    if (error) throw error;
 
-      setConversations((prev) =>
-        prev.filter((c) => c.id !== conversationId)
-      );
-    },
-    []
-  );
+    setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+  }, []);
 
   // ============================================================================
   // FIJAR/DESFIJAR CONVERSACIÓN
@@ -330,12 +338,10 @@ export function useConversations(currentUserId: string | null): UseConversations
       if (error) throw error;
 
       setConversations((prev) =>
-        prev.map((c) =>
-          c.id === conversationId ? { ...c, is_pinned: pinned } : c
-        )
+        prev.map((c) => (c.id === conversationId ? { ...c, is_pinned: pinned } : c)),
       );
     },
-    [currentUserId]
+    [currentUserId],
   );
 
   // ============================================================================
@@ -355,12 +361,10 @@ export function useConversations(currentUserId: string | null): UseConversations
       if (error) throw error;
 
       setConversations((prev) =>
-        prev.map((c) =>
-          c.id === conversationId ? { ...c, is_muted: muted } : c
-        )
+        prev.map((c) => (c.id === conversationId ? { ...c, is_muted: muted } : c)),
       );
     },
-    [currentUserId]
+    [currentUserId],
   );
 
   // ============================================================================
@@ -386,13 +390,11 @@ export function useConversations(currentUserId: string | null): UseConversations
 
       setConversations((prev) =>
         prev.map((c) =>
-          c.id === conversationId
-            ? { ...c, unread_count: 0, last_read_at: now }
-            : c
-        )
+          c.id === conversationId ? { ...c, unread_count: 0, last_read_at: now } : c,
+        ),
       );
     },
-    [currentUserId]
+    [currentUserId],
   );
 
   // ============================================================================
@@ -406,7 +408,7 @@ export function useConversations(currentUserId: string | null): UseConversations
     const channel = channelManager.getChannel(channelName);
 
     // Escuchar cambios en conversaciones, con guardas de seguridad
-    // @ts-ignore
+    // @ts-expect-error
     if (channel.state === 'closed' || channel.state === 'errored') {
       channel
         .on(
@@ -420,13 +422,11 @@ export function useConversations(currentUserId: string | null): UseConversations
             if (payload.eventType === 'UPDATE') {
               const updated = payload.new;
               setConversations((prev) =>
-                prev.map((c) =>
-                  c.id === updated.id ? { ...c, ...updated } : c
-                )
+                prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)),
               );
               await updateConversation(updated.id, updated);
             }
-          }
+          },
         )
         .on(
           'postgres_changes',
@@ -439,7 +439,7 @@ export function useConversations(currentUserId: string | null): UseConversations
           async () => {
             // Recargar cuando cambie mi membresía
             await loadConversations();
-          }
+          },
         );
     }
 
