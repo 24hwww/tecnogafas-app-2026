@@ -3,6 +3,14 @@ import { memo, useMemo, CSSProperties } from 'react';
 import { cn, formatCurrency } from '../lib/utils';
 import { type Product } from '../types';
 
+const getTotalStock = (product: Product): number => {
+  let total = product.stock || 0;
+  if (product.variations && product.variations.length > 0) {
+    total += product.variations.reduce((sum, variation) => sum + (variation.stock || 0), 0);
+  }
+  return total;
+};
+
 interface VirtualizedProductListProps {
   products: Product[];
   cart: { id: string; quantity: number }[];
@@ -35,6 +43,7 @@ const VirtualizedProductItem = ({ columnIndex, rowIndex, style, data }: GridItem
 
   const inCart = cart.find((item) => item.id === product.id);
   const isAdded = addedProductId === product.id;
+  const totalStock = getTotalStock(product);
 
   return (
     <div style={style} className="p-2">
@@ -50,9 +59,16 @@ const VirtualizedProductItem = ({ columnIndex, rowIndex, style, data }: GridItem
           </div>
           
           <div className="pt-3 border-t border-[var(--color-border)]/10 flex items-end justify-between gap-2">
-            <div>
+            <div className="flex-1">
               <p className="text-[8px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Precio</p>
               <p className="text-lg font-black text-danger leading-none">{formatCurrency(product.price)}</p>
+              <div className={cn(
+                "mt-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold inline-flex items-center gap-0.5",
+                totalStock > 0 ? "bg-success/10 text-success" : "bg-error/10 text-error"
+              )}>
+                <span>Stock:</span>
+                <span className="font-black">{totalStock}</span>
+              </div>
             </div>
             <button
               onClick={() => onOpenVariationModal(product)}
@@ -120,9 +136,8 @@ export const VirtualizedProductList = memo(({
         rowHeight={200}
         itemData={gridData}
         className="gap-2"
-      >
-        {VirtualizedProductItem}
-      </Grid>
+        children={VirtualizedProductItem}
+      />
     </div>
   );
 });

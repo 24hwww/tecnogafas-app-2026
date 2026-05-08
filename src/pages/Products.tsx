@@ -15,38 +15,59 @@ interface ProductCardProps {
   onOpenVariationModal: (product: Product) => void;
 }
 
-const ProductCard = memo(({ product, inCart, isAdded, onOpenVariationModal }: ProductCardProps) => (
-  <motion.div
-    layout
-    key={product.id}
-    className={cn(
-      "card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-[2rem] overflow-hidden hover:border-primary/40 transition-all group shadow-sm flex flex-col",
-      isAdded && "ring-2 ring-primary scale-[1.02]"
-    )}
-  >
-    <div className="p-6 space-y-4 flex-1 flex flex-col">
-      <div className="flex-1">
-         <h3 className="text-lg font-bold leading-tight line-clamp-2">{product.name}</h3>
+const getTotalStock = (product: Product): number => {
+  let total = product.stock || 0;
+  if (product.variations && product.variations.length > 0) {
+    total += product.variations.reduce((sum, variation) => sum + (variation.stock || 0), 0);
+  }
+  return total;
+};
+
+const ProductCard = memo(({ product, inCart, isAdded, onOpenVariationModal }: ProductCardProps) => {
+  const totalStock = getTotalStock(product);
+  
+  return (
+    <motion.div
+      layout
+      key={product.id}
+      className={cn(
+        "card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-[2rem] overflow-hidden hover:border-primary/40 transition-all group shadow-sm flex flex-col",
+        isAdded && "ring-2 ring-primary scale-[1.02]"
+      )}
+    >
+      <div className="p-6 space-y-4 flex-1 flex flex-col">
+        <div className="flex-1">
+           <h3 className="text-lg font-bold leading-tight line-clamp-2">{product.name}</h3>
+        </div>
+        
+        <div className="pt-4 border-t border-[var(--color-border)]/10 flex items-end justify-between gap-4">
+           <div className="flex-1">
+              <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Precio</p>
+              <p className="text-2xl font-black text-danger leading-none">{formatCurrency(product.price)}</p>
+              <div className={cn(
+                "mt-2 px-2 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1",
+                totalStock > 0 ? "bg-success/10 text-success" : "bg-error/10 text-error"
+              )}>
+                <span>Stock:</span>
+                <span className="font-black">{totalStock}</span>
+              </div>
+           </div>
+           <button
+              onClick={() => onOpenVariationModal(product)}
+              disabled={totalStock === 0}
+              className={cn(
+                 "btn btn-primary rounded-2xl h-14 w-14 shadow-lg shadow-primary/20 p-0",
+                 inCart && "btn-success shadow-success/20",
+                 totalStock === 0 && "opacity-30 cursor-not-allowed"
+              )}
+           >
+              {inCart ? <Check size={24} /> : <Plus size={24} />}
+           </button>
+        </div>
       </div>
-      
-      <div className="pt-4 border-t border-[var(--color-border)]/10 flex items-end justify-between gap-4">
-         <div>
-            <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Precio</p>
-            <p className="text-2xl font-black text-danger leading-none">{formatCurrency(product.price)}</p>
-         </div>
-         <button
-            onClick={() => onOpenVariationModal(product)}
-            className={cn(
-               "btn btn-primary rounded-2xl h-14 w-14 shadow-lg shadow-primary/20 p-0",
-               inCart && "btn-success shadow-success/20"
-            )}
-         >
-            {inCart ? <Check size={24} /> : <Plus size={24} />}
-         </button>
-      </div>
-    </div>
-  </motion.div>
-));
+    </motion.div>
+  );
+});
 
 ProductCard.displayName = 'ProductCard';
 
@@ -57,6 +78,7 @@ export default function Products() {
   const [showFilters, setShowFilters] = useState(false);
   const [showZeroPrice] = useState(true);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'default' | 'name' | 'price' | 'stock'>('default');
   const [variationModalProduct, setVariationModalProduct] = useState<Product | null>(null);
   const [variationQuantities, setVariationQuantities] = useState<Record<string, number>>({});
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
@@ -85,13 +107,30 @@ export default function Products() {
     return map;
   }, [products]);
 
-  const filteredProducts = useMemo(() => products.filter((p) => {
-    const pFiltros = productFiltrosMap.get(p.id) || [];
-    const matchesFilters = activeFilters.every((f, i) => pFiltros[i] === f);
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const matchesPrice = showZeroPrice || p.price > 0;
-    return matchesFilters && matchesSearch && matchesPrice;
-  }), [products, productFiltrosMap, activeFilters, search, showZeroPrice]);
+  const filteredProducts = useMemo(() => {
+    const filtered = products.filter((p) => {
+      const pFiltros = productFiltrosMap.get(p.id) || [];
+      const matchesFilters = activeFilters.every((f, i) => pFiltros[i] === f);
+      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+      const matchesPrice = showZeroPrice || p.price > 0;
+      return matchesFilters && matchesSearch && matchesPrice;
+    });
+
+    // Apply sorting
+    if (sortBy === 'name') {
+      filtered.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortBy === 'price') {
+      filtered.sort((a, b) => b.price - a.price); // High to low
+    } else if (sortBy === 'stock') {
+      filtered.sort((a, b) => {
+        const totalStockA = getTotalStock(a);
+        const totalStockB = getTotalStock(b);
+        return totalStockB - totalStockA; // High to low
+      });
+    }
+
+    return filtered;
+  }, [products, productFiltrosMap, activeFilters, search, showZeroPrice, sortBy]);
 
   const nextLevel = activeFilters.length;
 
@@ -230,6 +269,48 @@ export default function Products() {
                    ))}
                 </div>
              )}
+             
+             <div className="border-t border-[var(--color-border)]/10 pt-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)] mb-3">Ordenar por</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                   <button
+                      onClick={() => setSortBy('default')}
+                      className={cn(
+                        "btn btn-sm rounded-xl h-10 justify-between border border-[var(--color-border)]",
+                        sortBy === 'default' ? "btn-primary" : "btn-ghost bg-[var(--color-surface-800)]"
+                      )}
+                   >
+                      <span>Defecto</span>
+                   </button>
+                   <button
+                      onClick={() => setSortBy('name')}
+                      className={cn(
+                        "btn btn-sm rounded-xl h-10 justify-between border border-[var(--color-border)]",
+                        sortBy === 'name' ? "btn-primary" : "btn-ghost bg-[var(--color-surface-800)]"
+                      )}
+                   >
+                      <span>A-Z</span>
+                   </button>
+                   <button
+                      onClick={() => setSortBy('price')}
+                      className={cn(
+                        "btn btn-sm rounded-xl h-10 justify-between border border-[var(--color-border)]",
+                        sortBy === 'price' ? "btn-primary" : "btn-ghost bg-[var(--color-surface-800)]"
+                      )}
+                   >
+                      <span>Precio ↓</span>
+                   </button>
+                   <button
+                      onClick={() => setSortBy('stock')}
+                      className={cn(
+                        "btn btn-sm rounded-xl h-10 justify-between border border-[var(--color-border)]",
+                        sortBy === 'stock' ? "btn-primary" : "btn-ghost bg-[var(--color-surface-800)]"
+                      )}
+                   >
+                      <span>Stock ↓</span>
+                   </button>
+                </div>
+             </div>
           </motion.div>
         )}
 
@@ -291,7 +372,10 @@ export default function Products() {
                    <div className="grid gap-4">
                       {variationModalProduct.variations && variationModalProduct.variations.length > 0 ? (
                         variationModalProduct.variations.map((v) => (
-                           <div key={v.vid} className="p-5 bg-[var(--color-surface-900)] rounded-3xl border border-[var(--color-border)] space-y-4">
+                           <div key={v.vid} className={cn(
+                              "p-5 bg-[var(--color-surface-900)] rounded-3xl border border-[var(--color-border)] space-y-4",
+                              v.stock === 0 && "opacity-50"
+                           )}>
                               <div className="min-w-0">
                                  <p className="font-bold text-base truncate">{v.title}</p>
                                  <div className="flex items-center justify-between gap-2">
@@ -305,18 +389,24 @@ export default function Products() {
                                  </div>
                               </div>
                               <div className="flex items-center justify-between bg-[var(--color-surface-800)]/50 p-2 pl-4 rounded-2xl border border-[var(--color-border)]/10">
-                                 <span className="text-xs font-bold uppercase tracking-widest opacity-40">Cantidad</span>
-                                 <div className="flex items-center gap-2">
-                                    <button onClick={() => updateVariationQuantity(v.vid, -1)} className="btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] hover:bg-error/10 hover:text-error">
+                                 <div className="flex items-center gap-2 w-full">
+                                    <button 
+                                       onClick={() => updateVariationQuantity(v.vid, -1)} 
+                                       disabled={v.stock === 0}
+                                       className={cn(
+                                          "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] hover:bg-error/10 hover:text-error",
+                                          v.stock === 0 && "opacity-30 cursor-not-allowed"
+                                       )}
+                                    >
                                        <Minus size={18} />
                                     </button>
                                     <span className="w-10 text-center font-black text-lg">{variationQuantities[v.vid] || 0}</span>
                                     <button 
                                        onClick={() => updateVariationQuantity(v.vid, 1)} 
-                                       disabled={(variationQuantities[v.vid] || 0) >= v.stock}
+                                       disabled={v.stock === 0 || (variationQuantities[v.vid] || 0) >= v.stock}
                                        className={cn(
                                           "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] text-primary hover:bg-primary/10",
-                                          (variationQuantities[v.vid] || 0) >= v.stock && "opacity-30 cursor-not-allowed"
+                                          (v.stock === 0 || (variationQuantities[v.vid] || 0) >= v.stock) && "opacity-30 cursor-not-allowed"
                                        )}
                                     >
                                        <Plus size={18} />
@@ -326,7 +416,10 @@ export default function Products() {
                            </div>
                         ))
                       ) : (
-                        <div className="p-5 bg-[var(--color-surface-900)] rounded-3xl border border-[var(--color-border)] space-y-4">
+                        <div className={cn(
+                           "p-5 bg-[var(--color-surface-900)] rounded-3xl border border-[var(--color-border)] space-y-4",
+                           variationModalProduct.stock === 0 && "opacity-50"
+                        )}>
                            <div className="min-w-0">
                               <p className="font-bold text-base">Unidad Base</p>
                               <div className="flex items-center justify-between gap-2">
@@ -340,18 +433,24 @@ export default function Products() {
                               </div>
                            </div>
                            <div className="flex items-center justify-between bg-[var(--color-surface-800)]/50 p-2 pl-4 rounded-2xl border border-[var(--color-border)]/10">
-                              <span className="text-xs font-bold uppercase tracking-widest opacity-40">Cantidad</span>
-                              <div className="flex items-center gap-2">
-                                 <button onClick={() => updateVariationQuantity('base', -1)} className="btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] hover:bg-error/10 hover:text-error">
+                              <div className="flex items-center gap-2 w-full">
+                                 <button 
+                                    onClick={() => updateVariationQuantity('base', -1)} 
+                                    disabled={variationModalProduct.stock === 0}
+                                    className={cn(
+                                       "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] hover:bg-error/10 hover:text-error",
+                                       variationModalProduct.stock === 0 && "opacity-30 cursor-not-allowed"
+                                    )}
+                                 >
                                     <Minus size={18} />
                                  </button>
                                  <span className="w-10 text-center font-black text-lg">{variationQuantities['base'] || 0}</span>
                                  <button 
                                     onClick={() => updateVariationQuantity('base', 1)} 
-                                    disabled={(variationQuantities['base'] || 0) >= variationModalProduct.stock}
+                                    disabled={variationModalProduct.stock === 0 || (variationQuantities['base'] || 0) >= variationModalProduct.stock}
                                     className={cn(
                                        "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] text-primary hover:bg-primary/10",
-                                       (variationQuantities['base'] || 0) >= variationModalProduct.stock && "opacity-30 cursor-not-allowed"
+                                       (variationModalProduct.stock === 0 || (variationQuantities['base'] || 0) >= variationModalProduct.stock) && "opacity-30 cursor-not-allowed"
                                     )}
                                  >
                                     <Plus size={18} />
