@@ -2,6 +2,7 @@ import {
   Building2,
   Check,
   Edit2,
+  Filter,
   IdCard,
   MapPin,
   MapPinned,
@@ -93,15 +94,26 @@ export default function Clients() {
   const { selectedClient, setSelectedClient } = useCart();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<'default' | 'name'>('default');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Partial<Client> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const filteredClients = useMemo(() => clients.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase()),
-  ), [clients, search]);
+  const filteredClients = useMemo(() => {
+    const filtered = clients.filter(
+      (c) =>
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.email.toLowerCase().includes(search.toLowerCase()),
+    );
+
+    // Apply sorting
+    if (sortBy === 'name') {
+      filtered.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return filtered;
+  }, [clients, search, sortBy]);
 
   const handleSaveClient = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -138,43 +150,90 @@ export default function Clients() {
     <PullToRefresh onRefresh={() => refreshData(false)}>
       <div className="space-y-4 min-h-[50vh]">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h2 id="clients-title" className="text-2xl font-bold">
-            Clientes
-          </h2>
-          <button
-            id="clients-add-btn"
-            type="button"
-            onClick={() => {
-              setEditingClient({
-                name: '',
-                email: '',
-                phone: '',
-                address: '',
-                billing_city: '',
-                billing_state: '',
-                cuit: '',
-              });
-              setIsModalOpen(true);
-            }}
-            className="btn btn-ghost btn-square btn-sm text-primary"
-          >
-            <UserPlus size={20} />
-          </button>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 id="clients-title" className="text-2xl font-bold">
+              Clientes
+            </h2>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">Gestión de clientes</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={cn(
+                "btn btn-ghost rounded-2xl gap-2 h-12 bg-[var(--color-surface-800)] border border-[var(--color-border)] px-6",
+                showFilters && "text-primary border-primary/30 bg-primary/5"
+              )}
+            >
+              <Filter size={18} /> <span>Filtros</span>
+            </button>
+            <div className="flex items-center gap-2 bg-[var(--color-surface-800)] px-4 py-2.5 rounded-2xl border border-[var(--color-border)]">
+              <span className="text-xs font-bold text-[var(--color-text-muted)]">Total:</span>
+              <span className="text-sm font-black text-primary">{filteredClients.length}</span>
+            </div>
+            <button
+              id="clients-add-btn"
+              type="button"
+              onClick={() => {
+                setEditingClient({
+                  name: '',
+                  email: '',
+                  phone: '',
+                  address: '',
+                  billing_city: '',
+                  billing_state: '',
+                  cuit: '',
+                });
+                setIsModalOpen(true);
+              }}
+              className="btn btn-ghost btn-square btn-sm text-primary"
+            >
+              <UserPlus size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-40" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] group-focus-within:text-primary transition-colors" size={20} />
           <input
             id="clients-search-input"
             type="text"
-            placeholder="Buscar por nombre o correo..."
-            className="input input-bordered w-full pl-10 bg-base-200/50 focus:bg-base-100"
+            placeholder="Buscar por nombre, correo o teléfono..."
+            className="w-full pl-12 pr-4 py-4 bg-[var(--color-surface-800)] rounded-3xl border border-[var(--color-border)] focus:ring-2 focus:ring-primary/20 outline-none font-medium text-base transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="overflow-hidden space-y-4">
+            <div className="border-t border-[var(--color-border)]/10 pt-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)] mb-3">Ordenar por</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setSortBy('default')}
+                  className={cn(
+                    "btn btn-sm rounded-xl h-10 justify-between border border-[var(--color-border)]",
+                    sortBy === 'default' ? "btn-primary" : "btn-ghost bg-[var(--color-surface-800)]"
+                  )}
+                >
+                  <span>Defecto</span>
+                </button>
+                <button
+                  onClick={() => setSortBy('name')}
+                  className={cn(
+                    "btn btn-sm rounded-xl h-10 justify-between border border-[var(--color-border)]",
+                    sortBy === 'name' ? "btn-primary" : "btn-ghost bg-[var(--color-surface-800)]"
+                  )}
+                >
+                  <span>A-Z</span>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Client List */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
