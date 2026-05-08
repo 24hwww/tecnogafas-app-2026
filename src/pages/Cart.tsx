@@ -162,7 +162,7 @@ export default function Cart() {
   };
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto pb-32">
+    <div className="space-y-6 mx-auto pb-32">
       <div className="flex items-center justify-between">
         <div>
           <h2 id="cart-title" className="text-3xl font-bold tracking-tight">Carrito</h2>
