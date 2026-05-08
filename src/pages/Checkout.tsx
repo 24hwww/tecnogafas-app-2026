@@ -7,12 +7,10 @@ import {
   FileText,
   RefreshCw,
   ShoppingBag,
-  X,
   CreditCard,
   Truck,
   MessageSquare,
   Mail,
-  ChevronRight,
   Info,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -21,10 +19,9 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
-import { formatCurrency, formatDateBA, formatTimeBA } from '../lib/utils';
+import { formatCurrency, formatDateBA } from '../lib/utils';
 import { apiService } from '../services/apiService';
-import type { LastOrder, Seller } from '../types';
-import { cn } from '../lib/utils';
+import type { LastOrder } from '../types';
 
 export default function Checkout() {
   const { cart, selectedClient, clearCart, saveDraft, drafts, currentDraftId, markDraftAsSent } =
@@ -44,7 +41,6 @@ export default function Checkout() {
   const [isSendingOrder, setIsSendingOrder] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [sellerPin, setSellerPin] = useState('');
-  const [seller, setSeller] = useState<Seller | null>(null);
   const [pinError, setPinError] = useState('');
 
   const [form, setForm] = useState({
@@ -86,8 +82,8 @@ export default function Checkout() {
   if (!orderFeedback && (!selectedClient || cart.length === 0)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-6 text-center">
-        <div className="w-24 h-24 bg-warning/10 rounded-full flex items-center justify-center mb-6 text-warning">
-          <ShoppingBag size={48} strokeWidth={1.5} />
+        <div className="w-24 h-24 bg-[var(--color-surface-900)] rounded-full flex items-center justify-center mb-6 border border-[var(--color-border)]">
+          <ShoppingBag size={48} className="text-[var(--color-text-muted)] opacity-50" />
         </div>
         <h3 className="text-2xl font-bold mb-2">Carrito incompleto</h3>
         <p className="text-[var(--color-text-muted)] max-w-xs mb-8">
@@ -120,11 +116,15 @@ export default function Checkout() {
         setIsLoading(false);
         return;
       }
-      setSeller(sellerInfo);
 
       const itemsToVerify = cart.map((item) => {
         const baseProductId = parseInt(item.id.split('-')[0]);
-        const verificationItem: any = {
+        const verificationItem: {
+          product_id: number;
+          price: number;
+          stock: number;
+          variation_id?: number;
+        } = {
           product_id: baseProductId,
           price: item.price,
           stock: item.quantity,
@@ -169,13 +169,13 @@ export default function Checkout() {
       const sellerInfo = await apiService.loginSeller(sellerPin);
       if (sellerInfo) {
         setGlobalPin(sellerPin);
-        setSeller(sellerInfo);
         setIsPinModalOpen(false);
         await handleConfirmOrder();
       } else {
         setPinError('PIN incorrecto');
       }
-    } catch (e) {
+    } catch (error) {
+      console.error('PIN validation error:', error);
       setPinError('Error de conexión');
     } finally {
       setIsLoading(false);
@@ -222,7 +222,8 @@ export default function Checkout() {
           type: 'error',
         });
       }
-    } catch (e) {
+    } catch (error) {
+      console.error('Order creation error:', error);
       saveDraft(form);
       setOrderFeedback({
         title: 'Error de Red',
@@ -248,7 +249,7 @@ export default function Checkout() {
   };
 
   return (
-    <div className="space-y-8 max-w-3xl mx-auto pb-20">
+    <div className="space-y-6 mx-auto pb-32">
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate('/carrito')}
@@ -262,131 +263,173 @@ export default function Checkout() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column: Form */}
         <div className="space-y-6">
-          <section className="space-y-4">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <CreditCard size={20} className="text-primary" /> Detalles de Pago
-            </h3>
+          {/* Payment Details Card */}
+          <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <CreditCard size={24} className="text-primary" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">Detalles de Pago</h3>
+                <p className="text-sm text-[var(--color-text-muted)]">Configura los términos de pago</p>
+              </div>
+            </div>
+            
             <div className="grid grid-cols-2 gap-4">
               <div className="form-control">
                 <label className="label py-1">
-                  <span className="label-text text-[10px] font-bold uppercase tracking-widest tracking-widest opacity-60">IVA (%)</span>
+                  <span className="label-text text-xs font-semibold uppercase opacity-60">IVA (%)</span>
                 </label>
                 <input
                   type="number"
-                  className="input input-bordered bg-[var(--color-surface-800)] font-bold"
+                  className="input input-bordered bg-[var(--color-surface-900)] font-bold"
                   value={form.iva}
                   onChange={(e) => setForm({ ...form, iva: Number(e.target.value) })}
                 />
               </div>
               <div className="form-control">
                 <label className="label py-1">
-                  <span className="label-text text-[10px] font-bold uppercase tracking-widest tracking-widest opacity-60">Desc. (%)</span>
+                  <span className="label-text text-xs font-semibold uppercase opacity-60">Descuento</span>
                 </label>
                 <input
                   type="number"
-                  className="input input-bordered bg-[var(--color-surface-800)] font-bold text-success"
+                  className="input input-bordered bg-[var(--color-surface-900)] font-bold text-success"
                   value={form.discount}
                   onChange={(e) => setForm({ ...form, discount: Number(e.target.value) })}
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            
+            <div className="grid grid-cols-2 gap-4 mt-4">
               <div className="form-control">
                 <label className="label py-1">
-                  <span className="label-text text-[10px] font-bold uppercase tracking-widest tracking-widest opacity-60">Recargo (%)</span>
+                  <span className="label-text text-xs font-semibold uppercase opacity-60">Recargo</span>
                 </label>
                 <input
                   type="number"
-                  className="input input-bordered bg-[var(--color-surface-800)] font-bold text-error"
+                  className="input input-bordered bg-[var(--color-surface-900)] font-bold text-error"
                   value={form.recargo}
                   onChange={(e) => setForm({ ...form, recargo: Number(e.target.value) })}
                 />
               </div>
               <div className="form-control">
                 <label className="label py-1">
-                  <span className="label-text text-[10px] font-bold uppercase tracking-widest tracking-widest opacity-60">Método</span>
+                  <span className="label-text text-xs font-semibold uppercase opacity-60">Método de Pago</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="Efectivo, Transfer..."
-                  className="input input-bordered bg-[var(--color-surface-800)] font-bold"
+                  placeholder="Efectivo, Transferencia..."
+                  className="input input-bordered bg-[var(--color-surface-900)] font-bold"
                   value={form.methodpay}
                   onChange={(e) => setForm({ ...form, methodpay: e.target.value })}
                 />
               </div>
             </div>
-          </section>
+          </div>
 
-          <section className="space-y-4">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <Truck size={20} className="text-primary" /> Logística
-            </h3>
+          {/* Logistics Card */}
+          <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Truck size={24} className="text-primary" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">Logística</h3>
+                <p className="text-sm text-[var(--color-text-muted)]">Información de envío</p>
+              </div>
+            </div>
+            
             <div className="form-control">
               <label className="label py-1">
-                <span className="label-text text-[10px] font-bold uppercase tracking-widest tracking-widest opacity-60">Transporte</span>
+                <span className="label-text text-xs font-semibold uppercase opacity-60">Transporte</span>
               </label>
               <input
                 type="text"
-                placeholder="Nombre de la empresa"
-                className="input input-bordered bg-[var(--color-surface-800)] font-bold"
+                placeholder="Nombre de la empresa de transporte"
+                className="input input-bordered bg-[var(--color-surface-900)] font-bold w-full"
                 value={form.transport}
                 onChange={(e) => setForm({ ...form, transport: e.target.value })}
               />
             </div>
-          </section>
+          </div>
 
-          <section className="space-y-4">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <MessageSquare size={20} className="text-primary" /> Notas
-            </h3>
-            <textarea
-              className="textarea textarea-bordered bg-[var(--color-surface-800)] w-full h-24 font-medium"
-              placeholder="Observaciones adicionales..."
-              value={form.commit}
-              onChange={(e) => setForm({ ...form, commit: e.target.value })}
-            />
-          </section>
-
-          <section className="space-y-4">
-            <div className="form-control">
-              <label className="label cursor-pointer justify-start gap-4 p-4 bg-[var(--color-surface-800)] rounded-2xl border border-[var(--color-border)]">
-                <input
-                  type="checkbox"
-                  className="checkbox checkbox-primary"
-                  checked={sendEmail}
-                  onChange={(e) => setSendEmail(e.target.checked)}
-                />
-                <div>
-                  <span className="label-text font-bold">Enviar Comprobante</span>
-                  <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Se enviará el PDF al cliente automáticamente.</p>
-                </div>
-              </label>
-            </div>
-            {sendEmail && (
-              <div className="form-control animate-fade-in">
-                <label className="label py-1">
-                  <span className="label-text text-[10px] font-bold uppercase tracking-widest tracking-widest opacity-60 flex items-center gap-1">
-                    <Mail size={12} /> Copia a otro email
-                  </span>
-                </label>
-                <input
-                  type="email"
-                  placeholder="vendedor@tecnogafas.com"
-                  className="input input-bordered bg-[var(--color-surface-800)] font-medium"
-                  value={form.otheremail}
-                  onChange={(e) => setForm({ ...form, otheremail: e.target.value })}
-                />
+          {/* Notes Card */}
+          <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <MessageSquare size={24} className="text-primary" />
               </div>
-            )}
-          </section>
+              <div>
+                <h3 className="text-xl font-bold text-white">Notas</h3>
+                <p className="text-sm text-[var(--color-text-muted)]">Observaciones adicionales</p>
+              </div>
+            </div>
+            
+            <div className="form-control">
+              <textarea
+                className="textarea textarea-bordered bg-[var(--color-surface-900)] w-full h-24 font-medium"
+                placeholder="Agrega cualquier observación importante sobre el pedido..."
+                value={form.commit}
+                onChange={(e) => setForm({ ...form, commit: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {/* Email Options Card */}
+          <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Mail size={24} className="text-primary" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">Opciones de Envío</h3>
+                <p className="text-sm text-[var(--color-text-muted)]">Configuración de notificaciones</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="form-control">
+                <label className="label cursor-pointer justify-start gap-4 p-4 bg-[var(--color-surface-900)] rounded-2xl border border-[var(--color-border)] w-full">
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-primary"
+                    checked={sendEmail}
+                    onChange={(e) => setSendEmail(e.target.checked)}
+                  />
+                  <div>
+                    <span className="label-text font-bold text-white">Enviar Comprobante</span>
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Se enviará el PDF automáticamente al cliente</p>
+                  </div>
+                </label>
+              </div>
+              
+              {sendEmail && (
+                <div className="form-control">
+                  <label className="label py-1">
+                    <span className="label-text text-xs font-semibold uppercase opacity-60 flex items-center gap-1">
+                      <Mail size={12} /> Copia a otro email
+                    </span>
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="vendedor@tecnogafas.com"
+                    className="input input-bordered bg-[var(--color-surface-900)] font-medium w-full"
+                    value={form.otheremail}
+                    onChange={(e) => setForm({ ...form, otheremail: e.target.value })}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Right Column: Summary Card */}
         <div className="lg:sticky lg:top-20 h-fit">
-          <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] shadow-2xl rounded-3xl overflow-hidden">
+          <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-2xl overflow-hidden">
+            {/* Header */}
             <div className="p-6 bg-primary/10 border-b border-primary/10">
               <div className="flex justify-between items-center mb-1">
                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">Resumen Total</span>
@@ -395,32 +438,37 @@ export default function Checkout() {
               <h3 className="text-4xl font-black tracking-tighter text-primary">{formatCurrency(finalTotal)}</h3>
             </div>
             
+            {/* Pricing Breakdown */}
             <div className="p-6 space-y-4">
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--color-text-muted)]">Subtotal</span>
                   <span className="font-bold">{formatCurrency(subtotal)}</span>
                 </div>
+                
                 {form.discount > 0 && (
                   <div className="flex justify-between text-sm text-success">
                     <span>Descuento ({form.discount}%)</span>
                     <span className="font-bold">-{formatCurrency(discountAmount)}</span>
                   </div>
                 )}
+                
                 {form.recargo > 0 && (
                   <div className="flex justify-between text-sm text-error">
                     <span>Recargo ({form.recargo}%)</span>
                     <span className="font-bold">+{formatCurrency(recargoAmount)}</span>
                   </div>
                 )}
+                
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--color-text-muted)]">IVA ({form.iva}%)</span>
                   <span className="font-bold">+{formatCurrency(ivaAmount)}</span>
                 </div>
               </div>
               
+              {/* Products List */}
               <div className="pt-4 border-t border-[var(--color-border)]">
-                <p className="text-[10px] font-bold uppercase tracking-widest tracking-widest text-[var(--color-text-muted)] mb-3">Productos ({cart.length})</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-3">Productos ({cart.length})</p>
                 <div className="max-h-40 overflow-y-auto space-y-2 pr-2">
                   {cart.map((item, i) => (
                     <div key={i} className="flex justify-between text-xs font-medium">
@@ -431,14 +479,16 @@ export default function Checkout() {
                 </div>
               </div>
 
+              {/* Action Buttons */}
               <div className="pt-6 space-y-3">
                 <button
                   onClick={() => setIsConfirmModalOpen(true)}
                   disabled={isLoading}
-                  className="btn btn-primary btn-lg w-full rounded-2xl font-black text-lg h-16 shadow-lg shadow-primary/20"
+                  className="btn btn-primary btn-lg w-full rounded-2xl font-bold text-lg h-16 shadow-lg shadow-primary/20"
                 >
                   {isLoading ? <span className="loading loading-spinner" /> : 'Confirmar Pedido'}
                 </button>
+                
                 <button
                   onClick={() => { saveDraft(form); navigate('/pedidos'); }}
                   className="btn btn-ghost btn-block text-[var(--color-text-muted)] hover:bg-base-300/10 gap-2"
@@ -449,8 +499,9 @@ export default function Checkout() {
             </div>
           </div>
           
+          {/* Info Card */}
           <div className="mt-6 flex items-start gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-            <Info size={18} className="text-primary shrink-0 mt-0.5" />
+            <Info size={16} className="text-primary shrink-0 mt-0.5" />
             <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
               Al confirmar, el pedido será procesado por el sistema central y se generará el comprobante correspondiente. Asegúrese de que todos los datos sean correctos.
             </p>
@@ -463,12 +514,12 @@ export default function Checkout() {
         {isConfirmModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsConfirmModalOpen(false)} />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-[var(--color-surface-800)] p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-3xl max-w-sm w-full text-center shadow-2xl mx-4">
               <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
                 <ShoppingBag size={32} />
               </div>
               <h3 className="text-2xl font-bold mb-2">¿Confirmar pedido?</h3>
-              <p className="text-[var(--color-text-muted)] text-sm mb-8">Se enviará el pedido final por un total de {formatCurrency(finalTotal)}</p>
+              <p className="text-[var(--color-text-muted)] text-sm mb-6">Se enviará el pedido final por un total de {formatCurrency(finalTotal)}</p>
               <div className="grid grid-cols-2 gap-3">
                 <button onClick={() => setIsConfirmModalOpen(false)} className="btn btn-ghost rounded-xl">Cancelar</button>
                 <button onClick={handleConfirmOrder} className="btn btn-primary rounded-xl">Confirmar</button>
@@ -480,9 +531,9 @@ export default function Checkout() {
         {isPinModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-[var(--color-surface-800)] p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-3xl max-w-sm w-full text-center shadow-2xl mx-4">
               <h3 className="text-xl font-bold mb-2">Autorización Requerida</h3>
-              <p className="text-[var(--color-text-muted)] text-sm mb-6">Ingrese su PIN de vendedor para autorizar el envío.</p>
+              <p className="text-[var(--color-text-muted)] text-sm mb-6">Ingrese su PIN de vendedor para autorizar el envío</p>
               <input
                 type="password"
                 inputMode="numeric"
@@ -503,7 +554,7 @@ export default function Checkout() {
         )}
 
         {isSendingOrder && (
-          <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl">
+          <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl p-4">
             <RefreshCw size={60} className="text-primary animate-spin mb-6" />
             <h3 className="text-2xl font-black tracking-widest uppercase">Procesando...</h3>
             <p className="text-[var(--color-text-muted)] animate-pulse mt-2">No cierre la aplicación</p>
@@ -513,9 +564,16 @@ export default function Checkout() {
         {orderFeedback && (
           <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/90 backdrop-blur-xl" />
-            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="relative bg-[var(--color-surface-800)] p-10 rounded-[2.5rem] max-w-md w-full text-center shadow-2xl">
-              <div className={cn("w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6", orderFeedback.type === 'success' ? "bg-success/10 text-success" : "bg-error/10 text-error")}>
-                {orderFeedback.type === 'success' ? <Check size={50} /> : <AlertCircle size={50} />}
+            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="relative bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-3xl max-w-md w-full text-center shadow-2xl mx-4">
+              <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 ${
+                orderFeedback.type === 'success' 
+                  ? 'bg-success/10 text-success' 
+                  : 'bg-error/10 text-error'
+              }`}>
+                {orderFeedback.type === 'success' ? 
+                  <Check size={50} /> : 
+                  <AlertCircle size={50} />
+                }
               </div>
               <h3 className="text-3xl font-black mb-2 tracking-tight">{orderFeedback.title}</h3>
               <p className="text-[var(--color-text-muted)] mb-8 leading-relaxed">{orderFeedback.message}</p>

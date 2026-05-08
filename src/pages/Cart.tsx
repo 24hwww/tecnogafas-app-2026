@@ -9,7 +9,7 @@ import type { Seller } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Cart() {
-  const { cart, selectedClient, removeFromCart, updateCartQuantity, shareCart, clearCart } =
+  const { cart, selectedClient, removeFromCart, updateCartQuantity, shareCart, clearCartAndClient } =
     useCart();
   const { globalPin, setGlobalPin } = useAuth();
   const navigate = useNavigate();
@@ -66,7 +66,7 @@ export default function Cart() {
   const handleClearCart = () => {
     if (cart.length === 0) return;
     if (confirm('¿Estás seguro de que quieres limpiar todo el carrito?')) {
-      clearCart();
+      clearCartAndClient();
     }
   };
 

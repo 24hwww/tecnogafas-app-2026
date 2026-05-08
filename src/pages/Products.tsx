@@ -343,73 +343,84 @@ export default function Products() {
         {/* Variation Modal */}
         <AnimatePresence>
           {variationModalProduct && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setVariationModalProduct(null)} />
               <motion.div
                 initial={{ scale: 0.95, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                className="relative bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-[2.5rem] w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+                className="relative bg-[var(--color-surface-800)] border border-[var(--color-border)] sm:rounded-[2.5rem] rounded-t-[1.5rem] sm:rounded-t-[2.5rem] w-full sm:max-w-lg max-h-[100vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-2xl sm:mx-4 mx-0"
               >
-                <div className="p-8 border-b border-[var(--color-border)]/10 bg-primary/5 flex justify-between items-start">
-                   <div className="flex gap-4">
-                      <div className="w-16 h-16 bg-[var(--color-surface-900)] rounded-2xl flex items-center justify-center border border-[var(--color-border)] shrink-0">
-                         <Package className="text-primary/40" size={30} />
+                <div className="sm:p-5 p-6 border-b border-[var(--color-border)]/10 bg-primary/5 flex justify-between items-start gap-4">
+                   <div className="flex gap-3 sm:gap-4 min-w-0 flex-1">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[var(--color-surface-900)] rounded-2xl flex items-center justify-center border border-[var(--color-border)] shrink-0">
+                         <Package className="text-primary/40 hidden sm:block" size={30} />
+                         <Package className="text-primary/40 sm:hidden" size={24} />
                       </div>
-                      <div>
-                         <h3 className="text-xl font-bold tracking-tight">{variationModalProduct.name}</h3>
+                      <div className="min-w-0 flex-1">
+                         <h3 className="text-lg sm:text-xl font-bold tracking-tight line-clamp-2">{variationModalProduct.name}</h3>
                          <p className="text-sm text-[var(--color-text-muted)] mt-1 font-medium">{formatCurrency(variationModalProduct.price)}</p>
                       </div>
                    </div>
-                   <button onClick={() => setVariationModalProduct(null)} className="btn btn-ghost btn-square btn-sm rounded-xl">
+                   <button onClick={() => setVariationModalProduct(null)} className="btn btn-ghost btn-square btn-sm rounded-xl flex-shrink-0">
                       <X size={20} />
                    </button>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto p-8 space-y-6">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Opciones Disponibles</p>
+                <div className="flex-1 overflow-y-auto sm:p-6 p-6 space-y-6">
                    
-                   <div className="grid gap-4">
+                   <div className="grid gap-3 sm:gap-4">
                       {variationModalProduct.variations && variationModalProduct.variations.length > 0 ? (
                         variationModalProduct.variations.map((v) => (
                            <div key={v.vid} className={cn(
-                              "p-5 bg-[var(--color-surface-900)] rounded-3xl border border-[var(--color-border)] space-y-4",
+                              "p-4 sm:p-5 bg-[var(--color-surface-900)] rounded-2xl sm:rounded-3xl border border-[var(--color-border)] space-y-3 sm:space-y-4",
                               v.stock === 0 && "opacity-50"
                            )}>
                               <div className="min-w-0">
-                                 <p className="font-bold text-base truncate">{v.title}</p>
-                                 <div className="flex items-center justify-between gap-2">
-                                    <p className="text-xs font-bold text-primary">{formatCurrency(v.price)}</p>
+                                 <p className="font-bold text-sm sm:text-base truncate">{v.title}</p>
+                                 <div className="flex items-center justify-between gap-2 mt-2">
+                                    <p className="text-xs font-bold text-primary">
+                                       {(variationQuantities[v.vid] || 0) > 0 
+                                          ? `Total: ${formatCurrency(v.price * (variationQuantities[v.vid] || 0))}` 
+                                          : formatCurrency(v.price)
+                                       }
+                                    </p>
                                     <div className={cn(
-                                       "px-2 py-1 rounded-full text-xs font-bold",
+                                       "px-2 py-1 rounded-full text-xs font-bold shrink-0",
                                        v.stock > 0 ? "bg-success/10 text-success" : "bg-error/10 text-error"
                                     )}>
                                        Stock: {v.stock}
                                     </div>
                                  </div>
                               </div>
-                              <div className="flex items-center justify-between bg-[var(--color-surface-800)]/50 p-2 pl-4 rounded-2xl border border-[var(--color-border)]/10">
+                              <div className="flex items-center justify-between bg-[var(--color-surface-800)]/50 p-3 pl-4 rounded-2xl border border-[var(--color-border)]/10">
                                  <div className="flex items-center gap-2 w-full">
                                     <button 
                                        onClick={() => updateVariationQuantity(v.vid, -1)} 
                                        disabled={v.stock === 0}
                                        className={cn(
-                                          "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] hover:bg-error/10 hover:text-error",
-                                          v.stock === 0 && "opacity-30 cursor-not-allowed"
+                                          "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-700)] hover:bg-error/20 hover:text-error border border-[var(--color-border)]/20 transition-all duration-200 h-10 w-10 sm:h-12 sm:w-12 shadow-sm hover:shadow-md",
+                                          v.stock === 0 && "opacity-30 cursor-not-allowed bg-[var(--color-surface-600)]"
                                        )}
                                     >
-                                       <Minus size={18} />
+                                       <Minus size={18} className="shrink-0 hidden sm:block" />
+                                       <Minus size={16} className="shrink-0 sm:hidden" />
                                     </button>
-                                    <span className="w-10 text-center font-black text-lg">{variationQuantities[v.vid] || 0}</span>
+                                    <div className="flex-1 flex items-center justify-center">
+                                       <span className="w-12 sm:w-14 text-center font-black text-lg sm:text-xl bg-[var(--color-surface-900)] rounded-xl py-2 sm:py-2.5 border border-[var(--color-border)]/20 shadow-inner">
+                                          {variationQuantities[v.vid] || 0}
+                                       </span>
+                                    </div>
                                     <button 
                                        onClick={() => updateVariationQuantity(v.vid, 1)} 
                                        disabled={v.stock === 0 || (variationQuantities[v.vid] || 0) >= v.stock}
                                        className={cn(
-                                          "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] text-primary hover:bg-primary/10",
-                                          (v.stock === 0 || (variationQuantities[v.vid] || 0) >= v.stock) && "opacity-30 cursor-not-allowed"
+                                          "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-700)] hover:bg-primary/20 hover:text-primary border border-[var(--color-border)]/20 transition-all duration-200 h-10 w-10 sm:h-12 sm:w-12 shadow-sm hover:shadow-md",
+                                          (v.stock === 0 || (variationQuantities[v.vid] || 0) >= v.stock) && "opacity-30 cursor-not-allowed bg-[var(--color-surface-600)]"
                                        )}
                                     >
-                                       <Plus size={18} />
+                                       <Plus size={18} className="shrink-0 hidden sm:block" />
+                                       <Plus size={16} className="shrink-0 sm:hidden" />
                                     </button>
                                  </div>
                               </div>
@@ -417,43 +428,54 @@ export default function Products() {
                         ))
                       ) : (
                         <div className={cn(
-                           "p-5 bg-[var(--color-surface-900)] rounded-3xl border border-[var(--color-border)] space-y-4",
+                           "p-4 sm:p-5 bg-[var(--color-surface-900)] rounded-2xl sm:rounded-3xl border border-[var(--color-border)] space-y-3 sm:space-y-4",
                            variationModalProduct.stock === 0 && "opacity-50"
                         )}>
                            <div className="min-w-0">
-                              <p className="font-bold text-base">Unidad Base</p>
-                              <div className="flex items-center justify-between gap-2">
-                                 <p className="text-xs font-bold text-primary">{formatCurrency(variationModalProduct.price)}</p>
+                              <p className="font-bold text-sm sm:text-base">Unidad Base</p>
+                              <div className="flex items-center justify-between gap-2 mt-2">
+                                 <p className="text-xs font-bold text-primary">
+                                    {(variationQuantities['base'] || 0) > 0 
+                                       ? `Total: ${formatCurrency(variationModalProduct.price * (variationQuantities['base'] || 0))}` 
+                                       : formatCurrency(variationModalProduct.price)
+                                    }
+                                 </p>
                                  <div className={cn(
-                                    "px-2 py-1 rounded-full text-xs font-bold",
+                                    "px-2 py-1 rounded-full text-xs font-bold shrink-0",
                                     variationModalProduct.stock > 0 ? "bg-success/10 text-success" : "bg-error/10 text-error"
                                  )}>
                                     Stock: {variationModalProduct.stock}
                                  </div>
                               </div>
                            </div>
-                           <div className="flex items-center justify-between bg-[var(--color-surface-800)]/50 p-2 pl-4 rounded-2xl border border-[var(--color-border)]/10">
+                           <div className="flex items-center justify-between bg-[var(--color-surface-800)]/50 p-3 pl-4 rounded-2xl border border-[var(--color-border)]/10">
                               <div className="flex items-center gap-2 w-full">
                                  <button 
                                     onClick={() => updateVariationQuantity('base', -1)} 
                                     disabled={variationModalProduct.stock === 0}
                                     className={cn(
-                                       "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] hover:bg-error/10 hover:text-error",
-                                       variationModalProduct.stock === 0 && "opacity-30 cursor-not-allowed"
+                                       "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-700)] hover:bg-error/20 hover:text-error border border-[var(--color-border)]/20 transition-all duration-200 h-10 w-10 sm:h-12 sm:w-12 shadow-sm hover:shadow-md",
+                                       variationModalProduct.stock === 0 && "opacity-30 cursor-not-allowed bg-[var(--color-surface-600)]"
                                     )}
                                  >
-                                    <Minus size={18} />
+                                    <Minus size={18} className="shrink-0 hidden sm:block" />
+                                    <Minus size={16} className="shrink-0 sm:hidden" />
                                  </button>
-                                 <span className="w-10 text-center font-black text-lg">{variationQuantities['base'] || 0}</span>
+                                 <div className="flex-1 flex items-center justify-center">
+                                    <span className="w-12 sm:w-14 text-center font-black text-lg sm:text-xl bg-[var(--color-surface-900)] rounded-xl py-2 sm:py-2.5 border border-[var(--color-border)]/20 shadow-inner">
+                                       {variationQuantities['base'] || 0}
+                                    </span>
+                                 </div>
                                  <button 
                                     onClick={() => updateVariationQuantity('base', 1)} 
                                     disabled={variationModalProduct.stock === 0 || (variationQuantities['base'] || 0) >= variationModalProduct.stock}
                                     className={cn(
-                                       "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-800)] text-primary hover:bg-primary/10",
-                                       (variationModalProduct.stock === 0 || (variationQuantities['base'] || 0) >= variationModalProduct.stock) && "opacity-30 cursor-not-allowed"
+                                       "btn btn-ghost btn-square rounded-xl bg-[var(--color-surface-700)] hover:bg-primary/20 hover:text-primary border border-[var(--color-border)]/20 transition-all duration-200 h-10 w-10 sm:h-12 sm:w-12 shadow-sm hover:shadow-md",
+                                       (variationModalProduct.stock === 0 || (variationQuantities['base'] || 0) >= variationModalProduct.stock) && "opacity-30 cursor-not-allowed bg-[var(--color-surface-600)]"
                                     )}
                                  >
-                                    <Plus size={18} />
+                                    <Plus size={18} className="shrink-0 hidden sm:block" />
+                                    <Plus size={16} className="shrink-0 sm:hidden" />
                                  </button>
                               </div>
                            </div>
@@ -462,13 +484,14 @@ export default function Products() {
                    </div>
                 </div>
                 
-                <div className="p-8 bg-[var(--color-surface-900)] border-t border-[var(--color-border)]">
+                <div className="sm:p-8 p-6 bg-[var(--color-surface-900)] border-t border-[var(--color-border)]">
                    <button
                       onClick={handleAddToCartFromModal}
                       disabled={totalSelected === 0}
-                      className="btn btn-primary btn-lg w-full rounded-2xl h-16 font-black text-lg gap-3"
+                      className="btn btn-primary btn-lg w-full rounded-2xl h-14 sm:h-16 font-black text-base sm:text-lg gap-3"
                    >
-                      <ShoppingCart size={22} />
+                      <ShoppingCart size={22} className="hidden sm:block" />
+                      <ShoppingCart size={20} className="sm:hidden" />
                       {totalSelected > 0 ? `Agregar ${totalSelected} items` : 'Seleccione cantidad'}
                    </button>
                 </div>

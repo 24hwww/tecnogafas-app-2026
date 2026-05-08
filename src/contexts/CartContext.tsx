@@ -16,7 +16,8 @@ interface CartContextType {
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
-  saveDraft: (details: any) => Promise<void>;
+  clearCartAndClient: () => void;
+  saveDraft: (details: Record<string, unknown>) => Promise<void>;
   loadDraft: (draftId: string) => void;
   markDraftAsSent: (draftId: string) => Promise<void>;
   shareCart: () => Promise<{ success: boolean; code: string; message: string; link: string }>;
@@ -108,11 +109,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = () => {
     setCart([]);
+    setCurrentDraftId(null);
+  };
+
+  const clearCartAndClient = () => {
+    setCart([]);
     setSelectedClient(null);
     setCurrentDraftId(null);
   };
 
-  const saveDraft = async (details: any) => {
+  const saveDraft = async (details: Record<string, unknown>) => {
     if (!selectedClient || cart.length === 0) return;
     let updatedDrafts: DraftOrder[];
     if (currentDraftId) {
@@ -197,7 +203,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           metadata: {
             total: cart.reduce((acc, item) => acc + item.price * item.quantity, 0),
           },
-        })
+        } as Record<string, unknown>)
         .select()
         .single();
 
@@ -227,7 +233,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return { success: false, cart: null, message: 'Carrito no encontrado o expirado' };
       }
 
-      const sharedCartData = data as any;
+      const sharedCartData = data as {
+        id: string;
+        code: string;
+        items: CartItem[];
+        created_at: string;
+        expires_at: string;
+        is_active: boolean;
+        metadata?: { total?: number };
+      };
 
       if (new Date(sharedCartData.expires_at) < new Date()) {
         return { success: false, cart: null, message: 'Este carrito ha expirado' };
@@ -276,6 +290,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         removeFromCart,
         updateCartQuantity,
         clearCart,
+        clearCartAndClient,
         saveDraft,
         loadDraft,
         markDraftAsSent,
