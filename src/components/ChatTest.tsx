@@ -5,6 +5,21 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../modules/chat/lib/supabase';
 
+// AuthBadge component moved to module scope to prevent re-creation on every render
+interface AuthBadgeProps {
+  currentUser: any;
+}
+
+const AuthBadge: React.FC<AuthBadgeProps> = ({ currentUser }) => {
+  if (!currentUser)
+    return <span className="text-xs text-[var(--color-text-muted)] italic">No autenticado</span>;
+  return (
+    <span className="text-xs bg-secondary/10 text-secondary px-2 py-1 rounded-lg font-mono">
+      {currentUser.email}
+    </span>
+  );
+};
+
 export default function ChatTest() {
   const [status, setStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [messages, setMessages] = useState<any[]>([]);
@@ -30,16 +45,7 @@ export default function ChatTest() {
     return user;
   };
 
-  const AuthBadge = () => {
-    if (!currentUser)
-      return <span className="text-xs text-[var(--color-text-muted)] italic">No autenticado</span>;
-    return (
-      <span className="text-xs bg-secondary/10 text-secondary px-2 py-1 rounded-lg font-mono">
-        {currentUser.email}
-      </span>
-    );
-  };
-
+  
   // Test 1: Verificar conexión
   const testConnection = async () => {
     setStatus('testing');
@@ -227,7 +233,7 @@ export default function ChatTest() {
           {status === 'success' && '✅ Conectado'}
           {status === 'error' && '❌ Error'}
         </span>
-        <AuthBadge />
+        <AuthBadge currentUser={currentUser} />
       </div>
 
       {/* Error */}

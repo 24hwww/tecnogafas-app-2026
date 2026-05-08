@@ -141,7 +141,9 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const [versions] = useState({ app: 'v1.2.0', api: 'v1.0.0' });
 
-  useEffect(() => { closeDrawer(); }, [location.pathname, closeDrawer]);
+  useEffect(() => { 
+    closeDrawer(); 
+  }, [location, closeDrawer]);
 
   const cartCount = cart.reduce((a, b) => a + b.quantity, 0);
 
