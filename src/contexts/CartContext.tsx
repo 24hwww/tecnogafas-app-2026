@@ -43,8 +43,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const cartItems = await appDB.cart.toArray();
         if (cartItems.length > 0) setCart(cartItems);
 
-        const clients = await appDB.selectedClient.toArray();
-        if (clients.length > 0) setSelectedClient(clients[0]);
+        // Load selected client - use limit(1) since there should only be one
+        const selectedClients = await appDB.selectedClient.limit(1).toArray();
+        if (selectedClients.length > 0) setSelectedClient(selectedClients[0]);
 
         const draftItems = await appDB.drafts.toArray();
         if (draftItems.length > 0) setDrafts(draftItems);
@@ -76,7 +77,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       try {
         const { appDB } = await import('../stores/appDatabase');
         await appDB.selectedClient.clear();
-        if (selectedClient) await appDB.selectedClient.add(selectedClient);
+        if (selectedClient) await appDB.selectedClient.put(selectedClient, selectedClient.id);
       } catch (e) {
         console.error('Error saving selected client to Dexie:', e);
       }

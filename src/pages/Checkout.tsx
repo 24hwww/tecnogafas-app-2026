@@ -493,7 +493,7 @@ export default function Checkout() {
                 <CreditCard size={24} className="text-primary" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-white">Detalles de Pago</h3>
+                <h3 className="text-xl font-bold text-success">Detalles de Pago</h3>
                 <p className="text-sm text-[var(--color-text-muted)]">Configura los términos de pago</p>
               </div>
             </div>
@@ -557,7 +557,7 @@ export default function Checkout() {
                 <Truck size={24} className="text-primary" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-white">Logística</h3>
+                <h3 className="text-xl font-bold text-success">Logística</h3>
                 <p className="text-sm text-[var(--color-text-muted)]">Información de envío</p>
               </div>
             </div>
@@ -583,7 +583,7 @@ export default function Checkout() {
                 <MessageSquare size={24} className="text-primary" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-white">Notas</h3>
+                <h3 className="text-xl font-bold text-success">Notas</h3>
                 <p className="text-sm text-[var(--color-text-muted)]">Observaciones adicionales</p>
               </div>
             </div>
@@ -605,7 +605,7 @@ export default function Checkout() {
                 <Mail size={24} className="text-primary" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-white">Opciones de Envío</h3>
+                <h3 className="text-xl font-bold text-success">Opciones de Envío</h3>
                 <p className="text-sm text-[var(--color-text-muted)]">Configuración de notificaciones</p>
               </div>
             </div>
@@ -620,7 +620,7 @@ export default function Checkout() {
                     onChange={(e) => setSendEmail(e.target.checked)}
                   />
                   <div>
-                    <span className="label-text font-bold text-white">Enviar Comprobante</span>
+                    <span className="label-text font-bold text-[var(--color-text-muted)]">Enviar Comprobante</span>
                     <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Se enviará el PDF automáticamente al cliente</p>
                   </div>
                 </label>
@@ -667,7 +667,7 @@ export default function Checkout() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Cliente</p>
-                    <p className="text-sm font-bold text-white truncate">{selectedClient.name}</p>
+                    <p className="text-sm font-bold text-primary truncate">{selectedClient.name}</p>
                     {selectedClient.email && (
                       <p className="text-xs text-[var(--color-text-muted)] truncate">{selectedClient.email}</p>
                     )}
