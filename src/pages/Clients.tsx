@@ -143,6 +143,7 @@ export default function Clients() {
   }, []);
 
   const handleSelectClient = useCallback((client: Client) => {
+    console.log('[Clients] Selecting client:', client);
     setSelectedClient(client);
   }, [setSelectedClient]);
 

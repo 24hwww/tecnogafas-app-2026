@@ -199,8 +199,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
           {/* Mobile brand */}
           <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 lg:hidden flex-1 min-w-0">
-            <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center text-primary-content font-bold text-xs">T</div>
-            <span className="text-sm font-bold tracking-tight text-primary truncate">TECNOGAFAS</span>
+            <span className="text-sm font-bold tracking-tight text-base-content truncate">Tecnogafas</span>
           </button>
 
           <div className="flex-1 lg:flex-none" />

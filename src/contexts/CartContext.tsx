@@ -39,21 +39,113 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadFromDexie = async () => {
       try {
+        console.log('[CartContext] Starting data load from Dexie...');
         const { appDB } = await import('../stores/appDatabase');
+        
+        console.log('[CartContext] Database loaded, version:', appDB.verno);
+        
+        // Load cart items
         const cartItems = await appDB.cart.toArray();
-        if (cartItems.length > 0) setCart(cartItems);
+        console.log('[CartContext] Found cart items:', cartItems.length);
+        if (cartItems.length > 0) {
+          setCart(cartItems);
+          console.log('[CartContext] Cart loaded:', cartItems);
+        }
 
-        // Load selected client - use limit(1) since there should only be one
-        const selectedClients = await appDB.selectedClient.limit(1).toArray();
-        if (selectedClients.length > 0) setSelectedClient(selectedClients[0]);
+        // Load selected client - try localStorage first, then Dexie
+        console.log('[CartContext] Loading selected client...');
+        
+        let clientLoaded = false;
+        
+        // Approach 1: Try localStorage first (most reliable)
+        try {
+          const localStorageClient = localStorage.getItem('selectedClient');
+          if (localStorageClient) {
+            const parsedClient = JSON.parse(localStorageClient);
+            console.log('[CartContext] Client loaded from localStorage:', parsedClient);
+            setSelectedClient(parsedClient);
+            clientLoaded = true;
+            console.log('[CartContext] Client loaded successfully from localStorage');
+          } else {
+            console.log('[CartContext] No client found in localStorage');
+          }
+        } catch (localStorageError) {
+          console.warn('[CartContext] localStorage read failed:', localStorageError);
+        }
+        
+        // Approach 2: If localStorage failed, try Dexie
+        if (!clientLoaded) {
+          try {
+            let selectedClients = await appDB.selectedClient.filter(client => client.isSelected).toArray();
+            console.log('[CartContext] Dexie Approach 1 - Filter by isSelected:', selectedClients.length);
+            
+            // If no results, try where clause
+            if (selectedClients.length === 0) {
+              selectedClients = await appDB.selectedClient.where('isSelected').equals('true').toArray();
+              console.log('[CartContext] Dexie Approach 2 - Where clause:', selectedClients.length);
+            }
+            
+            // If still no results, check all records
+            if (selectedClients.length === 0) {
+              const allClients = await appDB.selectedClient.toArray();
+              console.log('[CartContext] Dexie Approach 3 - All records:', allClients);
+              
+              selectedClients = allClients.filter(client => {
+                const hasFlag = client.isSelected === true || client.isSelected === 'true';
+                return hasFlag;
+              });
+              console.log('[CartContext] Dexie Approach 3 - Manual filter results:', selectedClients.length);
+            }
+            
+            if (selectedClients.length > 0) {
+              const selectedClientRecord = selectedClients[0];
+              console.log('[CartContext] Loading client from Dexie:', selectedClientRecord);
+              setSelectedClient({
+                id: selectedClientRecord.id,
+                name: selectedClientRecord.name,
+                email: selectedClientRecord.email,
+                phone: selectedClientRecord.phone,
+                address: selectedClientRecord.address || '',
+                billing_city: selectedClientRecord.billing_city || '',
+                billing_state: selectedClientRecord.billing_state || '',
+                cuit: selectedClientRecord.cuit || ''
+              });
+              clientLoaded = true;
+              console.log('[CartContext] Client loaded successfully from Dexie');
+              
+              // Sync back to localStorage for future loads
+              localStorage.setItem('selectedClient', JSON.stringify(selectedClientRecord));
+              console.log('[CartContext] Synced client back to localStorage');
+            } else {
+              console.log('[CartContext] No selected client found in Dexie after all approaches');
+            }
+          } catch (dexieError) {
+            console.warn('[CartContext] Dexie read failed:', dexieError);
+          }
+        }
+        
+        if (!clientLoaded) {
+          console.log('[CartContext] No client loaded from any source');
+        }
 
+        // Load drafts
         const draftItems = await appDB.drafts.toArray();
-        if (draftItems.length > 0) setDrafts(draftItems);
+        if (draftItems.length > 0) {
+          setDrafts(draftItems);
+          console.log('[CartContext] Drafts loaded:', draftItems.length);
+        }
 
+        // Load shared carts
         const sharedCartItems = await appDB.sharedCarts.toArray();
-        if (sharedCartItems.length > 0) setSharedCarts(sharedCartItems);
+        if (sharedCartItems.length > 0) {
+          setSharedCarts(sharedCartItems);
+          console.log('[CartContext] Shared carts loaded:', sharedCartItems.length);
+        }
+        
+        console.log('[CartContext] Data load completed');
       } catch (e) {
-        console.error('Error loading data from Dexie:', e);
+        console.error('[CartContext] Error loading data from Dexie:', e);
+        console.error('[CartContext] Error details:', e.stack);
       }
     };
     loadFromDexie();
@@ -75,11 +167,35 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const saveClientToDexie = async () => {
       try {
-        const { appDB } = await import('../stores/appDatabase');
-        await appDB.selectedClient.clear();
-        if (selectedClient) await appDB.selectedClient.put(selectedClient, selectedClient.id);
+        // Save to localStorage as primary backup
+        if (selectedClient) {
+          localStorage.setItem('selectedClient', JSON.stringify(selectedClient));
+          console.log('[CartContext] Client saved to localStorage:', selectedClient.name);
+        } else {
+          localStorage.removeItem('selectedClient');
+          console.log('[CartContext] Client removed from localStorage');
+        }
+
+        // Also try to save to Dexie as secondary storage
+        try {
+          const { appDB } = await import('../stores/appDatabase');
+          await appDB.selectedClient.clear();
+          if (selectedClient) {
+            // Store the selected client with their actual ID
+            // Add a flag to identify this as the selected client
+            const clientWithFlag = {
+              ...selectedClient,
+              isSelected: true, // Flag to identify this as the selected client
+              timestamp: Date.now() // Add timestamp for debugging
+            };
+            await appDB.selectedClient.add(clientWithFlag);
+            console.log('[CartContext] Client also saved to Dexie:', clientWithFlag);
+          }
+        } catch (dexieError) {
+          console.warn('[CartContext] Dexie save failed, but localStorage worked:', dexieError);
+        }
       } catch (e) {
-        console.error('Error saving selected client to Dexie:', e);
+        console.error('[CartContext] Error saving selected client:', e);
       }
     };
     saveClientToDexie();
@@ -286,7 +402,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCart,
         setDrafts,
         setSharedCarts,
-        setSelectedClient,
+        setSelectedClient: (client) => {
+      console.log('[CartContext] setSelectedClient called with:', client);
+      setSelectedClient(client);
+    },
         addToCart,
         removeFromCart,
         updateCartQuantity,

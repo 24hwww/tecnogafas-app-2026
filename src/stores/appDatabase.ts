@@ -60,7 +60,7 @@ export class AppDatabase extends Dexie {
   constructor() {
     super('TecnoAppDB');
 
-    this.version(3).stores({
+    this.version(4).stores({
       // Perfiles: indexados por id y username
       profiles: 'id, username, status, last_seen_at',
 
@@ -99,7 +99,7 @@ export class AppDatabase extends Dexie {
       cart: 'id, name, price, quantity, category',
 
       // Cliente seleccionado: información del cliente actual
-      selectedClient: 'id, name, email, phone',
+      selectedClient: 'id, name, email, phone, address, billing_city, billing_state, cuit, isSelected',
 
       // App principal Data (Core)
       products: 'id, category, name',

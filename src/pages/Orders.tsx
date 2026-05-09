@@ -56,10 +56,11 @@ interface OrderCardProps {
   getOrderNumber: (title: string) => string | null;
   getSellerName: (id: string | number) => string;
   onViewDetails: (order: Order) => void;
+  translateStatus: (status: string) => string;
 }
 
-const OrderCard = memo(({ order, isHighlight, sellers, getOrderNumber, getSellerName, onViewDetails }: OrderCardProps) => {
-  const isPending = order.status.toLowerCase().includes('pend');
+const OrderCard = memo(({ order, isHighlight, sellers, getOrderNumber, getSellerName, onViewDetails, translateStatus }: OrderCardProps) => {
+  const isPending = order.status.toLowerCase() === 'unattended';
   
   return (
     <motion.div
@@ -83,7 +84,7 @@ const OrderCard = memo(({ order, isHighlight, sellers, getOrderNumber, getSeller
                  "text-[10px] font-bold px-2 py-0.5 rounded-full tracking-widest",
                  isPending ? "bg-primary/10 text-primary" : "bg-success/20 text-primary"
               )}>
-                 {order.status}
+                 {translateStatus(order.status)}
               </span>
            </div>
            <h4 className="text-lg font-black truncate">{order.clientName}</h4>
@@ -148,6 +149,17 @@ export default function Orders() {
     return match ? match[1] : null;
   }, []);
 
+  const translateStatus = useCallback((status: string) => {
+    switch (status.toLowerCase()) {
+      case 'unattended':
+        return 'Pendiente';
+      case 'attended':
+        return 'Confirmado';
+      default:
+        return status;
+    }
+  }, []);
+
   const filteredOrders = useMemo(() => orders.filter((order) => {
     const matchesSearch =
       order.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -202,7 +214,7 @@ export default function Orders() {
         if (!res.success) throw new Error(res.message || 'Error al enviar email');
         alert('Email enviado correctamente');
       } else if (actionType === 'status') {
-        const newStatus = selectedOrder.status === 'Pendiente' ? 'Atendido' : 'Pendiente';
+        const newStatus = selectedOrder.status === 'unattended' ? 'attended' : 'unattended';
         const res = await apiService.updateOrderStatus(
           selectedOrder.id.toString(),
           newStatus,
@@ -356,6 +368,7 @@ export default function Orders() {
                     getOrderNumber={getOrderNumber}
                     getSellerName={getSellerName}
                     onViewDetails={setSelectedOrder}
+                    translateStatus={translateStatus}
                   />
                 );
               })}
@@ -409,8 +422,8 @@ export default function Orders() {
                               <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Estado</p>
                               <span className={cn(
                                  "badge badge-sm font-bold tracking-widest",
-                                 selectedOrder.status.toLowerCase().includes('pend') ? "badge-success/10" : "badge-primary"
-                              )}>{selectedOrder.status}</span>
+                                 selectedOrder.status.toLowerCase() === 'unattended' ? "badge-success/10" : "badge-primary"
+                              )}>{translateStatus(selectedOrder.status)}</span>
                            </div>
                         </div>
                      </div>
@@ -491,7 +504,7 @@ export default function Orders() {
                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <button onClick={() => handleActionClick('status')} className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20">
                          <CheckCircle2 size={20} />
-                         <span className="text-[10px] font-bold uppercase tracking-widest">{selectedOrder.status === 'Pendiente' ? 'Atendido' : 'Pendiente'}</span>
+                         <span className="text-[10px] font-bold uppercase tracking-widest">{selectedOrder.status === 'unattended' ? 'Confirmado' : 'Pendiente'}</span>
                       </button>
                       <button onClick={() => handleActionClick('email')} className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20">
                          <Mail size={20} />
