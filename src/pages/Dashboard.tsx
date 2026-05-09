@@ -74,7 +74,9 @@ function OrdersSkeleton() {
 export default function Dashboard() {
   const { products, clients, sellers, refreshData, clearAllCaches, isLoading, appVersionInfo } =
     useApp();
-  const { grandTotalOrders, dashboardOrders } = useOrders();
+  const { grandTotalOrders } = useOrders();
+  const [dashboardOrders, setDashboardOrders] = useState<Order[]>([]);
+  const [isLoadingRecentOrders, setIsLoadingRecentOrders] = useState(false);
   const { drafts } = useCart();
   const navigate = useNavigate();
   const [hasCache, setHasCache] = useState(false);
@@ -127,6 +129,24 @@ export default function Dashboard() {
     }
   };
 
+  // Load recent orders function - always from API
+  const loadRecentOrders = async () => {
+    try {
+      setIsLoadingRecentOrders(true);
+      const { apiService } = await import('../services/apiService');
+      const orders = await apiService.getRecentOrders();
+      setDashboardOrders(orders);
+      console.log(
+        '[Dashboard] Pedidos recientes actualizados desde API:',
+        new Date().toLocaleTimeString('es-AR'),
+      );
+    } catch (error) {
+      console.error('Error loading recent orders:', error);
+    } finally {
+      setIsLoadingRecentOrders(false);
+    }
+  };
+
   useEffect(() => {
     const checkCache = async () => {
       try {
@@ -140,11 +160,13 @@ export default function Dashboard() {
 
     // Initial load
     loadServerStats();
+    loadRecentOrders();
 
     // Set up automatic refresh every 5 minutes
     const interval = setInterval(
       () => {
         loadServerStats();
+        loadRecentOrders();
       },
       5 * 60 * 1000,
     ); // 5 minutes
@@ -240,6 +262,7 @@ export default function Dashboard() {
             onClick={async () => {
               await refreshData();
               await loadServerStats(true);
+              await loadRecentOrders();
             }}
             disabled={isLoading || isRefreshingStats}
             title="Sincronizar datos y estadísticas"
@@ -379,7 +402,7 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {isLoading ? (
+        {isLoadingRecentOrders ? (
           <OrdersSkeleton />
         ) : dashboardOrders.length === 0 ? (
           <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] text-center py-12 px-4">

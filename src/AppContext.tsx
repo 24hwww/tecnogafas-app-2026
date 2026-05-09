@@ -40,7 +40,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setOrders,
     setTotalOrders,
     setGrandTotalOrders,
-    setDashboardOrders,
     setPendingOrdersCount,
   } = useOrders();
 
@@ -60,7 +59,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setOrders,
     setTotalOrders,
     setGrandTotalOrders,
-    setDashboardOrders,
     setSellers,
     setAppVersionInfo,
     setCurrentAppVersion,

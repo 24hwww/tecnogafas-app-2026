@@ -319,6 +319,64 @@ export const apiService = {
     return { orders, total: json.total || orders.length };
   },
 
+  async getRecentOrders(sellerId?: number | string): Promise<Order[]> {
+    let url = `${BASE_URL}/pedidos?page=1&per_page=5`;
+    if (sellerId) url += `&seller_id=${sellerId}`;
+
+    const headers = sellerId ? { Authorization: `Bearer ${sellerId}` } : {};
+
+    const res = await customFetch(url, { headers });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const json = (await res.json()) as { data?: ApiOrder[] };
+    
+    const orders = (json.data || []).map((o) => {
+      let clientName = 'Sin cliente';
+      if (o.customer) {
+        if (o.customer.display_name) {
+          clientName = o.customer.display_name;
+        } else if (o.customer.first_name || o.customer.last_name) {
+          clientName = `${o.customer.first_name || ''} ${o.customer.last_name || ''}`.trim();
+        }
+      } else if (o.post_title) {
+        // Fallback para cuando el endpoint es público y no devuelve el objeto customer
+        clientName = o.post_title;
+      }
+
+      return {
+        id: o.ID?.toString() || Math.random().toString(),
+        clientId: o.customer_id?.toString() || '',
+        clientName,
+        items: (o.items || []).map((i) => ({
+          productId: i.product_id?.toString() || '',
+          productName: i.name || '',
+          quantity: i.quantity || 0,
+          price: i.price || 0,
+          vid: i.vid?.toString(),
+        })),
+        total: o.order_total ? parseFloat(o.order_total.toString()) : 0,
+        status: (o.post_status === 'unattended' ? 'unattended' : 'attended') as Order['status'],
+        createdAt: o.post_date || '',
+        sellerId: o.post_author?.toString() || '',
+        sellerName: o.seller_name,
+        rawData: {
+          ...o,
+          customer_note:
+            o.observaciones || o.customer_note || (o as ApiOrder & { notes?: string }).notes || '',
+        },
+      };
+    });
+
+    // Ordenar por ID descendente para asegurar los más recientes primero
+    return orders.sort((a, b) => {
+      const idA = parseInt(a.id);
+      const idB = parseInt(b.id);
+      if (isNaN(idA) || isNaN(idB)) {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      return idB - idA;
+    });
+  },
+
   async verifyProducts(
     products: { product_id: number; variation_id?: number; price: number; stock: number }[],
     sellerId?: string,
@@ -908,14 +966,19 @@ export const apiService = {
     };
   },
 
-  async downloadOrderPdf(orderId: number): Promise<Blob | false> {
-    const sellerId = localStorage.getItem('seller_id');
+  async downloadOrderPdf(orderId: number, sellerId: string): Promise<Blob | false> {
     try {
       const res = await customFetch(`${BASE_URL}/pedido/${orderId}/pdf`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${sellerId}` },
       });
-      if (!res.ok) return false;
+      if (!res.ok) {
+        // Handle 404 specifically for missing endpoints
+        if (res.status === 404) {
+          console.warn('PDF download endpoint not available for order:', orderId);
+        }
+        return false;
+      }
       return await res.blob();
     } catch {
       return false;
@@ -946,7 +1009,7 @@ export const apiService = {
   async sendOrderEmail(
     orderId: string,
     sellerId: string,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{ success: boolean; message: string; pdf_url?: string }> {
     try {
       const res = await customFetch(`${BASE_URL}/pedido/${orderId}/enviar`, {
         method: 'POST',
@@ -961,20 +1024,36 @@ export const apiService = {
         data = { message: text || 'Error desconocido' };
       }
 
-      if (!res.ok)
+      if (!res.ok) {
+        // Handle 404 specifically for missing endpoints
+        if (res.status === 404) {
+          return {
+            success: false,
+            message: 'Función de envío de email no disponible temporalmente. Contacte al administrador.',
+          };
+        }
         return {
           success: false,
           message: data.message || `Error al enviar email (Status: ${res.status})`,
         };
+      }
 
       let msg = data.message || 'Email enviado exitosamente';
       if (data.recipients && Array.isArray(data.recipients)) {
         msg += ` a: ${data.recipients.join(', ')}`;
       }
 
-      return { success: true, message: msg };
-    } catch {
-      return { success: false, message: 'Error de conexión' };
+      return {
+        success: true,
+        message: msg,
+        pdf_url: data.pdf_url, // Include pdf_url if available
+      };
+    } catch (error) {
+      console.error('Error sending order email:', error);
+      return {
+        success: false,
+        message: 'Error de conexión al enviar email',
+      };
     }
   },
 

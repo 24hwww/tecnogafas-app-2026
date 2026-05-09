@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { apiService } from '../../services/apiService';
 import { appDB } from '../../stores/appDatabase';
-import type { Client, Order, Product, Seller } from '../../types';
+import type { ApiOrder, Client, Order, Product, Seller } from '../../types';
 
 export function useDataSync(
   globalPin: string | null,
@@ -10,9 +10,8 @@ export function useDataSync(
   setOrders: (o: Order[]) => void,
   setTotalOrders: (t: number) => void,
   setGrandTotalOrders: (t: number) => void,
-  setDashboardOrders: (o: Order[]) => void,
   setSellers: (s: Seller[]) => void,
-  setAppVersionInfo: (v: any) => void,
+  setAppVersionInfo: (v: unknown) => void,
   setCurrentAppVersion: (v: string | null) => void,
   setHasNewVersion: (h: boolean) => void,
   setIsLoading: (l: boolean) => void,
@@ -84,7 +83,6 @@ export function useDataSync(
           setOrders(sortedOrders);
           setTotalOrders(oRes.value.total);
           ordersCountFallback = oRes.value.total;
-          setDashboardOrders(sortedOrders.slice(0, 5));
 
           // Extraer vendedores de los pedidos
           const uniqueSellersMap = new Map<string, string>();
@@ -102,7 +100,10 @@ export function useDataSync(
             .then(() => appDB.sellers.bulkPut(extractedSellers))
             .catch(console.warn);
 
-          const cachedOrders = sortedOrders.map(({ rawData, ...rest }: any) => rest);
+          const cachedOrders = sortedOrders.map((order) => ({
+          ...order,
+          rawData: order.rawData || {} as ApiOrder,
+        }));
           appDB.orders
             .clear()
             .then(() => appDB.orders.bulkPut(cachedOrders))
@@ -116,7 +117,6 @@ export function useDataSync(
               setOrders(cached);
               setTotalOrders(cached.length);
               ordersCountFallback = cached.length;
-              setDashboardOrders(cached.slice(0, 5));
 
               // Extraer vendedores de la caché de pedidos
               const uniqueSellersMap = new Map<string, string>();
@@ -142,7 +142,7 @@ export function useDataSync(
 
         // 5. Estadísticas
         if (statsRes.status === 'fulfilled') {
-          setGrandTotalOrders(statsRes.value.data.total_orders);
+          setGrandTotalOrders(statsRes.value.data.total_pedidos);
         } else {
           // No marcamos hasErrors para estadísticas ya que es secundario
           console.warn('Stats endpoint not available (404), using fallback');
@@ -164,11 +164,7 @@ export function useDataSync(
       setOrders,
       setTotalOrders,
       setGrandTotalOrders,
-      setDashboardOrders,
       setSellers,
-      setAppVersionInfo,
-      setCurrentAppVersion,
-      setHasNewVersion,
       setIsLoading,
       setConnectionStatus,
     ],

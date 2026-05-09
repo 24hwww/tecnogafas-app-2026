@@ -60,6 +60,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
         },
+        '/pedido': {
+          target: 'https://api.tecnogafas.com.ar',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/pedido/, ''),
+        },
       },
     },
   };

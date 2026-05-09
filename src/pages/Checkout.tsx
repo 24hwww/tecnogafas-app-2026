@@ -945,7 +945,7 @@ export default function Checkout() {
                         : 'bg-primary text-primary-foreground hover:bg-primary/90'
                     }`}
                   >
-                    {orderFeedback.type === 'success' ? 'Continuar Vendiendo' : 'Ver Pedidos'}
+                    {orderFeedback.type === 'success' ? 'Cerrar' : 'Ver Pedidos'}
                   </motion.button>
                 </div>
               </div>

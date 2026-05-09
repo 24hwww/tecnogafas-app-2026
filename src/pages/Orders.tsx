@@ -238,16 +238,24 @@ export default function Orders() {
       setPinModalOpen(false);
 
       if (actionType === 'pdf') {
-        const res = await apiService.sendOrderEmail(selectedOrder.id.toString(), seller.id);
-        if (res.success && res.pdf_url) {
-          window.open(res.pdf_url, '_blank');
+        const pdfBlob = await apiService.downloadOrderPdf(selectedOrder.id, seller.id);
+        if (pdfBlob) {
+          const url = window.URL.createObjectURL(pdfBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `pedido-${selectedOrder.id}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          setActionFeedback({ message: 'PDF descargado correctamente', type: 'success' });
         } else {
-          throw new Error(res.message || 'Error al generar PDF');
+          throw new Error('Error al descargar PDF. El endpoint puede no estar disponible temporalmente.');
         }
       } else if (actionType === 'email') {
         const res = await apiService.sendOrderEmail(selectedOrder.id.toString(), seller.id);
         if (!res.success) throw new Error(res.message || 'Error al enviar email');
-        alert('Email enviado correctamente');
+        setActionFeedback({ message: 'Email enviado correctamente', type: 'success' });
       } else if (actionType === 'status') {
         const newStatus = selectedOrder.status === 'unattended' ? 'attended' : 'unattended';
         const res = await apiService.updateOrderStatus(
