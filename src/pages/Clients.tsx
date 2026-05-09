@@ -8,12 +8,13 @@ import {
   MapPinned,
   Phone,
   Search,
+  ShoppingCart,
   UserPlus,
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type React from 'react';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { PullToRefresh } from '../components/PullToRefresh';
@@ -79,15 +80,32 @@ const ClientCard = memo(({ client, isSelected, onSelectClient, onEditClient }: C
 ClientCard.displayName = 'ClientCard';
 
 export default function Clients() {
-  const { clients, refreshData, isLoading } = useApp();
+  const { clients, isLoading, refreshData } = useApp();
   const { selectedClient, setSelectedClient } = useCart();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState<'default' | 'name'>('default');
+  const [showForm, setShowForm] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<Partial<Client> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Show toast when client is selected
+  useEffect(() => {
+    if (selectedClient) {
+      setToastMessage(`Cliente seleccionado: ${selectedClient.name}`);
+      setShowToast(true);
+      
+      // Auto-hide toast after 3 seconds
+      const timer = setTimeout(() => {
+        setShowToast(false);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [selectedClient]);
 
   const filteredClients = useMemo(() => {
     const filtered = clients.filter(
@@ -96,13 +114,8 @@ export default function Clients() {
         c.email.toLowerCase().includes(search.toLowerCase()),
     );
 
-    // Apply sorting
-    if (sortBy === 'name') {
-      filtered.sort((a, b) => a.name.localeCompare(b.name));
-    }
-
     return filtered;
-  }, [clients, search, sortBy]);
+  }, [clients, search]);
 
   const handleSaveClient = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -152,10 +165,10 @@ export default function Clients() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowFilters(!showFilters)}
+              onClick={() => setShowForm(!showForm)}
               className={cn(
                 'btn btn-ghost rounded-2xl gap-2 h-12 bg-[var(--color-surface-800)] border border-[var(--color-border)] px-6',
-                showFilters && 'text-primary border-primary/30 bg-primary/5',
+                showForm && 'text-primary border-primary/30 bg-primary/5',
               )}
             >
               <Filter size={18} /> <span>Filtros</span>
@@ -203,7 +216,7 @@ export default function Clients() {
         </div>
 
         {/* Filter Panel */}
-        {showFilters && (
+        {showForm && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -215,10 +228,10 @@ export default function Clients() {
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => setSortBy('default')}
+                  onClick={() => setActiveFilters((prev) => [...prev, 'default'])}
                   className={cn(
                     'btn btn-sm rounded-xl h-10 justify-between border border-[var(--color-border)]',
-                    sortBy === 'default'
+                    activeFilters.includes('default')
                       ? 'btn-primary'
                       : 'btn-ghost bg-[var(--color-surface-800)]',
                   )}
@@ -226,10 +239,10 @@ export default function Clients() {
                   <span>Defecto</span>
                 </button>
                 <button
-                  onClick={() => setSortBy('name')}
+                  onClick={() => setActiveFilters((prev) => [...prev, 'name'])}
                   className={cn(
                     'btn btn-sm rounded-xl h-10 justify-between border border-[var(--color-border)]',
-                    sortBy === 'name' ? 'btn-primary' : 'btn-ghost bg-[var(--color-surface-800)]',
+                    activeFilters.includes('name') ? 'btn-primary' : 'btn-ghost bg-[var(--color-surface-800)]',
                   )}
                 >
                   <span>A-Z</span>
@@ -256,33 +269,28 @@ export default function Clients() {
               ))}
         </div>
 
-        {/* Selected Client Sticky Bar */}
-        {selectedClient && (
-          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-lg bg-primary text-primary-content p-3 flex justify-between items-center shadow-xl rounded-2xl z-40">
-            <div className="flex-1 min-w-0">
-              <span className="text-[10px] uppercase font-bold opacity-70 animate-pulse">
-                Cliente para pedido
-              </span>
-              <p className="text-sm font-bold truncate">{selectedClient.name}</p>
+        {/* DaisyUI Toast for Client Selection */}
+        <AnimatePresence>
+          {showToast && (
+            <div className="toast toast-top toast-center z-50">
+              <div className="alert alert-success shadow-lg min-w-[300px] max-w-[90vw]">
+                <div className="flex items-center gap-3">
+                  <ShoppingCart size={20} />
+                  <div>
+                    <div className="font-bold">{toastMessage}</div>
+                    <div className="text-xs opacity-80">Puedes continuar con tu pedido</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowToast(false)}
+                  className="btn btn-ghost btn-sm btn-square"
+                >
+                  <X size={14} />
+                </button>
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => navigate('/carrito')}
-                className="btn btn-sm btn-neutral"
-              >
-                Ver Carrito
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedClient(null)}
-                className="text-[10px] font-bold opacity-70 uppercase text-center hover:opacity-100"
-              >
-                Quitar
-              </button>
-            </div>
-          </div>
-        )}
+          )}
+        </AnimatePresence>
 
         {/* Add/Edit Modal */}
         <AnimatePresence>

@@ -99,9 +99,21 @@ export default function Products() {
   const [variationModalProduct, setVariationModalProduct] = useState<Product | null>(null);
   const [variationQuantities, setVariationQuantities] = useState<Record<string, number>>({});
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastProductName, setToastProductName] = useState('');
 
-  const triggerAddedAnimation = useCallback((id: string) => {
+  const triggerAddedAnimation = useCallback((id: string, productName: string = '') => {
     setAddedProductId(id);
+    setToastProductName(productName);
+    setToastMessage(`${productName} agregado al carrito`);
+    setShowToast(true);
+    
+    // Auto-hide toast after 2 seconds
+    setTimeout(() => {
+      setShowToast(false);
+    }, 2000);
+    
     setTimeout(() => setAddedProductId(null), 1000);
   }, []);
 
@@ -113,7 +125,7 @@ export default function Products() {
         const match = part.match(/Termino:([^|]+)/);
         return match ? match[1] : '';
       })
-      .filter((t) => t !== '');
+      .filter((t): t is string => t !== '');
   };
 
   const productFiltrosMap = useMemo(() => {
@@ -202,7 +214,7 @@ export default function Products() {
       anyAdded = true;
       if (vid === 'base') {
         addToCart(variationModalProduct, quantity);
-        triggerAddedAnimation(variationModalProduct.id);
+        triggerAddedAnimation(variationModalProduct.id, variationModalProduct.name);
       } else {
         const variation = variationModalProduct.variations?.find((v) => v.vid === vid);
         if (variation) {
@@ -215,7 +227,7 @@ export default function Products() {
             vid: variation.vid,
           };
           addToCart(productToAdd, quantity);
-          triggerAddedAnimation(productToAdd.id);
+          triggerAddedAnimation(productToAdd.id, productToAdd.name);
         }
       }
     });
@@ -579,6 +591,29 @@ export default function Products() {
                   </button>
                 </div>
               </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* DaisyUI Toast for Product Added */}
+        <AnimatePresence>
+          {showToast && (
+            <div className="toast toast-top toast-center z-50">
+              <div className="alert alert-success shadow-lg min-w-[300px] max-w-[90vw]">
+                <div className="flex items-center gap-3">
+                  <ShoppingCart size={20} />
+                  <div>
+                    <div className="font-bold">{toastMessage}</div>
+                    <div className="text-xs opacity-80">Producto agregado exitosamente</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowToast(false)}
+                  className="btn btn-ghost btn-sm btn-square"
+                >
+                  <X size={14} />
+                </button>
+              </div>
             </div>
           )}
         </AnimatePresence>
