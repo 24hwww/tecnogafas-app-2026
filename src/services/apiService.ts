@@ -1167,49 +1167,6 @@ export const apiService = {
   // SUPABASE AUTH BRIDGE
   // ============================================================================
 
-  async syncSupabaseAuth(pin: string) {
-    if (!pin) return { error: 'PIN requerido' };
-
-    const { supabase } = await import('../modules/chat/lib/supabase');
-    const email = `vendedor+${pin}@tecnogafas.com.ar`;
-    const password = `tg_${pin}_secure`; // Password derivado del PIN
-
-    // 1. Intentar Login
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (!signInError) {
-      console.log('✅ Supabase Auth sincronizado para:', email);
-      return { session: signInData.session, user: signInData.user };
-    }
-
-    // 2. Si el usuario no existe (Error 400 - Invalid login credentials), intentar SignUp
-    // Esto es útil para desarrollo y auto-provisión de vendedores.
-    if (signInError.status === 400 || signInError.message.includes('Invalid login credentials')) {
-      console.log('👷 Usuario no existe, intentando auto-registro...');
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            display_name: `Vendedor ${pin}`,
-            pin: pin,
-          },
-        },
-      });
-
-      if (signUpError) {
-        console.error('❌ Error en auto-registro Supabase:', signUpError.message);
-        return { error: signUpError.message };
-      }
-
-      console.log('✅ Usuario Supabase creado y sincronizado:', email);
-      return { session: signUpData.session, user: signUpData.user };
-    }
-
-    console.error('❌ Error sincronizando Supabase Auth:', signInError.message);
-    return { error: signInError.message };
-  },
+  // NOTE: Supabase authentication moved to unifiedAuthService.ts
+  // This method is deprecated - use unifiedAuthService.authenticateWithPin() instead
 };

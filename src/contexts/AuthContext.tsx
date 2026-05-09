@@ -1,5 +1,5 @@
 import React, { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
-import { apiService } from '../services/apiService';
+import { unifiedAuthService } from '../services/unifiedAuthService';
 import type { Seller, SupabaseUser } from '../types';
 
 interface AuthContextType {
@@ -19,13 +19,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const savedPin = localStorage.getItem('tecnogafas_pin');
-    if (savedPin) {
-      setGlobalPinState(savedPin);
-      apiService.syncSupabaseAuth(savedPin);
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type: 'START_POLLING', pin: savedPin });
+    
+    const initAuth = async () => {
+      if (savedPin) {
+        setGlobalPinState(savedPin);
+        try {
+          const authResult = await unifiedAuthService.authenticateWithPin(savedPin);
+          if (authResult.success) {
+            setCurrentSeller(authResult.seller || null);
+            setSupabaseUser(authResult.supabaseUser || null);
+          }
+        } catch (err) {
+          console.error('Error initializing auth:', err);
+        }
+        
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'START_POLLING', pin: savedPin });
+        }
       }
-    }
+    };
+
+    initAuth();
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -46,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    let authSubscription: any = null;
+    let authSubscription: { unsubscribe: () => void } | null = null;
 
     const initAuth = async () => {
       const { supabase } = await import('../modules/chat/lib/supabase');
@@ -76,9 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (pin) {
       localStorage.setItem('tecnogafas_pin', pin);
       try {
-        await apiService.syncSupabaseAuth(pin);
+        const authResult = await unifiedAuthService.authenticateWithPin(pin);
+        if (authResult.success) {
+          setCurrentSeller(authResult.seller || null);
+          setSupabaseUser(authResult.supabaseUser || null);
+        }
       } catch (err) {
-        console.error('Error in Supabase Auth sync:', err);
+        console.error('Error in unified authentication:', err);
       }
 
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -88,11 +106,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       localStorage.removeItem('tecnogafas_pin');
       try {
-        const { supabase } = await import('../modules/chat/lib/supabase');
-        await supabase.auth.signOut();
+        await unifiedAuthService.unlinkAccount();
         setSupabaseUser(null);
+        setCurrentSeller(null);
       } catch (err) {
-        console.error('Error signing out from Supabase:', err);
+        console.error('Error unlinking account:', err);
       }
 
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {

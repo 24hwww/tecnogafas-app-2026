@@ -54,12 +54,17 @@ export default function Settings() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (globalPin && window.confirm('¿Estás seguro de que deseas desvincular tu cuenta? Esto desactivará la sincronización y las notificaciones.')) {
-      setGlobalPin(null);
-      setPinInput('');
-      kodular.send('SELLER_LOGOUT', { timestamp: Date.now() });
-      alert('Cuenta desvinculada correctamente. Sincronización desactivada.');
+      try {
+        await setGlobalPin(null);
+        setPinInput('');
+        kodular.send('SELLER_LOGOUT', { timestamp: Date.now() });
+        alert('Cuenta desvinculada correctamente de backend y Supabase. Sincronización desactivada.');
+      } catch (error) {
+        console.error('Error desvinculando cuenta:', error);
+        alert('Error al desvincular cuenta. Por favor intenta nuevamente.');
+      }
     }
   };
 

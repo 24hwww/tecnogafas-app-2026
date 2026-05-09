@@ -35,7 +35,7 @@ const ClientCard = memo(({ client, isSelected, onSelectClient, onEditClient }: C
   <div
     key={client.id}
     className={cn(
-      'card bg-white shadow-sm border-2 p-4 transition-all',
+      'card bg-base-100 shadow-sm border-2 p-4 transition-all',
       isSelected ? 'border-primary bg-primary/5 shadow-md' : 'border-base-300/40',
     )}
   >
