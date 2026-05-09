@@ -567,6 +567,7 @@ export const apiService = {
     },
     sellerId: string,
     fullClient?: Client,
+    orderTitle?: string, // Nuevo parámetro para el título del pedido
   ): Promise<{ success: boolean; message: string; orderId?: string }> {
     const url = `${BASE_URL}/pedido`;
     const headers = {
@@ -575,6 +576,7 @@ export const apiService = {
       Authorization: `Bearer ${sellerId}`,
     };
     const bodyObj = {
+      title: orderTitle, // Título con formato estándar
       client_id: parseInt(clientId),
       notes: details.commit,
       discount: details.discount ? details.discount.toString() : '0',

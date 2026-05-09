@@ -136,3 +136,31 @@ export function getRelativeTime(date: string | Date | null | undefined) {
     month: '2-digit',
   });
 }
+
+/**
+ * Genera el título de un pedido con el formato estándar
+ * Formato: "Pedido: #[secuencia] – DD/MM/YYYY HH:MM PM/AM"
+ * @param sequenceNumber Número de secuencia del pedido
+ * @param date Fecha del pedido (opcional, usa fecha actual si no se proporciona)
+ * @returns Título formateado del pedido
+ */
+export function generateOrderTitle(sequenceNumber: number, date?: Date | string): string {
+  const orderDate = date ? (typeof date === 'string' ? new Date(date) : date) : new Date();
+  
+  // Formatear fecha y hora en zona horaria de Buenos Aires
+  const dateStr = orderDate.toLocaleDateString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+  
+  const timeStr = orderDate.toLocaleTimeString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+  
+  return `Pedido: #${sequenceNumber} – ${dateStr} ${timeStr}`;
+}
