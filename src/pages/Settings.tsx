@@ -3,6 +3,7 @@ import {
   Eye,
   EyeOff,
   Key,
+  LogOut,
   Moon,
   Palette,
   RefreshCw,
@@ -53,6 +54,15 @@ export default function Settings() {
     }
   };
 
+  const handleLogout = () => {
+    if (globalPin && window.confirm('¿Estás seguro de que deseas desvincular tu cuenta? Esto desactivará la sincronización y las notificaciones.')) {
+      setGlobalPin(null);
+      setPinInput('');
+      kodular.send('SELLER_LOGOUT', { timestamp: Date.now() });
+      alert('Cuenta desvinculada correctamente. Sincronización desactivada.');
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fade-in pb-10">
       <h2 id="settings-title" className="text-2xl font-bold flex items-center gap-3">
@@ -100,12 +110,23 @@ export default function Settings() {
                 </button>
               </div>
               {globalPin && (
-                <div className="alert alert-success py-2">
-                  <RefreshCw size={14} className="animate-spin" />
-                  <span className="text-xs font-semibold">
-                    Sincronización en tiempo real activa
-                  </span>
-                </div>
+                <>
+                  <div className="alert alert-success py-2">
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span className="text-xs font-semibold">
+                      Sincronización en tiempo real activa
+                    </span>
+                  </div>
+                  <button
+                    id="settings-logout-btn"
+                    type="button"
+                    onClick={handleLogout}
+                    className="btn btn-error btn-outline w-full gap-2"
+                  >
+                    <LogOut size={16} />
+                    Desvincular Cuenta
+                  </button>
+                </>
               )}
             </div>
           </div>

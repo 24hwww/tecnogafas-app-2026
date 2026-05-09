@@ -19,9 +19,11 @@ import { AnimatePresence, motion } from 'motion/react';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { useConnection } from '../contexts/ConnectionContext';
 import { useNotificationsContext } from '../contexts/NotificationsContext';
+import type { Seller } from '../types';
 import { cn, getAnimationProps } from '../lib/utils';
 import { OptimizedPageTransition } from './OptimizedPageTransition';
 
@@ -58,11 +60,15 @@ function SidebarNav({
   cartCount,
   unread,
   pathname,
+  globalPin,
+  currentSeller,
 }: {
   closeSidebar: () => void;
   cartCount: number;
   unread: number;
   pathname: string;
+  globalPin: string | null;
+  currentSeller: Seller | null;
 }) {
   return (
     <>
@@ -132,14 +138,28 @@ function SidebarNav({
       {/* Footer */}
       <div className="px-4 py-4 border-t border-[var(--color-border)]">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-            <span className="text-primary text-xs font-bold">JP</span>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            globalPin ? 'bg-primary/20' : 'bg-base-300'
+          }`}>
+            <span className={`text-xs font-bold ${
+              globalPin ? 'text-primary' : 'text-base-content/50'
+            }`}>
+              {globalPin ? (currentSeller?.name?.charAt(0) || 'V') : '?'}
+            </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold truncate">Sesión de Vendedor</p>
-            <p className="text-[10px] text-[var(--color-text-muted)] flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
-              En línea
+            <p className={`text-xs font-semibold truncate ${
+              globalPin ? 'text-base-content' : 'text-base-content/50'
+            }`}>
+              {globalPin ? (currentSeller?.name || 'Vendedor') : 'Sin Vincular'}
+            </p>
+            <p className="text-[10px] flex items-center gap-1">
+              <span className={`w-1.5 h-1.5 rounded-full inline-block ${
+                globalPin ? 'bg-primary' : 'bg-base-300'
+              }`} />
+              <span className={globalPin ? 'text-[var(--color-text-muted)]' : 'text-base-content/30'}>
+                {globalPin ? 'En línea' : 'Desvinculado'}
+              </span>
             </p>
           </div>
         </div>
@@ -153,6 +173,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const { unreadNotifications } = useNotificationsContext();
   const { isLoading, apiError } = useApp();
   const { onlineUsersCount, connectionStatus } = useConnection();
+  const { globalPin, currentSeller } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const isDesktop = useIsDesktop();
@@ -192,6 +213,8 @@ export function Layout({ children }: { children: ReactNode }) {
             cartCount={cartCount}
             unread={unreadNotifications}
             pathname={location.pathname}
+            globalPin={globalPin}
+            currentSeller={currentSeller}
           />
         </aside>
       )}
@@ -220,6 +243,8 @@ export function Layout({ children }: { children: ReactNode }) {
                 cartCount={cartCount}
                 unread={unreadNotifications}
                 pathname={location.pathname}
+                globalPin={globalPin}
+                currentSeller={currentSeller}
               />
             </motion.aside>
           </>
