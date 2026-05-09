@@ -280,7 +280,7 @@ export default function Dashboard() {
       ) : (
         <motion.div {...getAnimationProps('slide')} className="space-y-6">
           {/* Original Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
             {stats.map((stat, i) => (
               <motion.div
                 key={stat.label}
@@ -331,7 +331,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
               {newStats.map((stat, i) => (
                 <motion.div
                   key={stat.label}

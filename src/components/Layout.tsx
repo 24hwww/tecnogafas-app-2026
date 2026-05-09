@@ -58,13 +58,11 @@ function SidebarNav({
   cartCount,
   unread,
   pathname,
-  versions,
 }: {
   closeSidebar: () => void;
   cartCount: number;
   unread: number;
   pathname: string;
-  versions: { app: string; api: string };
 }) {
   return (
     <>
@@ -117,7 +115,7 @@ function SidebarNav({
                     : 'text-[var(--color-text-muted)] group-hover:text-base-content',
                 )}
               />
-              <span className="flex-1 truncate">{item.label}</span>
+              <span className="flex-1 truncate text-xs sm:text-sm">{item.label}</span>
               {item.label === 'Carrito' && cartCount > 0 && (
                 <span className="badge badge-sm badge-primary">{cartCount}</span>
               )}
@@ -161,8 +159,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
-  const [versions] = useState({ app: 'v1.2.0', api: 'v1.0.0' });
-
+  
   useEffect(() => {
     closeDrawer();
   }, [location, closeDrawer]);
@@ -195,7 +192,6 @@ export function Layout({ children }: { children: ReactNode }) {
             cartCount={cartCount}
             unread={unreadNotifications}
             pathname={location.pathname}
-            versions={versions}
           />
         </aside>
       )}
@@ -224,7 +220,6 @@ export function Layout({ children }: { children: ReactNode }) {
                 cartCount={cartCount}
                 unread={unreadNotifications}
                 pathname={location.pathname}
-                versions={versions}
               />
             </motion.aside>
           </>

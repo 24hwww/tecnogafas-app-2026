@@ -305,26 +305,26 @@ export default function Orders() {
               id="orders-search-input"
               type="text"
               placeholder="Buscar pedidos..."
-              className="w-full pl-12 pr-4 py-3.5 bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-xl focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm placeholder:text-[var(--color-text-muted)]/50 transition-all"
+              className="w-full pl-12 pr-12 py-4 min-h-[44px] bg-[var(--color-surface-800)]/50 backdrop-blur-sm border border-[var(--color-border)]/50 rounded-2xl focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 text-sm placeholder:text-[var(--color-text-muted)]/60 transition-all duration-200 hover:border-[var(--color-border)]"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-[var(--color-surface-700)] transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 min-h-[36px] min-w-[36px] rounded-xl hover:bg-[var(--color-surface-700)]/50 transition-all duration-200 group"
               >
-                <X size={14} className="text-[var(--color-text-muted)]" />
+                <X size={16} className="text-[var(--color-text-muted)] group-hover:text-foreground transition-colors" />
               </button>
             )}
           </div>
 
           {/* Filter Pills */}
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="flex items-center gap-2 px-4 py-2 bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-xl">
-              <User size={14} className="text-[var(--color-text-muted)]" />
+          <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
+            <div className="flex items-center gap-3 px-4 py-3 min-h-[44px] bg-[var(--color-surface-800)]/50 backdrop-blur-sm border border-[var(--color-border)]/50 rounded-2xl flex-1 min-w-0 sm:flex-none sm:min-w-[160px] hover:border-[var(--color-border)] transition-all duration-200">
+              <User size={16} className="text-[var(--color-text-muted)]/70 shrink-0" />
               <select
-                className="bg-transparent border-none outline-none text-sm font-medium min-w-[120px]"
+                className="bg-transparent border-none outline-none text-sm font-medium flex-1 min-w-0 truncate text-foreground placeholder:text-[var(--color-text-muted)]/60"
                 value={selectedSeller}
                 onChange={(e) => setSelectedSeller(e.target.value)}
               >
@@ -337,10 +337,10 @@ export default function Orders() {
               </select>
             </div>
 
-            <div className="flex items-center gap-2 px-4 py-2 bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-xl">
-              <Tag size={14} className="text-[var(--color-text-muted)]" />
+            <div className="flex items-center gap-3 px-4 py-3 min-h-[44px] bg-[var(--color-surface-800)]/50 backdrop-blur-sm border border-[var(--color-border)]/50 rounded-2xl flex-1 min-w-0 sm:flex-none sm:min-w-[160px] hover:border-[var(--color-border)] transition-all duration-200">
+              <Tag size={16} className="text-[var(--color-text-muted)]/70 shrink-0" />
               <select
-                className="bg-transparent border-none outline-none text-sm font-medium min-w-[120px]"
+                className="bg-transparent border-none outline-none text-sm font-medium flex-1 min-w-0 truncate text-foreground placeholder:text-[var(--color-text-muted)]/60"
                 value={selectedCustomer}
                 onChange={(e) => setSelectedCustomer(e.target.value)}
               >
@@ -354,9 +354,10 @@ export default function Orders() {
             </div>
 
             {/* Results Counter */}
-            <div className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg">
-              <span className="text-xs font-bold text-primary">{filteredOrders.length}</span>
-              <span className="text-xs text-primary/70">resultados</span>
+            <div className="flex items-center gap-2 px-3 py-2.5 min-h-[40px] bg-primary/5 backdrop-blur-sm border border-primary/10 rounded-2xl ml-auto sm:ml-0 hover:bg-primary/10 transition-all duration-200">
+              <span className="text-sm font-bold text-primary">{filteredOrders.length}</span>
+              <span className="text-sm text-primary/80 hidden sm:inline">resultados</span>
+              <span className="text-sm text-primary/80 sm:hidden">R</span>
             </div>
           </div>
 
@@ -603,42 +604,42 @@ export default function Orders() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     <button
                       onClick={() => handleActionClick('status')}
-                      className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20"
+                      className="btn btn-outline rounded-3xl flex flex-col items-center gap-2 h-20 sm:h-24 px-3 min-h-[88px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-2 border-[var(--color-border)]/50 hover:border-primary/30"
                     >
-                      <CheckCircle2 size={20} />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">
-                        {selectedOrder.status === 'unattended' ? 'Confirmado' : 'Pendiente'}
+                      <CheckCircle2 size={20} className="sm:size-24" />
+                      <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-center leading-tight">
+                        {selectedOrder.status === 'unattended' ? 'Confirmar' : 'Pendiente'}
                       </span>
                     </button>
                     <button
                       onClick={() => handleActionClick('email')}
-                      className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20"
+                      className="btn btn-outline rounded-3xl flex flex-col items-center gap-2 h-20 sm:h-24 px-3 min-h-[88px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-2 border-[var(--color-border)]/50 hover:border-primary/30"
                     >
-                      <Mail size={20} />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">
+                      <Mail size={20} className="sm:size-24" />
+                      <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-center leading-tight">
                         Enviar
                       </span>
                     </button>
                     <button
                       onClick={() => handleActionClick('pdf')}
-                      className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20"
+                      className="btn btn-outline rounded-3xl flex flex-col items-center gap-2 h-20 sm:h-24 px-3 min-h-[88px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-2 border-[var(--color-border)]/50 hover:border-primary/30"
                     >
-                      <FileText size={20} />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">PDF</span>
+                      <FileText size={20} className="sm:size-24" />
+                      <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-center leading-tight">PDF</span>
                     </button>
                     <button
                       onClick={() => handleActionClick('regenerar')}
-                      className="btn btn-secondary rounded-2xl flex flex-col items-center gap-1 h-20"
+                      className="btn btn-secondary rounded-3xl flex flex-col items-center gap-2 h-20 sm:h-24 px-3 min-h-[88px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-2 border-secondary/50 hover:border-secondary/30"
                     >
                       {isRegenerating ? (
-                        <Loader2 size={20} className="animate-spin" />
+                        <Loader2 size={20} className="sm:size-24 animate-spin" />
                       ) : (
-                        <RotateCcw size={20} />
+                        <RotateCcw size={20} className="sm:size-24" />
                       )}
-                      <span className="text-[10px] font-bold uppercase tracking-widest">
+                      <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-center leading-tight">
                         Regenerar
                       </span>
                     </button>
