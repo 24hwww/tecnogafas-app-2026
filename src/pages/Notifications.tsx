@@ -1,17 +1,17 @@
 import {
   Bell,
   Check,
+  CheckCircle,
   CheckCircle2,
   Clock,
+  Filter,
   Info,
   Loader2,
   MessageSquare,
+  Search,
   Send,
   UserPlus,
   X,
-  Search,
-  Filter,
-  CheckCircle,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
@@ -19,7 +19,7 @@ import { useApp } from '../AppContext';
 import { PinModal } from '../components/PinModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotificationsContext } from '../contexts/NotificationsContext';
-import { formatTimeBA, getRelativeTime, cn } from '../lib/utils';
+import { cn, formatTimeBA, getRelativeTime } from '../lib/utils';
 import { apiService } from '../services/apiService';
 import type { AppNotification } from '../types';
 
@@ -74,8 +74,12 @@ export default function Notifications() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 id="notifications-title" className="text-3xl font-bold tracking-tight">Notificaciones</h2>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">Mensajes y alertas del sistema</p>
+          <h2 id="notifications-title" className="text-3xl font-bold tracking-tight">
+            Notificaciones
+          </h2>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">
+            Mensajes y alertas del sistema
+          </p>
         </div>
         <button
           id="notifications-show-send-form-btn"
@@ -106,7 +110,10 @@ export default function Notifications() {
                 <h3 className="text-xl font-bold flex items-center gap-2">
                   <Send size={20} className="text-primary" /> Nuevo Mensaje
                 </h3>
-                <button onClick={() => setShowSendForm(false)} className="btn btn-ghost btn-square btn-sm rounded-xl">
+                <button
+                  onClick={() => setShowSendForm(false)}
+                  className="btn btn-ghost btn-square btn-sm rounded-xl"
+                >
                   <X size={20} />
                 </button>
               </div>
@@ -114,7 +121,9 @@ export default function Notifications() {
               <div className="space-y-5">
                 <div className="form-control">
                   <label className="label py-1">
-                    <span className="label-text text-[10px] font-bold uppercase tracking-widest tracking-widest opacity-60">Para</span>
+                    <span className="label-text text-[10px] font-bold uppercase tracking-widest tracking-widest opacity-60">
+                      Para
+                    </span>
                   </label>
                   <select
                     className="select select-bordered w-full bg-[var(--color-surface-900)] rounded-xl h-14"
@@ -126,14 +135,18 @@ export default function Notifications() {
                     {sellers
                       .filter((s) => s.id !== currentSeller?.id)
                       .map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
                       ))}
                   </select>
                 </div>
 
                 <div className="form-control">
                   <label className="label py-1">
-                    <span className="label-text text-[10px] font-bold uppercase tracking-widest tracking-widest opacity-60">Mensaje</span>
+                    <span className="label-text text-[10px] font-bold uppercase tracking-widest tracking-widest opacity-60">
+                      Mensaje
+                    </span>
                   </label>
                   <textarea
                     className="textarea textarea-bordered bg-[var(--color-surface-900)] w-full h-32 rounded-xl text-base font-medium"
@@ -162,7 +175,9 @@ export default function Notifications() {
           <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] border-dashed py-20 flex flex-col items-center justify-center text-center opacity-50">
             <Bell size={60} className="text-[var(--color-text-muted)] mb-4" />
             <p className="text-xl font-bold">Sin notificaciones</p>
-            <p className="text-sm max-w-xs mt-2">No tienes mensajes ni alertas pendientes en este momento.</p>
+            <p className="text-sm max-w-xs mt-2">
+              No tienes mensajes ni alertas pendientes en este momento.
+            </p>
           </div>
         ) : (
           <div className="grid gap-3">
@@ -173,14 +188,18 @@ export default function Notifications() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.05 }}
                 className={cn(
-                  "card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-5 flex flex-row items-start gap-4 hover:border-primary/30 transition-all",
-                  !notif.read && "border-primary/20 bg-primary/5"
+                  'card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-5 flex flex-row items-start gap-4 hover:border-primary/30 transition-all',
+                  !notif.read && 'border-primary/20 bg-primary/5',
                 )}
               >
-                <div className={cn(
-                  "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm",
-                  notif.type === 'message' ? "bg-primary/10 text-primary" : "bg-info/10 text-info"
-                )}>
+                <div
+                  className={cn(
+                    'w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm',
+                    notif.type === 'message'
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-info/10 text-info',
+                  )}
+                >
                   {notif.type === 'message' ? <MessageSquare size={24} /> : <Info size={24} />}
                 </div>
                 <div className="flex-1 min-w-0">

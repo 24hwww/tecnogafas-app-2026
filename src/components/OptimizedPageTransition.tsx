@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 interface OptimizedPageTransitionProps {
   children: ReactNode;
@@ -13,9 +13,9 @@ export function OptimizedPageTransition({ children, pathname }: OptimizedPageTra
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -5 }}
-      transition={{ 
+      transition={{
         duration: 0.1,
-        ease: [0.4, 0, 0.2, 1]
+        ease: [0.4, 0, 0.2, 1],
       }}
       className="w-full"
     >

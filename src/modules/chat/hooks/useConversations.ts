@@ -55,7 +55,7 @@ export function useConversations(currentUserId: string | null): UseConversations
 
       // 2. Fetch desde servidor - diferente para usuarios autenticados vs no autenticados
       let serverConvs, serverError;
-      
+
       if (currentUserId) {
         // Usuario autenticado: cargar sus conversaciones
         const result = await supabase
@@ -448,25 +448,24 @@ export function useConversations(currentUserId: string | null): UseConversations
     // Escuchar cambios en conversaciones, con guardas de seguridad
     // @ts-expect-error Supabase realtime types are not fully compatible
     if (channel.state === 'closed' || channel.state === 'errored') {
-      channel
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'conversations',
-          },
-          async (payload: RealtimePostgresChangesPayload<Conversation>) => {
-            if (payload.eventType === 'UPDATE') {
-              const updated = payload.new;
-              setConversations((prev) =>
-                prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)),
-              );
-              await updateConversation(updated.id, updated);
-            }
-          },
-        );
-      
+      channel.on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+        },
+        async (payload: RealtimePostgresChangesPayload<Conversation>) => {
+          if (payload.eventType === 'UPDATE') {
+            const updated = payload.new;
+            setConversations((prev) =>
+              prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)),
+            );
+            await updateConversation(updated.id, updated);
+          }
+        },
+      );
+
       // Solo para usuarios autenticados: escuchar cambios en membresías
       if (currentUserId) {
         channel.on(

@@ -9,7 +9,7 @@ import { z } from 'zod';
  */
 export function safeOptional<T extends Record<string, unknown>>(
   obj: T,
-  keys: (keyof T)[]
+  keys: (keyof T)[],
 ): Partial<T> {
   const result: Partial<T> = {};
   for (const key of keys) {
@@ -56,7 +56,7 @@ export function safeCartItem(item: {
     category: item.category,
     description: item.description,
   };
-  
+
   // Solo agregar vid si no es undefined
   if (item.vid !== undefined) {
     Object.defineProperty(result, 'vid', {
@@ -66,7 +66,7 @@ export function safeCartItem(item: {
       configurable: true,
     });
   }
-  
+
   return result;
 }
 
@@ -86,7 +86,7 @@ export function safeOrderItem(item: {
     quantity: item.quantity,
     price: item.price,
   };
-  
+
   // Solo agregar vid si no es undefined
   if (item.vid !== undefined) {
     Object.defineProperty(result, 'vid', {
@@ -96,7 +96,7 @@ export function safeOrderItem(item: {
       configurable: true,
     });
   }
-  
+
   return result;
 }
 
@@ -116,16 +116,16 @@ export const SimpleApiResponseSchema = z.object({
 export function validateSimple<T>(
   schema: z.ZodSchema<T>,
   data: unknown,
-  context: string = 'validación'
+  context: string = 'validación',
 ): { success: true; data: T } | { success: false; error: string } {
   try {
     const validatedData = schema.parse(data);
     return { success: true, data: validatedData };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => 
-        `${err.path.join('.')}: ${err.message}`
-      ).join(', ');
+      const errorMessages = error.errors
+        .map((err) => `${err.path.join('.')}: ${err.message}`)
+        .join(', ');
       return { success: false, error: `Error en ${context}: ${errorMessages}` };
     }
     return { success: false, error: `Error desconocido en ${context}` };
@@ -138,7 +138,7 @@ export function validateSimple<T>(
 export function validateSimpleArray<T>(
   schema: z.ZodSchema<T>,
   data: unknown,
-  context: string = 'validación'
+  context: string = 'validación',
 ): { success: true; data: T[] } | { success: false; error: string } {
   try {
     const arraySchema = z.array(schema);
@@ -146,9 +146,9 @@ export function validateSimpleArray<T>(
     return { success: true, data: validatedData };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => 
-        `${err.path.join('.')}: ${err.message}`
-      ).join(', ');
+      const errorMessages = error.errors
+        .map((err) => `${err.path.join('.')}: ${err.message}`)
+        .join(', ');
       return { success: false, error: `Error en ${context}: ${errorMessages}` };
     }
     return { success: false, error: `Error desconocido en ${context}` };

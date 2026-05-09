@@ -52,8 +52,9 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
       if (y.get() >= PULL_THRESHOLD) {
         setIsRefreshing(true);
         animate(y, 100, { duration: 0.2 });
-        try { await onRefresh(); }
-        finally {
+        try {
+          await onRefresh();
+        } finally {
           setIsRefreshing(false);
           animate(y, 0, { duration: 0.3, delay: 0.5 });
         }

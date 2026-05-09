@@ -5,9 +5,9 @@ export type SupabaseUser = SupabaseUserType;
 export interface DeployEvent {
   content?: {
     message?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface AppNotification {
@@ -16,11 +16,11 @@ export interface AppNotification {
   content: {
     title?: string;
     body?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   read: boolean;
   created_at: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface LastOrder {
@@ -34,7 +34,7 @@ export interface LastOrder {
     transport: string;
     commit: string;
     otheremail: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   total: number;
   date: string;
@@ -185,7 +185,17 @@ export interface DraftOrder {
   id: string;
   client: Client;
   items: CartItem[];
-  details: any;
+  details: {
+    iva: number;
+    discount: number;
+    recargo: number;
+    methodpay: string;
+    transport: string;
+    commit: string;
+    otheremail: string;
+    sendEmail?: boolean;
+    [key: string]: unknown;
+  };
   status: 'no enviado' | 'enviado';
   date: string;
 }

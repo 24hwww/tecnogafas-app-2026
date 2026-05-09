@@ -23,16 +23,16 @@ const UIContext = createContext<UIContextType | undefined>(undefined);
 export function UIProvider({ children }: { children: ReactNode }) {
   const [primaryColor, setPrimaryColor] = useState('#0A5DFF');
   const [fontSize, setFontSize] = useState('16px');
-  
+
   // Initialize theme synchronously to prevent flash
   const getInitialTheme = (): 'light' | 'dark' => {
     const savedTheme = localStorage.getItem('tecnogafas_theme') as 'light' | 'dark' | null;
     const isManual = localStorage.getItem('tecnogafas_theme_manual') === 'true';
-    
+
     if (savedTheme && isManual) {
       return savedTheme;
     }
-    
+
     // Auto-detect theme based on Buenos Aires time
     const now = new Date();
     const buenosAiresTime = new Date(
@@ -41,9 +41,9 @@ export function UIProvider({ children }: { children: ReactNode }) {
     const hour = buenosAiresTime.getHours();
     return hour >= 6 && hour < 18 ? 'light' : 'dark';
   };
-  
+
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme());
-  
+
   // Apply initial theme immediately to prevent flash
   if (typeof document !== 'undefined') {
     document.documentElement.setAttribute('data-theme', theme);
@@ -90,14 +90,14 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Load primary color from Dexie
-    getPrimaryColor().then(color => {
+    getPrimaryColor().then((color) => {
       setPrimaryColor(color);
       // Apply CSS custom properties for initial color
       document.documentElement.style.setProperty('--primary-color', color);
       document.documentElement.style.setProperty('--primary-color-hover', color + 'dd');
       document.documentElement.style.setProperty('--primary-color-active', color + 'bb');
     });
-    
+
     const savedFontSize = localStorage.getItem('tecnogafas_fontSize');
     if (savedFontSize) setFontSize(savedFontSize);
 

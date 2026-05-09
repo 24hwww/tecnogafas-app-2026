@@ -25,8 +25,8 @@ import type {
   CachedMessage,
   LocalMessage,
   Message,
-  MessageWithAuthor,
   MessageType,
+  MessageWithAuthor,
   SendMessageInput,
   UpdateMessageInput,
 } from '../types';
@@ -193,7 +193,7 @@ export function useMessages({
           },
         };
       }
-      
+
       return {
         ...m,
         author: profileMap.get(m.user_id),
@@ -241,7 +241,7 @@ export function useMessages({
         };
 
         const messageId = await saveLocalMessage(localMessage);
-        
+
         // Agregar a la UI inmediatamente
         const messageWithAuthor: MessageWithAuthor = {
           id: messageId,
@@ -254,7 +254,7 @@ export function useMessages({
           metadata: localMessage.metadata,
           order_data: null,
           alert_data: null,
-          attachments: localMessage.attachments.map(att => ({
+          attachments: localMessage.attachments.map((att) => ({
             ...att,
             id: crypto.randomUUID(),
           })),
@@ -540,7 +540,7 @@ export function useMessages({
 
     try {
       const queuedMessages = await syncQueuedMessages(currentUserId, conversationId);
-      
+
       // Enviar mensajes encolados a Supabase
       for (const queuedMessage of queuedMessages) {
         try {
@@ -562,10 +562,8 @@ export function useMessages({
           if (error) throw error;
 
           // Reemplazar mensaje local con el real en la UI
-          setMessages((prev) => 
-            prev.map((m) => 
-              m.id === queuedMessage.id ? (data as MessageWithAuthor) : m
-            )
+          setMessages((prev) =>
+            prev.map((m) => (m.id === queuedMessage.id ? (data as MessageWithAuthor) : m)),
           );
         } catch (err) {
           console.error('[Chat] Failed to sync queued message:', err);

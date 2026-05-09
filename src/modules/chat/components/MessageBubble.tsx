@@ -26,7 +26,9 @@ export function MessageBubble({ message, isCurrentUser, isConsecutive }: Message
       <div className="flex justify-center py-3 px-4 opacity-70">
         <div className="bg-base-200/50 rounded-lg px-4 py-3 max-w-md text-center">
           <p className="text-sm text-center italic break-words">{message.content}</p>
-          <span className="text-xs text-base-500 mt-2">{formatDistanceToNow(message.created_at)}</span>
+          <span className="text-xs text-base-500 mt-2">
+            {formatDistanceToNow(message.created_at)}
+          </span>
         </div>
       </div>
     );
@@ -46,9 +48,7 @@ export function MessageBubble({ message, isCurrentUser, isConsecutive }: Message
             ? 'Tú'
             : message.author?.display_name || message.author?.username || 'Usuario'}
         </span>
-        <span className="text-[10px] opacity-60">
-          {formatDistanceToNow(message.created_at)}
-        </span>
+        <span className="text-[10px] opacity-60">{formatDistanceToNow(message.created_at)}</span>
       </div>
 
       {/* Texto del Mensaje */}
@@ -69,11 +69,7 @@ export function MessageBubble({ message, isCurrentUser, isConsecutive }: Message
       </div>
 
       {/* Indicador de edición */}
-      {message.is_edited && (
-        <span className="text-[10px] opacity-60 italic ml-2">
-          (editado)
-        </span>
-      )}
+      {message.is_edited && <span className="text-[10px] opacity-60 italic ml-2">(editado)</span>}
     </div>
   );
 }

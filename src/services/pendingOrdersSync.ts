@@ -7,6 +7,7 @@
 import { supabase } from '../modules/chat/lib/supabase';
 import type { CartItem, Client } from '../types';
 import { apiService } from './apiService';
+// Using direct Supabase client to avoid type conflicts
 
 export interface PendingOrderData {
   id?: string;
@@ -181,6 +182,11 @@ export async function syncAllPendingOrders(
   for (let i = 0; i < orders.length; i++) {
     const order = orders[i];
 
+    if (!order) {
+      console.warn(`[PendingOrdersSync] Order at index ${i} is undefined, skipping`);
+      continue;
+    }
+
     onProgress?.(i + 1, orders.length, order.id);
 
     // Verificar si debe reintentar según backoff
@@ -252,7 +258,7 @@ export async function updatePendingOrder(
 
     const { error } = await (supabase as any)
       .from('pending_orders')
-      .update(updateData)
+      .update(updateData as any)
       .eq('id', orderId);
 
     if (error) {

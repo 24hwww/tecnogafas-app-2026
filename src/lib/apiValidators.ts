@@ -1,11 +1,5 @@
 import { z } from 'zod';
-import type {
-  ApiClient,
-  ApiOrder,
-  ApiOrderItem,
-  ApiProduct,
-  ApiCustomer,
-} from '../types';
+import type { ApiClient, ApiCustomer, ApiOrder, ApiOrderItem, ApiProduct } from '../types';
 
 // ============================================================================
 // VALIDADORES DE RESPUESTA API
@@ -98,9 +92,11 @@ export const ApiOrderValidator = z.object({
   iva: z.number(),
   customer_note: z.string().optional(),
   observaciones: z.string().optional(),
-  billing: z.object({
-    country: z.string().optional(),
-  }).optional(),
+  billing: z
+    .object({
+      country: z.string().optional(),
+    })
+    .optional(),
   items: z.array(ApiOrderItemValidator).optional(),
   customer: ApiCustomerValidator.optional(),
 });
@@ -151,26 +147,26 @@ export function validateApiResponse<T>(
   try {
     // Primero validar la estructura básica de la respuesta
     const apiResponse = ApiResponseSchema.parse(data);
-    
+
     if (!apiResponse.success) {
-      return { 
-        success: false, 
-        error: apiResponse.error || apiResponse.message || 'Error en la respuesta de la API' 
+      return {
+        success: false,
+        error: apiResponse.error || apiResponse.message || 'Error en la respuesta de la API',
       };
     }
-    
+
     // Si hay datos, validarlos con el schema específico
     if (apiResponse.data !== undefined) {
       const validatedData = schema.parse(apiResponse.data);
       return { success: true, data: validatedData };
     }
-    
+
     return { success: true, data: undefined as T };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => 
-        `${err.path.join('.')}: ${err.message}`
-      ).join(', ');
+      const errorMessages = error.errors
+        .map((err) => `${err.path.join('.')}: ${err.message}`)
+        .join(', ');
       return { success: false, error: `Validación fallida: ${errorMessages}` };
     }
     return { success: false, error: 'Error desconocido en la validación' };
@@ -189,9 +185,9 @@ export function validateData<T>(
     return { success: true, data: validatedData };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => 
-        `${err.path.join('.')}: ${err.message}`
-      ).join(', ');
+      const errorMessages = error.errors
+        .map((err) => `${err.path.join('.')}: ${err.message}`)
+        .join(', ');
       return { success: false, error: `Validación fallida: ${errorMessages}` };
     }
     return { success: false, error: 'Error desconocido en la validación' };
@@ -211,9 +207,9 @@ export function validateArray<T>(
     return { success: true, data: validatedData };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => 
-        `${err.path.join('.')}: ${err.message}`
-      ).join(', ');
+      const errorMessages = error.errors
+        .map((err) => `${err.path.join('.')}: ${err.message}`)
+        .join(', ');
       return { success: false, error: `Validación fallida: ${errorMessages}` };
     }
     return { success: false, error: 'Error desconocido en la validación' };
@@ -261,22 +257,30 @@ export const OrderRequestValidator = z.object({
   iva: z.number().optional(),
   oemail: z.string().email().optional(),
   send_email: z.boolean().optional(),
-  products: z.array(z.object({
-    product_id: z.number().min(1, 'El ID del producto es requerido'),
-    variation_id: z.number().optional(),
-    quantity: z.number().min(1, 'La cantidad debe ser mayor a 0'),
-    price: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
-  })).min(1, 'Se requiere al menos un producto'),
+  products: z
+    .array(
+      z.object({
+        product_id: z.number().min(1, 'El ID del producto es requerido'),
+        variation_id: z.number().optional(),
+        quantity: z.number().min(1, 'La cantidad debe ser mayor a 0'),
+        price: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
+      }),
+    )
+    .min(1, 'Se requiere al menos un producto'),
 });
 
 // Validador para ProductVerificationRequest (OpenAPI)
 export const ProductVerificationRequestValidator = z.object({
-  products: z.array(z.object({
-    product_id: z.number().min(1, 'El ID del producto es requerido'),
-    variation_id: z.number().optional(),
-    price: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
-    stock: z.number().min(0, 'El stock debe ser mayor o igual a 0'),
-  })).min(1, 'Se requiere al menos un producto'),
+  products: z
+    .array(
+      z.object({
+        product_id: z.number().min(1, 'El ID del producto es requerido'),
+        variation_id: z.number().optional(),
+        price: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
+        stock: z.number().min(0, 'El stock debe ser mayor o igual a 0'),
+      }),
+    )
+    .min(1, 'Se requiere al menos un producto'),
 });
 
 // Validador para CustomerRequest (OpenAPI)

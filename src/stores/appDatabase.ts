@@ -5,15 +5,6 @@
 
 import Dexie, { type Table } from 'dexie';
 import type {
-  CartItem,
-  Client,
-  DraftOrder,
-  Order,
-  Product,
-  Seller,
-  SharedCart,
-} from '../../../types';
-import type {
   CachedConversation,
   CachedMessage,
   ConversationMember,
@@ -26,7 +17,8 @@ import type {
   TypingStatus,
   UnauthenticatedMessageQueue,
   UserPresence,
-} from '../types';
+} from '../modules/chat/types';
+import type { CartItem, Client, DraftOrder, Order, Product, Seller, SharedCart } from '../types';
 
 // ============================================================================
 // DATABASE SCHEMA
@@ -99,7 +91,8 @@ export class AppDatabase extends Dexie {
       cart: 'id, name, price, quantity, category',
 
       // Cliente seleccionado: información del cliente actual
-      selectedClient: 'id, name, email, phone, address, billing_city, billing_state, cuit, isSelected',
+      selectedClient:
+        'id, name, email, phone, address, billing_city, billing_state, cuit, isSelected',
 
       // App principal Data (Core)
       products: 'id, category, name',
@@ -108,7 +101,7 @@ export class AppDatabase extends Dexie {
       orders: 'id, clientId, status, createdAt, sellerId',
       drafts: 'id, status, date',
       sharedCarts: 'id, code, isActive, expiresAt',
-      
+
       // Settings: UI preferences and app settings
       settings: 'id, key, updated_at',
     });
@@ -235,7 +228,7 @@ export async function getMessages(
   }
 
   if (options.limit) {
-    collection = collection.then((msgs) => msgs.slice(-options.limit));
+    collection = collection.then((msgs) => msgs.slice(-options.limit!));
   }
 
   return collection;
@@ -565,10 +558,15 @@ export async function vacuumDatabase(): Promise<void> {
 
   // Limpiar mensajes locales no autenticados antiguos (>7 días)
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const oldLocalMessages = await appDB.localMessages.where('created_at').below(sevenDaysAgo).toArray();
+  const oldLocalMessages = await appDB.localMessages
+    .where('created_at')
+    .below(sevenDaysAgo)
+    .toArray();
   await appDB.localMessages.bulkDelete(oldLocalMessages.map((m) => m.id));
 
-  console.log(`[ChatDB] Vacuumed ${deletedCount} old messages and ${oldLocalMessages.length} local messages`);
+  console.log(
+    `[ChatDB] Vacuumed ${deletedCount} old messages and ${oldLocalMessages.length} local messages`,
+  );
 }
 
 // ============================================================================
@@ -582,31 +580,32 @@ export async function saveLocalMessage(message: Omit<LocalMessage, 'id'>): Promi
     id,
   };
   await appDB.localMessages.add(localMessage);
-  
+
   // Actualizar o crear la cola de mensajes no autenticados
   await updateUnauthenticatedQueue(message.conversation_id, localMessage);
-  
+
   return id;
 }
 
 export async function getLocalMessages(conversationId: string): Promise<LocalMessage[]> {
-  return await appDB.localMessages
-    .where({ conversation_id: conversationId })
-    .sortBy('created_at');
+  return await appDB.localMessages.where({ conversation_id: conversationId }).sortBy('created_at');
 }
 
-export async function updateUnauthenticatedQueue(conversationId: string, message: LocalMessage): Promise<void> {
+export async function updateUnauthenticatedQueue(
+  conversationId: string,
+  message: LocalMessage,
+): Promise<void> {
   const queueId = 'unauthenticated_queue';
-  
+
   const existingQueue = await appDB.unauthenticatedQueue.get(queueId);
-  
+
   if (existingQueue) {
     // Agregar mensaje a la cola existente
     const updatedQueue: UnauthenticatedMessageQueue = {
       ...existingQueue,
       messages: [...existingQueue.messages, message],
     };
-    await appDB.unauthenticatedQueue.update(queueId, updatedQueue);
+    await appDB.unauthenticatedQueue.update(queueId, updatedQueue as any);
   } else {
     // Crear nueva cola
     const newQueue: UnauthenticatedMessageQueue = {
@@ -627,27 +626,30 @@ export async function clearUnauthenticatedQueue(): Promise<void> {
   await appDB.localMessages.clear();
 }
 
-export async function syncQueuedMessages(userId: string, conversationId: string): Promise<LocalMessage[]> {
+export async function syncQueuedMessages(
+  userId: string,
+  conversationId: string,
+): Promise<LocalMessage[]> {
   const queue = await getUnauthenticatedQueue();
   if (!queue) return [];
-  
+
   // Filtrar mensajes de esta conversación que no estén autenticados
   const messagesToSync = queue.messages.filter(
-    msg => msg.conversation_id === conversationId && !msg.is_authenticated
+    (msg) => msg.conversation_id === conversationId && !msg.is_authenticated,
   );
-  
+
   // Marcar mensajes como autenticados
   for (const message of messagesToSync) {
     await appDB.localMessages.update(message.id, {
       is_authenticated: true,
     });
   }
-  
+
   // Actualizar la cola
   const remainingMessages = queue.messages.filter(
-    msg => !(msg.conversation_id === conversationId && !msg.is_authenticated)
+    (msg) => !(msg.conversation_id === conversationId && !msg.is_authenticated),
   );
-  
+
   if (remainingMessages.length === 0) {
     await clearUnauthenticatedQueue();
   } else {
@@ -655,7 +657,7 @@ export async function syncQueuedMessages(userId: string, conversationId: string)
       messages: remainingMessages,
     });
   }
-  
+
   return messagesToSync;
 }
 

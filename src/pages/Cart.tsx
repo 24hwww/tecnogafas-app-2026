@@ -1,16 +1,34 @@
-import { AlertCircle, Camera, Copy, Share2, ShoppingBag, Trash2, User, Plus, Minus, ArrowRight, Package } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowRight,
+  Camera,
+  Copy,
+  Minus,
+  Package,
+  Plus,
+  Share2,
+  ShoppingBag,
+  Trash2,
+  User,
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PinModal } from '../components/PinModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
-import { formatCurrency, cn } from '../lib/utils';
+import { cn, formatCurrency } from '../lib/utils';
 import type { Seller } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
 
 export default function Cart() {
-  const { cart, selectedClient, removeFromCart, updateCartQuantity, shareCart, clearCartAndClient } =
-    useCart();
+  const {
+    cart,
+    selectedClient,
+    removeFromCart,
+    updateCartQuantity,
+    shareCart,
+    clearCartAndClient,
+  } = useCart();
   const { globalPin, setGlobalPin } = useAuth();
   const navigate = useNavigate();
   const [isSharing, setIsSharing] = useState(false);
@@ -23,7 +41,10 @@ export default function Cart() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
-  const total = useMemo(() => cart.reduce((acc, item) => acc + item.price * item.quantity, 0), [cart]);
+  const total = useMemo(
+    () => cart.reduce((acc, item) => acc + item.price * item.quantity, 0),
+    [cart],
+  );
 
   const handleConfirm = () => {
     navigate('/pago');
@@ -78,10 +99,14 @@ export default function Cart() {
       const html2canvas = (await import('html2canvas')).default;
       const QRCode = (await import('qrcode')).default;
 
-      const displayCode = typeof shareCode === 'string' ? shareCode : `LOCAL_${Date.now().toString(36).toUpperCase()}`;
-      const shareUrl = typeof shareCode === 'string'
-        ? `${window.location.origin}/shared-cart/${shareCode}`
-        : `${window.location.origin}/carrito?recover=${displayCode}`;
+      const displayCode =
+        typeof shareCode === 'string'
+          ? shareCode
+          : `LOCAL_${Date.now().toString(36).toUpperCase()}`;
+      const shareUrl =
+        typeof shareCode === 'string'
+          ? `${window.location.origin}/shared-cart/${shareCode}`
+          : `${window.location.origin}/carrito?recover=${displayCode}`;
 
       const qrCodeDataUrl = await QRCode.toDataURL(shareUrl, {
         width: 150,
@@ -109,13 +134,17 @@ export default function Cart() {
             <p style="margin: 5px 0; color: #000; font-size: 14px;">Fecha: ${currentDate}</p>
             <p style="margin: 2px 0; color: #444; font-size: 12px;">Código: ${displayCode}</p>
           </div>
-          ${selectedClient ? `
+          ${
+            selectedClient
+              ? `
           <div style="margin-bottom: 20px; padding: 12px; border: 1px solid #000; border-radius: 4px;">
             <h2 style="margin: 0 0 5px 0; color: #000; font-size: 14px; font-weight: bold;">CLIENTE</h2>
             <p style="margin: 0; font-weight: bold; color: #000; font-size: 15px;">${selectedClient.name}</p>
             ${selectedClient.email ? `<p style="margin: 3px 0 0 0; color: #444; font-size: 12px;">${selectedClient.email}</p>` : ''}
           </div>
-          ` : ''}
+          `
+              : ''
+          }
           <div style="margin-bottom: 20px;">
             <table style="width: 100%; border-collapse: collapse;">
               <thead>
@@ -145,7 +174,11 @@ export default function Cart() {
       tempDiv.style.left = '-9999px';
       document.body.appendChild(tempDiv);
 
-      const canvas = await html2canvas(tempDiv, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
       const imgData = canvas.toDataURL('image/png');
       const imgWidth = 190;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
@@ -165,7 +198,9 @@ export default function Cart() {
     <div className="space-y-6 mx-auto pb-32">
       <div className="flex items-center justify-between">
         <div>
-          <h2 id="cart-title" className="text-3xl font-bold tracking-tight">Carrito</h2>
+          <h2 id="cart-title" className="text-3xl font-bold tracking-tight">
+            Carrito
+          </h2>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">Revisa y confirma tu pedido</p>
         </div>
         {cart.length > 0 && (
@@ -181,16 +216,20 @@ export default function Cart() {
       </div>
 
       {/* Selected Client Section */}
-      <div className={cn(
-        "card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-5 relative overflow-hidden",
-        !selectedClient && "border-warning/30 bg-warning/5"
-      )}>
+      <div
+        className={cn(
+          'card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-5 relative overflow-hidden',
+          !selectedClient && 'border-warning/30 bg-warning/5',
+        )}
+      >
         <div className="flex items-start justify-between relative z-10">
           <div className="flex gap-4">
-            <div className={cn(
-              "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
-              selectedClient ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"
-            )}>
+            <div
+              className={cn(
+                'w-12 h-12 rounded-2xl flex items-center justify-center shrink-0',
+                selectedClient ? 'bg-primary/10 text-primary' : 'bg-warning/10 text-warning',
+              )}
+            >
               <User size={24} />
             </div>
             <div>
@@ -214,8 +253,8 @@ export default function Cart() {
             id="cart-change-client-btn"
             onClick={() => navigate('/clientes')}
             className={cn(
-              "btn btn-sm rounded-xl",
-              selectedClient ? "btn-ghost text-primary" : "btn-warning text-white"
+              'btn btn-sm rounded-xl',
+              selectedClient ? 'btn-ghost text-primary' : 'btn-warning text-white',
             )}
           >
             {selectedClient ? 'Cambiar' : 'Asignar'}
@@ -261,10 +300,12 @@ export default function Cart() {
                     <p className="text-xs text-[var(--color-text-muted)] font-medium">
                       {formatCurrency(item.price)} <span className="opacity-50">c/u</span>
                     </p>
-                    <div className={cn(
-                      "px-2 py-0.5 rounded-full text-xs font-bold",
-                      item.stock > 0 ? "bg-success/10 text-success" : "bg-error/10 text-error"
-                    )}>
+                    <div
+                      className={cn(
+                        'px-2 py-0.5 rounded-full text-xs font-bold',
+                        item.stock > 0 ? 'bg-success/10 text-success' : 'bg-error/10 text-error',
+                      )}
+                    >
                       Stock: {item.stock}
                     </div>
                   </div>
@@ -274,7 +315,7 @@ export default function Cart() {
                       <p className="text-xs font-medium">Excede stock disponible</p>
                     </div>
                   )}
-                  
+
                   <div className="flex items-center gap-3 mt-3">
                     <div className="flex items-center bg-[var(--color-surface-900)] rounded-lg p-0.5 border border-[var(--color-border)]">
                       <button
@@ -290,8 +331,8 @@ export default function Cart() {
                         onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
                         disabled={item.quantity >= item.stock}
                         className={cn(
-                          "btn btn-ghost btn-square btn-xs hover:bg-primary/10 hover:text-primary",
-                          item.quantity >= item.stock && "opacity-30 cursor-not-allowed"
+                          'btn btn-ghost btn-square btn-xs hover:bg-primary/10 hover:text-primary',
+                          item.quantity >= item.stock && 'opacity-30 cursor-not-allowed',
                         )}
                       >
                         <Plus size={14} />
@@ -342,8 +383,12 @@ export default function Cart() {
             <div className="max-w-3xl mx-auto flex flex-col gap-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">Total Estimado</p>
-                  <p className="text-3xl font-black text-primary leading-none mt-1">{formatCurrency(total)}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">
+                    Total Estimado
+                  </p>
+                  <p className="text-3xl font-black text-primary leading-none mt-1">
+                    {formatCurrency(total)}
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -352,7 +397,11 @@ export default function Cart() {
                     className="btn btn-square btn-outline btn-lg rounded-2xl"
                     title="Compartir"
                   >
-                    {isSharing ? <span className="loading loading-spinner loading-sm" /> : <Share2 size={22} />}
+                    {isSharing ? (
+                      <span className="loading loading-spinner loading-sm" />
+                    ) : (
+                      <Share2 size={22} />
+                    )}
                   </button>
                   <button
                     onClick={() => generateCartImage()}
@@ -360,11 +409,15 @@ export default function Cart() {
                     className="btn btn-square btn-outline btn-lg rounded-2xl"
                     title="PDF"
                   >
-                    {isGeneratingImage ? <span className="loading loading-spinner loading-sm" /> : <Camera size={22} />}
+                    {isGeneratingImage ? (
+                      <span className="loading loading-spinner loading-sm" />
+                    ) : (
+                      <Camera size={22} />
+                    )}
                   </button>
                 </div>
               </div>
-              
+
               <button
                 id="cart-confirm-order-btn"
                 onClick={handleConfirm}
@@ -387,25 +440,29 @@ export default function Cart() {
               animate={{ scale: 1, opacity: 1 }}
               className="bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center"
             >
-              <div className={cn(
-                "w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6",
-                shareResult.success ? "bg-success/10 text-success" : "bg-error/10 text-error"
-              )}>
+              <div
+                className={cn(
+                  'w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6',
+                  shareResult.success ? 'bg-success/10 text-success' : 'bg-error/10 text-error',
+                )}
+              >
                 {shareResult.success ? <ShoppingBag size={40} /> : <AlertCircle size={40} />}
               </div>
-              
+
               <h3 className="text-2xl font-bold mb-2">
                 {shareResult.success ? '¡Carrito Guardado!' : 'Error al guardar'}
               </h3>
-              <p className="text-[var(--color-text-muted)] text-sm mb-8">
-                {shareResult.message}
-              </p>
+              <p className="text-[var(--color-text-muted)] text-sm mb-8">{shareResult.message}</p>
 
               {shareResult.success && (
                 <div className="bg-[var(--color-surface-900)] p-6 rounded-2xl border border-[var(--color-border)] mb-8 space-y-4">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-2">Código de recuperación</p>
-                    <code className="text-3xl font-black tracking-widest text-primary">{shareResult.code}</code>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-2">
+                      Código de recuperación
+                    </p>
+                    <code className="text-3xl font-black tracking-widest text-primary">
+                      {shareResult.code}
+                    </code>
                   </div>
                   <button
                     onClick={() => {

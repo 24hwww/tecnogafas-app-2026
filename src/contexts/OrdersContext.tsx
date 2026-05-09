@@ -47,7 +47,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     setOrdersError(null);
     try {
       const o = await apiService.getOrders(page, perPage, sellerId, customerId);
-      
+
       // Sort orders by ID DESC to show most recent first
       const sortedOrders = [...o.orders].sort((a, b) => {
         const idA = parseInt(a.id);

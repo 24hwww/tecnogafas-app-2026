@@ -1,10 +1,10 @@
-import { AlertCircle, ArrowLeft, ShoppingBag, Package, CheckCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle, Package, RefreshCw, ShoppingBag } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
-import { formatCurrency, cn } from '../lib/utils';
+import { cn, formatCurrency } from '../lib/utils';
 import type { SharedCart as SharedCartType } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
 
 export default function SharedCart() {
   const { code } = useParams<{ code: string }>();
@@ -83,12 +83,14 @@ export default function SharedCart() {
             image: item.image || '',
             description: item.description || '',
             variations: item.vid
-              ? [{
-                  vid: item.vid.toString(),
-                  title: item.variation_name || item.name,
-                  stock: item.quantity,
-                  price: item.price,
-                }]
+              ? [
+                  {
+                    vid: item.vid.toString(),
+                    title: item.variation_name || item.name,
+                    stock: item.quantity,
+                    price: item.price,
+                  },
+                ]
               : undefined,
           };
           addToCart(productToLoad, item.quantity);
@@ -107,7 +109,9 @@ export default function SharedCart() {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center space-y-4">
         <RefreshCw size={40} className="text-primary animate-spin" />
-        <p className="text-[var(--color-text-muted)] font-medium">Recuperando carrito compartido...</p>
+        <p className="text-[var(--color-text-muted)] font-medium">
+          Recuperando carrito compartido...
+        </p>
       </div>
     );
   }
@@ -121,7 +125,10 @@ export default function SharedCart() {
           </div>
           <h2 className="text-2xl font-bold mb-2">Error</h2>
           <p className="text-[var(--color-text-muted)] text-sm mb-8 leading-relaxed">{error}</p>
-          <button onClick={() => navigate('/carrito')} className="btn btn-primary w-full h-14 rounded-2xl font-bold">
+          <button
+            onClick={() => navigate('/carrito')}
+            className="btn btn-primary w-full h-14 rounded-2xl font-bold"
+          >
             Volver al Carrito
           </button>
         </div>
@@ -133,12 +140,17 @@ export default function SharedCart() {
     <div className="space-y-8 max-w-3xl mx-auto pb-32 pt-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/carrito')} className="btn btn-ghost btn-square rounded-2xl bg-[var(--color-surface-800)]">
+          <button
+            onClick={() => navigate('/carrito')}
+            className="btn btn-ghost btn-square rounded-2xl bg-[var(--color-surface-800)]"
+          >
             <ArrowLeft size={20} />
           </button>
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Carrito Compartido</h2>
-            <p className="text-sm text-[var(--color-text-muted)]">Código de recuperación: <span className="text-primary font-bold">{code}</span></p>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              Código de recuperación: <span className="text-primary font-bold">{code}</span>
+            </p>
           </div>
         </div>
       </div>
@@ -148,14 +160,18 @@ export default function SharedCart() {
         <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl flex items-center gap-3">
           <CheckCircle size={18} className="text-primary" />
           <p className="text-xs font-medium text-[var(--color-text-muted)]">
-            Este es un carrito compartido. Al continuar, se reemplazará su carrito actual con estos productos.
+            Este es un carrito compartido. Al continuar, se reemplazará su carrito actual con estos
+            productos.
           </p>
         </div>
 
         {/* Cart Items List */}
         <div className="space-y-3">
           {sharedCart?.items.map((item, index) => (
-            <div key={index} className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-4 flex flex-row items-center gap-4">
+            <div
+              key={index}
+              className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] p-4 flex flex-row items-center gap-4"
+            >
               <div className="w-14 h-14 bg-[var(--color-surface-900)] rounded-xl flex items-center justify-center shrink-0 border border-[var(--color-border)]">
                 <Package className="text-[var(--color-text-muted)] opacity-50" size={20} />
               </div>
@@ -179,24 +195,31 @@ export default function SharedCart() {
           <div className="p-8 space-y-6">
             <div className="flex justify-between items-end">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)] mb-1">Total del Carrito</p>
-                <h3 className="text-4xl font-black tracking-tighter text-primary">{formatCurrency(sharedCart?.total || 0)}</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)] mb-1">
+                  Total del Carrito
+                </p>
+                <h3 className="text-4xl font-black tracking-tighter text-primary">
+                  {formatCurrency(sharedCart?.total || 0)}
+                </h3>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase">Items</p>
+                <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase">
+                  Items
+                </p>
                 <p className="text-lg font-bold">{sharedCart?.items.length}</p>
               </div>
             </div>
-            
+
             <button
               onClick={handleContinueToCheckout}
               className="btn btn-primary btn-lg w-full rounded-2xl h-16 font-black text-lg shadow-lg shadow-primary/20"
             >
               Cargar y Continuar <ShoppingBag size={20} className="ml-2" />
             </button>
-            
+
             <p className="text-[10px] text-center text-[var(--color-text-muted)] font-medium">
-              Expira el {new Date(sharedCart?.expiresAt || '').toLocaleDateString('es-AR')} a las {new Date(sharedCart?.expiresAt || '').toLocaleTimeString('es-AR')}
+              Expira el {new Date(sharedCart?.expiresAt || '').toLocaleDateString('es-AR')} a las{' '}
+              {new Date(sharedCart?.expiresAt || '').toLocaleTimeString('es-AR')}
             </p>
           </div>
         </div>

@@ -17,7 +17,8 @@ export function ChatBubble({ message, isCurrentUser, isConsecutive }: ChatBubble
   // const { currentUser } = useChat(); // No longer needed for simple style
 
   // Determinar el tipo de mensaje para estilos específicos
-  const isSystem = message.user_id === null || ['system', 'alert', 'notification'].includes(message.type);
+  const isSystem =
+    message.user_id === null || ['system', 'alert', 'notification'].includes(message.type);
   const isOrder = message.type === 'order';
   const isFile = message.type === 'file';
   const isImage = message.type === 'image';
@@ -38,18 +39,17 @@ export function ChatBubble({ message, isCurrentUser, isConsecutive }: ChatBubble
       <div
         className={`
           relative max-w-xs lg:max-w-md px-4 py-2 rounded-2xl
-          ${isCurrentUser 
-            ? 'bg-primary text-primary-foreground rounded-br-sm' 
-            : 'bg-base-200 text-base-content rounded-bl-sm'
+          ${
+            isCurrentUser
+              ? 'bg-primary text-primary-foreground rounded-br-sm'
+              : 'bg-base-200 text-base-content rounded-bl-sm'
           }
           ${message.is_deleted ? 'opacity-50 italic' : ''}
         `}
       >
         {/* Mensajes de sistema */}
         {isSystem && (
-          <div className="text-center text-sm text-base-content/70">
-            {message.content}
-          </div>
+          <div className="text-center text-sm text-base-content/70">{message.content}</div>
         )}
 
         {/* Mensajes de orden */}
@@ -95,9 +95,7 @@ export function ChatBubble({ message, isCurrentUser, isConsecutive }: ChatBubble
           <span className="text-xs text-base-content/50">
             {formatDistanceToNow(message.created_at)}
           </span>
-          <span className="text-xs text-base-content/50">
-            {messageStatus}
-          </span>
+          <span className="text-xs text-base-content/50">{messageStatus}</span>
         </div>
       )}
 

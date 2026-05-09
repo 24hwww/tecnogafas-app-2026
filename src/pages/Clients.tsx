@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import type React from 'react';
-import { useMemo, useState, useCallback, memo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { PullToRefresh } from '../components/PullToRefresh';
@@ -34,43 +34,20 @@ const ClientCard = memo(({ client, isSelected, onSelectClient, onEditClient }: C
   <div
     key={client.id}
     className={cn(
-      'card bg-base-100 shadow-sm border-2 p-4 transition-all',
-      isSelected
-        ? 'border-primary bg-primary/5 shadow-md'
-        : 'border-base-300/40',
+      'card bg-white shadow-sm border-2 p-4 transition-all',
+      isSelected ? 'border-primary bg-primary/5 shadow-md' : 'border-base-300/40',
     )}
   >
-    <div className="flex justify-between items-start">
-      <div
-        onClick={() => onSelectClient(client)}
-        className="flex-1 cursor-pointer"
-      >
-        <h4 className="font-semibold text-base">{client.name}</h4>
-        <p className="text-xs text-primary font-semibold mb-1">
-          {client.email}
-        </p>
-        <p className="text-xs opacity-50 flex items-center gap-1 mt-1">
-          <Phone size={12} /> {client.phone || 'Sin teléfono'}
-        </p>
-        <p className="text-xs opacity-50 flex items-center gap-1 mt-1">
-          <MapPin size={12} /> {client.address || 'Sin dirección'}
-        </p>
-        <div className="mt-3">
-          <button
-            id={`clients-select-btn-${client.id}`}
-            type="button"
-            onClick={() => onSelectClient(client)}
-            className={cn(
-              'btn btn-sm w-full gap-2',
-              isSelected ? 'btn-success' : 'btn-primary',
-            )}
-          >
-            {isSelected ? <Check size={14} /> : <UserPlus size={14} />}
-            {isSelected ? 'Seleccionado' : 'Agregar'}
-          </button>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2">
+    <div onClick={() => onSelectClient(client)} className="cursor-pointer">
+      <h4 className="font-semibold text-base">{client.name}</h4>
+      <p className="text-xs text-primary font-semibold mb-1 truncate">{client.email}</p>
+      <p className="text-xs opacity-50 flex items-center gap-1 mt-1">
+        <Phone size={12} /> {client.phone || 'Sin teléfono'}
+      </p>
+      <p className="text-xs opacity-50 flex items-center gap-1 mt-1">
+        <MapPin size={12} /> {client.address || 'Sin dirección'}
+      </p>
+      <div className="flex flex-col gap-2 mt-3">
         <button
           id={`clients-edit-btn-${client.id}`}
           type="button"
@@ -78,9 +55,21 @@ const ClientCard = memo(({ client, isSelected, onSelectClient, onEditClient }: C
             e.stopPropagation();
             onEditClient(client);
           }}
-          className="btn btn-ghost btn-square btn-sm"
+          className="btn btn-ghost btn-sm"
         >
-          <Edit2 size={16} />
+          <Edit2 size={14} /> Editar
+        </button>
+        <button
+          id={`clients-select-btn-${client.id}`}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelectClient(client);
+          }}
+          className={cn('btn btn-sm gap-2', isSelected ? 'btn-success' : 'btn-primary')}
+        >
+          {isSelected ? <Check size={14} /> : <UserPlus size={14} />}
+          {isSelected ? 'Seleccionado' : 'Agregar'}
         </button>
       </div>
     </div>
@@ -142,10 +131,13 @@ export default function Clients() {
     setIsModalOpen(true);
   }, []);
 
-  const handleSelectClient = useCallback((client: Client) => {
-    console.log('[Clients] Selecting client:', client);
-    setSelectedClient(client);
-  }, [setSelectedClient]);
+  const handleSelectClient = useCallback(
+    (client: Client) => {
+      console.log('[Clients] Selecting client:', client);
+      setSelectedClient(client);
+    },
+    [setSelectedClient],
+  );
 
   return (
     <PullToRefresh onRefresh={() => refreshData(false)}>
@@ -162,8 +154,8 @@ export default function Clients() {
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={cn(
-                "btn btn-ghost rounded-2xl gap-2 h-12 bg-[var(--color-surface-800)] border border-[var(--color-border)] px-6",
-                showFilters && "text-primary border-primary/30 bg-primary/5"
+                'btn btn-ghost rounded-2xl gap-2 h-12 bg-[var(--color-surface-800)] border border-[var(--color-border)] px-6',
+                showFilters && 'text-primary border-primary/30 bg-primary/5',
               )}
             >
               <Filter size={18} /> <span>Filtros</span>
@@ -196,7 +188,10 @@ export default function Clients() {
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] group-focus-within:text-primary transition-colors" size={20} />
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] group-focus-within:text-primary transition-colors"
+            size={20}
+          />
           <input
             id="clients-search-input"
             type="text"
@@ -209,15 +204,23 @@ export default function Clients() {
 
         {/* Filter Panel */}
         {showFilters && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="overflow-hidden space-y-4">
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="overflow-hidden space-y-4"
+          >
             <div className="border-t border-[var(--color-border)]/10 pt-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)] mb-3">Ordenar por</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)] mb-3">
+                Ordenar por
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setSortBy('default')}
                   className={cn(
-                    "btn btn-sm rounded-xl h-10 justify-between border border-[var(--color-border)]",
-                    sortBy === 'default' ? "btn-primary" : "btn-ghost bg-[var(--color-surface-800)]"
+                    'btn btn-sm rounded-xl h-10 justify-between border border-[var(--color-border)]',
+                    sortBy === 'default'
+                      ? 'btn-primary'
+                      : 'btn-ghost bg-[var(--color-surface-800)]',
                   )}
                 >
                   <span>Defecto</span>
@@ -225,8 +228,8 @@ export default function Clients() {
                 <button
                   onClick={() => setSortBy('name')}
                   className={cn(
-                    "btn btn-sm rounded-xl h-10 justify-between border border-[var(--color-border)]",
-                    sortBy === 'name' ? "btn-primary" : "btn-ghost bg-[var(--color-surface-800)]"
+                    'btn btn-sm rounded-xl h-10 justify-between border border-[var(--color-border)]',
+                    sortBy === 'name' ? 'btn-primary' : 'btn-ghost bg-[var(--color-surface-800)]',
                   )}
                 >
                   <span>A-Z</span>
@@ -243,14 +246,14 @@ export default function Clients() {
                 .fill(0)
                 .map((_, i) => <ClientSkeleton key={i} />)
             : filteredClients.map((client) => (
-              <ClientCard
-                key={client.id}
-                client={client}
-                isSelected={selectedClient?.id === client.id}
-                onSelectClient={handleSelectClient}
-                onEditClient={openEdit}
-              />
-            ))}
+                <ClientCard
+                  key={client.id}
+                  client={client}
+                  isSelected={selectedClient?.id === client.id}
+                  onSelectClient={handleSelectClient}
+                  onEditClient={openEdit}
+                />
+              ))}
         </div>
 
         {/* Selected Client Sticky Bar */}
@@ -260,12 +263,14 @@ export default function Clients() {
               <span className="text-[10px] uppercase font-bold opacity-70 animate-pulse">
                 Cliente para pedido
               </span>
-              <p className="text-sm font-bold truncate">
-                {selectedClient.name}
-              </p>
+              <p className="text-sm font-bold truncate">{selectedClient.name}</p>
             </div>
             <div className="flex flex-col gap-1.5 shrink-0">
-              <button type="button" onClick={() => navigate('/carrito')} className="btn btn-sm btn-neutral">
+              <button
+                type="button"
+                onClick={() => navigate('/carrito')}
+                className="btn btn-sm btn-neutral"
+              >
                 Ver Carrito
               </button>
               <button
@@ -301,7 +306,11 @@ export default function Clients() {
                   <h3 className="text-xl font-bold">
                     {editingClient?.id ? 'Editar Cliente' : 'Nuevo Cliente'}
                   </h3>
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-square btn-sm">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="btn btn-ghost btn-square btn-sm"
+                  >
                     <X size={20} />
                   </button>
                 </div>
@@ -309,7 +318,9 @@ export default function Clients() {
                 <form onSubmit={handleSaveClient} className="space-y-3">
                   <div className="form-control">
                     <label className="label py-1">
-                      <span className="label-text text-xs font-semibold uppercase opacity-60">Nombre Completo</span>
+                      <span className="label-text text-xs font-semibold uppercase opacity-60">
+                        Nombre Completo
+                      </span>
                     </label>
                     <input
                       required
@@ -322,7 +333,9 @@ export default function Clients() {
                   </div>
                   <div className="form-control">
                     <label className="label py-1">
-                      <span className="label-text text-xs font-semibold uppercase opacity-60">Correo Electrónico</span>
+                      <span className="label-text text-xs font-semibold uppercase opacity-60">
+                        Correo Electrónico
+                      </span>
                     </label>
                     <input
                       required
@@ -337,7 +350,9 @@ export default function Clients() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="form-control">
                       <label className="label py-1">
-                        <span className="label-text text-xs font-semibold uppercase opacity-60">Teléfono</span>
+                        <span className="label-text text-xs font-semibold uppercase opacity-60">
+                          Teléfono
+                        </span>
                       </label>
                       <input
                         className="input input-bordered w-full bg-base-200/50"
@@ -349,7 +364,9 @@ export default function Clients() {
                     </div>
                     <div className="form-control">
                       <label className="label py-1">
-                        <span className="label-text text-xs font-semibold uppercase opacity-60">Dirección</span>
+                        <span className="label-text text-xs font-semibold uppercase opacity-60">
+                          Dirección
+                        </span>
                       </label>
                       <input
                         className="input input-bordered w-full bg-base-200/50"
@@ -435,11 +452,7 @@ export default function Clients() {
                       placeholder="XX-XXXXXXXX-X"
                     />
                   </div>
-                  <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="btn btn-primary w-full mt-2"
-                  >
+                  <button type="submit" disabled={isSaving} className="btn btn-primary w-full mt-2">
                     {isSaving && <span className="loading loading-spinner loading-xs" />}
                     {editingClient?.id ? 'Guardar Cambios' : 'Crear Cliente'}
                   </button>

@@ -118,9 +118,11 @@ export const ApiOrderSchema = z.object({
   iva: NumberSchema,
   customer_note: OptionalStringSchema,
   observaciones: OptionalStringSchema,
-  billing: z.object({
-    country: OptionalStringSchema,
-  }).optional(),
+  billing: z
+    .object({
+      country: OptionalStringSchema,
+    })
+    .optional(),
   items: z.array(ApiOrderItemSchema).optional(),
   customer: ApiCustomerSchema.optional(),
 });
@@ -214,7 +216,9 @@ export type DraftOrder = z.infer<typeof DraftOrderSchema>;
 export type SharedCart = z.infer<typeof SharedCartSchema>;
 export type AppNotification = z.infer<typeof AppNotificationSchema>;
 export type ApiResponse<T = unknown> = z.infer<typeof ApiResponseSchema> & { data?: T };
-export type PaginatedResponse<T = unknown> = z.infer<typeof PaginatedResponseSchema> & { data: T[] };
+export type PaginatedResponse<T = unknown> = z.infer<typeof PaginatedResponseSchema> & {
+  data: T[];
+};
 
 // Validation helpers
 export function validateApiResponse<T>(schema: z.ZodSchema<T>, data: unknown): T {

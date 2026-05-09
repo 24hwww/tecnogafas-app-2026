@@ -1,15 +1,15 @@
 import { Capacitor } from '@capacitor/core';
+import {
+  CustomerRequestValidator,
+  EventCreateRequestValidator,
+  LoginRequestValidator,
+  OrderRequestValidator,
+  OrderStatusUpdateValidator,
+  ProductVerificationRequestValidator,
+  validateData,
+} from '../lib/apiValidators';
 import type { ApiClient, ApiOrder, CartItem, Client, Order, Product, Seller, User } from '../types';
 import { savePendingOrder } from './pendingOrdersSync';
-import { 
-  LoginRequestValidator, 
-  OrderRequestValidator, 
-  ProductVerificationRequestValidator,
-  CustomerRequestValidator,
-  OrderStatusUpdateValidator,
-  EventCreateRequestValidator,
-  validateData
-} from '../lib/apiValidators';
 
 const REAL_API_URL = 'https://api.tecnogafas.com.ar';
 const PROXY_API_URL = '/api';
@@ -125,7 +125,7 @@ export const apiService = {
           for (const field of fields) {
             const [key, ...valueParts] = field.split(':');
             const value = valueParts.join(':').trim();
-            
+
             switch (key.toLowerCase()) {
               case 'variation_id':
                 variation.vid = value;
@@ -739,7 +739,7 @@ export const apiService = {
       if (res.ok && (data?.order_id || data?.data?.order_id)) {
         try {
           const { createOrderNotification } = await import('./chatNotificationService');
-          
+
           // Obtener información del vendedor
           const sellerInfo: Seller = {
             id: sellerId,
@@ -751,14 +751,14 @@ export const apiService = {
             id: (data?.order_id || data?.data?.order_id)?.toString() || 'unknown',
             clientId: clientId.toString(),
             clientName: fullClient?.name || 'Cliente',
-            items: items.map(item => ({
+            items: items.map((item) => ({
               productId: item.id.toString(),
               productName: item.name || 'Producto',
               quantity: item.quantity,
               price: item.price,
               vid: item.vid,
             })),
-            total: items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+            total: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
             status: 'unattended',
             createdAt: new Date().toISOString(),
             sellerId: sellerId,
@@ -767,7 +767,7 @@ export const apiService = {
           };
 
           // Enviar notificación asíncronamente (no bloquear la respuesta)
-          createOrderNotification(orderForNotification, sellerInfo).catch(err => {
+          createOrderNotification(orderForNotification, sellerInfo).catch((err) => {
             console.error('[API] Error al enviar notificación de pedido:', err);
           });
 
@@ -779,7 +779,10 @@ export const apiService = {
             console.error('[API] Error al actualizar estadísticas:', statsError);
           }
         } catch (notificationError) {
-          console.error('[API] Error al inicializar servicio de notificaciones:', notificationError);
+          console.error(
+            '[API] Error al inicializar servicio de notificaciones:',
+            notificationError,
+          );
         }
       }
 
@@ -859,16 +862,18 @@ export const apiService = {
 
     const res = await customFetch(`${BASE_URL}/usuarios`, { headers });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
-    
-    const json = (await res.json()) as { data?: Array<{
-      ID?: number;
-      user_login?: string;
-      display_name?: string;
-      user_email?: string;
-      first_name?: string;
-      last_name?: string;
-    }> };
-    
+
+    const json = (await res.json()) as {
+      data?: Array<{
+        ID?: number;
+        user_login?: string;
+        display_name?: string;
+        user_email?: string;
+        first_name?: string;
+        last_name?: string;
+      }>;
+    };
+
     return (json.data || []).map((u) => ({
       id: u.ID?.toString() || Math.random().toString(),
       username: u.user_login || '',

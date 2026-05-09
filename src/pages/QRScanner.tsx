@@ -1,11 +1,11 @@
 import { type IDetectedBarcode, Scanner } from '@yudiel/react-qr-scanner';
-import { ArrowLeft, CheckCircle, XCircle, Scan, Zap } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Scan, XCircle, Zap } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
-import type { CartItem } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import type { CartItem } from '../types';
 
 interface QRData {
   id: string;
@@ -118,7 +118,10 @@ export default function QRScanner() {
               <p className="text-sm text-[var(--color-text-muted)] mb-8">{error}</p>
               <div className="flex flex-col gap-3">
                 <button
-                  onClick={() => { setError(null); setScanning(true); }}
+                  onClick={() => {
+                    setError(null);
+                    setScanning(true);
+                  }}
                   className="btn btn-primary btn-lg rounded-2xl w-full h-14"
                 >
                   Reintentar
@@ -138,7 +141,7 @@ export default function QRScanner() {
               <div className="relative w-full max-w-sm group">
                 {/* Decorative glow */}
                 <div className="absolute -inset-1 bg-primary/20 rounded-[3rem] blur-xl group-hover:bg-primary/30 transition-all opacity-50"></div>
-                
+
                 <div className="relative bg-[var(--color-surface-800)] border-4 border-[var(--color-border)] rounded-[2.5rem] overflow-hidden aspect-square shadow-2xl flex items-center justify-center">
                   {scanning && (
                     <Scanner
@@ -149,7 +152,7 @@ export default function QRScanner() {
                       styles={{ container: { width: '100%', height: '100%' } }}
                     />
                   )}
-                  
+
                   {/* Scan overlay */}
                   <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                     <div className="w-64 h-64 border-2 border-primary/40 rounded-3xl relative">
@@ -157,7 +160,7 @@ export default function QRScanner() {
                       <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-xl"></div>
                       <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-xl"></div>
                       <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-xl"></div>
-                      
+
                       {/* Scanning line animation */}
                       <div className="w-full h-0.5 bg-primary/50 shadow-[0_0_15px_rgba(16,185,129,0.5)] absolute top-0 animate-[scan_2s_infinite_linear]"></div>
                     </div>
@@ -170,7 +173,8 @@ export default function QRScanner() {
                   <Zap size={20} />
                 </div>
                 <p className="text-xs text-[var(--color-text-muted)] leading-relaxed font-medium">
-                  Escanee el código QR del PDF impreso o desde la pantalla de otro dispositivo para sincronizar instantáneamente el carrito de compras.
+                  Escanee el código QR del PDF impreso o desde la pantalla de otro dispositivo para
+                  sincronizar instantáneamente el carrito de compras.
                 </p>
               </div>
             </motion.div>
@@ -178,14 +182,18 @@ export default function QRScanner() {
         </AnimatePresence>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @keyframes scan {
           0% { top: 0; opacity: 0; }
           10% { opacity: 1; }
           90% { opacity: 1; }
           100% { top: 100%; opacity: 0; }
         }
-      `}} />
+      `,
+        }}
+      />
     </div>
   );
 }

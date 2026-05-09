@@ -17,7 +17,7 @@ interface CartContextType {
   updateCartQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
   clearCartAndClient: () => void;
-  saveDraft: (details: Record<string, unknown>) => Promise<void>;
+  saveDraft: (details: DraftOrder['details']) => Promise<void>;
   loadDraft: (draftId: string) => void;
   markDraftAsSent: (draftId: string) => Promise<void>;
   shareCart: () => Promise<{ success: boolean; code: string; message: string; link: string }>;
@@ -41,9 +41,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       try {
         console.log('[CartContext] Starting data load from Dexie...');
         const { appDB } = await import('../stores/appDatabase');
-        
+
         console.log('[CartContext] Database loaded, version:', appDB.verno);
-        
+
         // Load cart items
         const cartItems = await appDB.cart.toArray();
         console.log('[CartContext] Found cart items:', cartItems.length);
@@ -54,9 +54,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         // Load selected client - try localStorage first, then Dexie
         console.log('[CartContext] Loading selected client...');
-        
+
         let clientLoaded = false;
-        
+
         // Approach 1: Try localStorage first (most reliable)
         try {
           const localStorageClient = localStorage.getItem('selectedClient');
@@ -72,31 +72,42 @@ export function CartProvider({ children }: { children: ReactNode }) {
         } catch (localStorageError) {
           console.warn('[CartContext] localStorage read failed:', localStorageError);
         }
-        
+
         // Approach 2: If localStorage failed, try Dexie
         if (!clientLoaded) {
           try {
-            let selectedClients = await appDB.selectedClient.filter(client => client.isSelected).toArray();
-            console.log('[CartContext] Dexie Approach 1 - Filter by isSelected:', selectedClients.length);
-            
+            let selectedClients = await appDB.selectedClient
+              .filter((client) => client.isSelected)
+              .toArray();
+            console.log(
+              '[CartContext] Dexie Approach 1 - Filter by isSelected:',
+              selectedClients.length,
+            );
+
             // If no results, try where clause
             if (selectedClients.length === 0) {
-              selectedClients = await appDB.selectedClient.where('isSelected').equals('true').toArray();
+              selectedClients = await appDB.selectedClient
+                .where('isSelected')
+                .equals('true')
+                .toArray();
               console.log('[CartContext] Dexie Approach 2 - Where clause:', selectedClients.length);
             }
-            
+
             // If still no results, check all records
             if (selectedClients.length === 0) {
               const allClients = await appDB.selectedClient.toArray();
               console.log('[CartContext] Dexie Approach 3 - All records:', allClients);
-              
-              selectedClients = allClients.filter(client => {
+
+              selectedClients = allClients.filter((client) => {
                 const hasFlag = client.isSelected === true || client.isSelected === 'true';
                 return hasFlag;
               });
-              console.log('[CartContext] Dexie Approach 3 - Manual filter results:', selectedClients.length);
+              console.log(
+                '[CartContext] Dexie Approach 3 - Manual filter results:',
+                selectedClients.length,
+              );
             }
-            
+
             if (selectedClients.length > 0) {
               const selectedClientRecord = selectedClients[0];
               console.log('[CartContext] Loading client from Dexie:', selectedClientRecord);
@@ -108,14 +119,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 address: selectedClientRecord.address || '',
                 billing_city: selectedClientRecord.billing_city || '',
                 billing_state: selectedClientRecord.billing_state || '',
-                cuit: selectedClientRecord.cuit || ''
+                cuit: selectedClientRecord.cuit || '',
               });
               clientLoaded = true;
               console.log('[CartContext] Client loaded successfully from Dexie');
-              
-              // Sync back to localStorage for future loads
-              localStorage.setItem('selectedClient', JSON.stringify(selectedClientRecord));
-              console.log('[CartContext] Synced client back to localStorage');
+
+              // Client data is now stored only in Dexie for consistency
             } else {
               console.log('[CartContext] No selected client found in Dexie after all approaches');
             }
@@ -123,7 +132,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             console.warn('[CartContext] Dexie read failed:', dexieError);
           }
         }
-        
+
         if (!clientLoaded) {
           console.log('[CartContext] No client loaded from any source');
         }
@@ -141,11 +150,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
           setSharedCarts(sharedCartItems);
           console.log('[CartContext] Shared carts loaded:', sharedCartItems.length);
         }
-        
+
         console.log('[CartContext] Data load completed');
       } catch (e) {
-        console.error('[CartContext] Error loading data from Dexie:', e);
-        console.error('[CartContext] Error details:', e.stack);
+        console.error(
+          '[CartContext] Error loading data from Dexie:',
+          e instanceof Error ? e : new Error(String(e)),
+        );
+        console.error(
+          '[CartContext] Error details:',
+          e instanceof Error ? e.stack : 'No stack available',
+        );
       }
     };
     loadFromDexie();
@@ -186,7 +201,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             const clientWithFlag = {
               ...selectedClient,
               isSelected: true, // Flag to identify this as the selected client
-              timestamp: Date.now() // Add timestamp for debugging
+              timestamp: Date.now(), // Add timestamp for debugging
             };
             await appDB.selectedClient.add(clientWithFlag);
             console.log('[CartContext] Client also saved to Dexie:', clientWithFlag);
@@ -235,7 +250,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCurrentDraftId(null);
   };
 
-  const saveDraft = async (details: Record<string, unknown>) => {
+  const saveDraft = async (details: DraftOrder['details']) => {
     if (!selectedClient || cart.length === 0) return;
     let updatedDrafts: DraftOrder[];
     if (currentDraftId) {
@@ -245,7 +260,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
               ...d,
               client: selectedClient,
               items: [...cart],
-              details,
+              details: {
+                iva: typeof details.iva === 'number' ? details.iva : Number(details.iva) || 0,
+                discount:
+                  typeof details.discount === 'number'
+                    ? details.discount
+                    : Number(details.discount) || 0,
+                recargo:
+                  typeof details.recargo === 'number'
+                    ? details.recargo
+                    : Number(details.recargo) || 0,
+                methodpay: String(details.methodpay || ''),
+                transport: String(details.transport || ''),
+                commit: String(details.commit || ''),
+                otheremail: String(details.otheremail || ''),
+                sendEmail: Boolean(details.sendEmail),
+                ...Object.fromEntries(
+                  Object.entries(details).filter(
+                    ([key]) =>
+                      ![
+                        'iva',
+                        'discount',
+                        'recargo',
+                        'methodpay',
+                        'transport',
+                        'commit',
+                        'otheremail',
+                        'sendEmail',
+                      ].includes(key),
+                  ),
+                ),
+              },
               date: new Date().toISOString(),
             }
           : d,
@@ -257,7 +302,35 @@ export function CartProvider({ children }: { children: ReactNode }) {
           id: `draft_${Date.now()}`,
           client: selectedClient,
           items: [...cart],
-          details,
+          details: {
+            iva: typeof details.iva === 'number' ? details.iva : Number(details.iva) || 0,
+            discount:
+              typeof details.discount === 'number'
+                ? details.discount
+                : Number(details.discount) || 0,
+            recargo:
+              typeof details.recargo === 'number' ? details.recargo : Number(details.recargo) || 0,
+            methodpay: String(details.methodpay || ''),
+            transport: String(details.transport || ''),
+            commit: String(details.commit || ''),
+            otheremail: String(details.otheremail || ''),
+            sendEmail: Boolean(details.sendEmail),
+            ...Object.fromEntries(
+              Object.entries(details).filter(
+                ([key]) =>
+                  ![
+                    'iva',
+                    'discount',
+                    'recargo',
+                    'methodpay',
+                    'transport',
+                    'commit',
+                    'otheremail',
+                    'sendEmail',
+                  ].includes(key),
+              ),
+            ),
+          },
           status: 'no enviado',
           date: new Date().toISOString(),
         },
@@ -320,7 +393,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           metadata: {
             total: cart.reduce((acc, item) => acc + item.price * item.quantity, 0),
           },
-        } as Record<string, unknown>)
+        })
         .select()
         .single();
 
@@ -403,9 +476,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setDrafts,
         setSharedCarts,
         setSelectedClient: (client) => {
-      console.log('[CartContext] setSelectedClient called with:', client);
-      setSelectedClient(client);
-    },
+          console.log('[CartContext] setSelectedClient called with:', client);
+          setSelectedClient(client);
+        },
         addToCart,
         removeFromCart,
         updateCartQuantity,

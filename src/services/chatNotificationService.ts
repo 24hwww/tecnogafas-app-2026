@@ -21,12 +21,12 @@ interface OrderNotificationData {
  */
 export async function createOrderNotification(
   order: Order,
-  seller: Seller
+  seller: Seller,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // 1. Obtener o crear el canal de notificaciones
     const notificationChannel = await getOrCreateNotificationChannel();
-    
+
     if (!notificationChannel) {
       throw new Error('No se pudo obtener el canal de notificaciones');
     }
@@ -43,18 +43,16 @@ export async function createOrderNotification(
     };
 
     // 3. Crear mensaje de notificación en el chat
-    const { error: messageError } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: notificationChannel.id,
-        type: 'order',
-        content: `🛒 Nuevo pedido ${notificationData.order_number}`,
-        metadata: {
-          notification_type: 'new_order',
-          order_data: notificationData,
-        },
-        user_id: seller.id?.toString(),
-      } as any);
+    const { error: messageError } = await supabase.from('messages').insert({
+      conversation_id: notificationChannel.id,
+      type: 'order',
+      content: `🛒 Nuevo pedido ${notificationData.order_number}`,
+      metadata: {
+        notification_type: 'new_order',
+        order_data: notificationData,
+      },
+      user_id: seller.id?.toString(),
+    } as any);
 
     if (messageError) {
       throw messageError;
@@ -68,14 +66,16 @@ export async function createOrderNotification(
       } as any)
       .eq('id', notificationChannel.id);
 
-    console.log(`[ChatNotification] Notificación creada para pedido ${notificationData.order_number}`);
-    
+    console.log(
+      `[ChatNotification] Notificación creada para pedido ${notificationData.order_number}`,
+    );
+
     return { success: true };
   } catch (error) {
     console.error('[ChatNotification] Error al crear notificación:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Error desconocido' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error desconocido',
     };
   }
 }
@@ -130,11 +130,11 @@ async function getOrCreateNotificationChannel(): Promise<{ id: string } | null> 
 export async function createOrderStatusNotification(
   order: Order,
   newStatus: string,
-  seller: Seller
+  seller: Seller,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const notificationChannel = await getOrCreateNotificationChannel();
-    
+
     if (!notificationChannel) {
       throw new Error('No se pudo obtener el canal de notificaciones');
     }
@@ -148,28 +148,26 @@ export async function createOrderStatusNotification(
 
     const emoji = statusEmojis[newStatus] || '📋';
 
-    const { error: messageError } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: notificationChannel.id,
-        type: 'alert',
-        content: `${emoji} Pedido #${order.id} actualizado: ${newStatus}`,
-        metadata: {
-          notification_type: 'order_status_update',
-          alert_data: {
-            level: 'info',
-            title: 'Actualización de Pedido',
-            order_id: order.id?.toString(),
-            old_status: order.status,
-            new_status: newStatus,
-            action: {
-              label: 'Ver Pedido',
-              url: `/orders/${order.id}`,
-            },
+    const { error: messageError } = await supabase.from('messages').insert({
+      conversation_id: notificationChannel.id,
+      type: 'alert',
+      content: `${emoji} Pedido #${order.id} actualizado: ${newStatus}`,
+      metadata: {
+        notification_type: 'order_status_update',
+        alert_data: {
+          level: 'info',
+          title: 'Actualización de Pedido',
+          order_id: order.id?.toString(),
+          old_status: order.status,
+          new_status: newStatus,
+          action: {
+            label: 'Ver Pedido',
+            url: `/orders/${order.id}`,
           },
         },
-        user_id: seller.id?.toString(),
-      } as any);
+      },
+      user_id: seller.id?.toString(),
+    } as any);
 
     if (messageError) {
       throw messageError;
@@ -178,9 +176,9 @@ export async function createOrderStatusNotification(
     return { success: true };
   } catch (error) {
     console.error('[ChatNotification] Error al crear notificación de estado:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Error desconocido' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error desconocido',
     };
   }
 }
@@ -192,11 +190,11 @@ export async function sendCustomNotification(
   title: string,
   message: string,
   type: 'info' | 'warning' | 'error' | 'success' = 'info',
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const notificationChannel = await getOrCreateNotificationChannel();
-    
+
     if (!notificationChannel) {
       throw new Error('No se pudo obtener el canal de notificaciones');
     }
@@ -210,23 +208,21 @@ export async function sendCustomNotification(
 
     const emoji = typeEmojis[type];
 
-    const { error: messageError } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: notificationChannel.id,
-        type: 'alert',
-        content: `${emoji} ${title}`,
-        metadata: {
-          notification_type: 'custom',
-          alert_data: {
-            level: type,
-            title,
-            message,
-            ...metadata,
-          },
+    const { error: messageError } = await supabase.from('messages').insert({
+      conversation_id: notificationChannel.id,
+      type: 'alert',
+      content: `${emoji} ${title}`,
+      metadata: {
+        notification_type: 'custom',
+        alert_data: {
+          level: type,
+          title,
+          message,
+          ...metadata,
         },
-        user_id: 'system',
-      } as any);
+      },
+      user_id: 'system',
+    } as any);
 
     if (messageError) {
       throw messageError;
@@ -235,9 +231,9 @@ export async function sendCustomNotification(
     return { success: true };
   } catch (error) {
     console.error('[ChatNotification] Error al enviar notificación personalizada:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Error desconocido' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error desconocido',
     };
   }
 }

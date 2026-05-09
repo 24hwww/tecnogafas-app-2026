@@ -2,7 +2,8 @@
 // CHAT TEST - Componente para probar conexión con Supabase
 // ============================================================================
 
-import React, { useEffect, useState } from 'react';
+import type React from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../modules/chat/lib/supabase';
 
 // AuthBadge component moved to module scope to prevent re-creation on every render
@@ -45,7 +46,6 @@ export default function ChatTest() {
     return user;
   };
 
-  
   // Test 1: Verificar conexión
   const testConnection = async () => {
     setStatus('testing');
@@ -316,7 +316,9 @@ export default function ChatTest() {
 
       {/* Debug info */}
       <details className="text-sm">
-        <summary className="text-[var(--color-text-muted)] cursor-pointer">Información de debug</summary>
+        <summary className="text-[var(--color-text-muted)] cursor-pointer">
+          Información de debug
+        </summary>
         <div className="mt-2 p-3 bg-[var(--color-surface-800)] rounded-xl text-[var(--color-text-muted)] font-mono text-xs">
           <p>Supabase URL: {import.meta.env.VITE_SUPABASE_URL || 'NO CONFIGURADO'}</p>
           <p>

@@ -39,16 +39,16 @@ export const SimpleApiResponseValidator = z.object({
 export function safeValidate<T>(
   schema: z.ZodSchema<T>,
   data: unknown,
-  context = 'datos'
+  context = 'datos',
 ): { success: true; data: T } | { success: false; error: string } {
   try {
     const result = schema.parse(data);
     return { success: true, data: result };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const messages = error.issues.map(issue => 
-        `${issue.path.join('.')}: ${issue.message}`
-      ).join(', ');
+      const messages = error.issues
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join(', ');
       return { success: false, error: `Error en ${context}: ${messages}` };
     }
     return { success: false, error: `Error desconocido en ${context}` };
@@ -61,7 +61,7 @@ export function safeValidate<T>(
 export function safeValidateArray<T>(
   schema: z.ZodSchema<T>,
   data: unknown,
-  context = 'datos'
+  context = 'datos',
 ): { success: true; data: T[] } | { success: false; error: string } {
   try {
     const arraySchema = z.array(schema);
@@ -69,9 +69,9 @@ export function safeValidateArray<T>(
     return { success: true, data: result };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const messages = error.issues.map(issue => 
-        `${issue.path.join('.')}: ${issue.message}`
-      ).join(', ');
+      const messages = error.issues
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join(', ');
       return { success: false, error: `Error en ${context}: ${messages}` };
     }
     return { success: false, error: `Error desconocido en ${context}` };
@@ -115,7 +115,7 @@ export function safeStorageGet<T>(key: string, schema: z.ZodSchema<T>): T | null
   try {
     const item = localStorage.getItem(key);
     if (!item) return null;
-    
+
     const parsed = JSON.parse(item);
     const result = schema.safeParse(parsed);
     return result.success ? result.data : null;

@@ -12,28 +12,28 @@ export function getAnimationProps(variant: 'fade' | 'slide' | 'scale' | 'spring'
       initial: { opacity: 0 },
       animate: { opacity: 1 },
       exit: { opacity: 0 },
-      transition: { duration: 0.15 }
+      transition: { duration: 0.15 },
     },
     slide: {
       initial: { opacity: 0, y: 10 },
       animate: { opacity: 1, y: 0 },
       exit: { opacity: 0, y: -10 },
-      transition: { duration: 0.15, ease: [0.4, 0, 0.2, 1] }
+      transition: { duration: 0.15, ease: [0.4, 0, 0.2, 1] },
     },
     scale: {
       initial: { opacity: 0, scale: 0.95 },
       animate: { opacity: 1, scale: 1 },
       exit: { opacity: 0, scale: 0.95 },
-      transition: { duration: 0.15 }
+      transition: { duration: 0.15 },
     },
     spring: {
       initial: { opacity: 0, scale: 0.8, y: 20 },
       animate: { opacity: 1, scale: 1, y: 0 },
       exit: { opacity: 0, scale: 0.8, y: -20 },
-      transition: { type: 'spring', damping: 25, stiffness: 400 }
-    }
+      transition: { type: 'spring', damping: 25, stiffness: 400 },
+    },
   };
-  
+
   return variants[variant];
 }
 
@@ -48,7 +48,7 @@ export const breakpoints = {
   md: '768px',
   lg: '1024px',
   xl: '1280px',
-  '2xl': '1536px'
+  '2xl': '1536px',
 } as const;
 
 // Modern spacing scale
@@ -59,7 +59,7 @@ export const spacing = {
   lg: '1.5rem',
   xl: '2rem',
   '2xl': '3rem',
-  '3xl': '4rem'
+  '3xl': '4rem',
 } as const;
 
 export function formatCurrency(amount: number) {
@@ -146,21 +146,21 @@ export function getRelativeTime(date: string | Date | null | undefined) {
  */
 export function generateOrderTitle(sequenceNumber: number, date?: Date | string): string {
   const orderDate = date ? (typeof date === 'string' ? new Date(date) : date) : new Date();
-  
+
   // Formatear fecha y hora en zona horaria de Buenos Aires
   const dateStr = orderDate.toLocaleDateString('es-AR', {
     timeZone: 'America/Argentina/Buenos_Aires',
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: 'numeric',
   });
-  
+
   const timeStr = orderDate.toLocaleTimeString('es-AR', {
     timeZone: 'America/Argentina/Buenos_Aires',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: true
+    hour12: true,
   });
-  
+
   return `Pedido: #${sequenceNumber} – ${dateStr} ${timeStr}`;
 }

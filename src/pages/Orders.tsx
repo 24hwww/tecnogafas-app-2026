@@ -1,32 +1,28 @@
 import {
+  Calendar,
+  CheckCircle2,
+  ChevronRight,
+  CreditCard,
   FileText,
   Loader2,
   Mail,
+  MessageSquare,
   RotateCcw,
   Search,
-  X,
-  Calendar,
-  User,
   Tag,
-  CreditCard,
-  Truck,
-  MessageSquare,
-  CheckCircle2,
-  ChevronRight,
   TrendingUp,
+  Truck,
+  User,
+  X,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import React, { useMemo, useState, useCallback, memo } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { PullToRefresh } from '../components/PullToRefresh';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrders } from '../contexts/OrdersContext';
-import {
-  formatCurrency,
-  formatDateTimeBA,
-  cn,
-} from '../lib/utils';
+import { cn, formatCurrency, formatDateTimeBA } from '../lib/utils';
 import { apiService } from '../services/apiService';
 import type { Order } from '../types';
 
@@ -59,59 +55,81 @@ interface OrderCardProps {
   translateStatus: (status: string) => string;
 }
 
-const OrderCard = memo(({ order, isHighlight, sellers, getOrderNumber, getSellerName, onViewDetails, translateStatus }: OrderCardProps) => {
-  const isPending = order.status.toLowerCase() === 'unattended';
-  
-  return (
-    <motion.div
-      layout
-      key={order.id}
-      initial={isHighlight ? { scale: 1.02, borderColor: 'var(--color-primary)' } : {}}
-      animate={isHighlight ? { scale: 1, borderColor: 'var(--color-border)' } : {}}
-      transition={{ duration: 1.5 }}
-      className={cn(
-         "card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-2xl overflow-hidden hover:border-primary/40 transition-all group shadow-sm",
-         isHighlight && "ring-2 ring-primary ring-offset-4 ring-offset-background"
-      )}
-    >
-      <div className="p-5 flex items-start justify-between">
-        <div className="space-y-1 flex-1 min-w-0 pr-4">
-           <div className="flex items-center gap-2 mb-1">
+const OrderCard = memo(
+  ({
+    order,
+    isHighlight,
+    sellers,
+    getOrderNumber,
+    getSellerName,
+    onViewDetails,
+    translateStatus,
+  }: OrderCardProps) => {
+    const isPending = order.status.toLowerCase() === 'unattended';
+
+    return (
+      <motion.div
+        layout
+        key={order.id}
+        initial={isHighlight ? { scale: 1.02, borderColor: 'var(--color-primary)' } : {}}
+        animate={isHighlight ? { scale: 1, borderColor: 'var(--color-border)' } : {}}
+        transition={{ duration: 1.5 }}
+        className={cn(
+          'card bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-2xl overflow-hidden hover:border-primary/40 transition-all group shadow-sm',
+          isHighlight && 'ring-2 ring-primary ring-offset-4 ring-offset-background',
+        )}
+      >
+        <div className="p-5 flex items-start justify-between">
+          <div className="space-y-1 flex-1 min-w-0 pr-4">
+            <div className="flex items-center gap-2 mb-1">
               <span className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                 #{getOrderNumber(order.rawData?.post_title || '') || order.id}
+                #{getOrderNumber(order.rawData?.post_title || '') || order.id}
               </span>
-              <span className={cn(
-                 "text-[10px] font-bold px-2 py-0.5 rounded-full tracking-widest",
-                 isPending ? "bg-primary/10 text-primary" : "bg-success/20 text-primary"
-              )}>
-                 {translateStatus(order.status)}
+              <span
+                className={cn(
+                  'text-[10px] font-bold px-2 py-0.5 rounded-full tracking-widest',
+                  isPending ? 'bg-primary/10 text-primary' : 'bg-success/20 text-primary',
+                )}
+              >
+                {translateStatus(order.status)}
               </span>
-           </div>
-           <h4 className="text-lg font-black truncate">{order.clientName}</h4>
-           <div className="flex items-center gap-3 text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest">
-              <span className="flex items-center gap-1"><Calendar size={12} /> {formatDateTimeBA(order.createdAt)}</span>
-              <span className="flex items-center gap-1"><User size={12} /> {getSellerName(order.sellerId)}</span>
-           </div>
+            </div>
+            <h4 className="text-lg font-black truncate">{order.clientName}</h4>
+            <div className="flex items-center gap-3 text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest">
+              <span className="flex items-center gap-1">
+                <Calendar size={12} /> {formatDateTimeBA(order.createdAt)}
+              </span>
+              <span className="flex items-center gap-1">
+                <User size={12} /> {getSellerName(order.sellerId)}
+              </span>
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">
+              Total
+            </p>
+            <p className="text-xl font-black text-primary leading-none">
+              {formatCurrency(order.total || 0)}
+            </p>
+          </div>
         </div>
-        <div className="text-right shrink-0">
-           <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Total</p>
-           <p className="text-xl font-black text-primary leading-none">{formatCurrency(order.total || 0)}</p>
+
+        <div className="px-5 py-4 bg-[var(--color-surface-900)]/50 border-t border-[var(--color-border)]/10 flex justify-between items-center">
+          <span className="text-xs font-medium text-[var(--color-text-muted)]">
+            {order.items?.length || 0} productos
+          </span>
+          <button
+            id={`orders-view-details-btn-${order.id}`}
+            onClick={() => onViewDetails(order)}
+            className="btn btn-primary btn-sm rounded-xl gap-2 font-bold px-5"
+          >
+            Ver Detalles <ChevronRight size={16} />
+          </button>
         </div>
-      </div>
-      
-      <div className="px-5 py-4 bg-[var(--color-surface-900)]/50 border-t border-[var(--color-border)]/10 flex justify-between items-center">
-         <span className="text-xs font-medium text-[var(--color-text-muted)]">{order.items?.length || 0} productos</span>
-         <button
-           id={`orders-view-details-btn-${order.id}`}
-           onClick={() => onViewDetails(order)}
-           className="btn btn-primary btn-sm rounded-xl gap-2 font-bold px-5"
-         >
-           Ver Detalles <ChevronRight size={16} />
-         </button>
-      </div>
-    </motion.div>
-  );
-});
+      </motion.div>
+    );
+  },
+);
 
 OrderCard.displayName = 'OrderCard';
 
@@ -139,10 +157,23 @@ export default function Orders() {
     type: 'success' | 'error';
   } | null>(null);
 
-  const getSellerName = useCallback((id: string | number) => {
-    const seller = sellers.find((s) => s.id.toString() === id.toString());
-    return seller ? seller.name : 'Vendedor Desconocido';
-  }, [sellers]);
+  // Auto-open order details when ID is provided in URL
+  useEffect(() => {
+    if (targetId && orders.length > 0) {
+      const targetOrder = orders.find((order) => order.id.toString() === targetId);
+      if (targetOrder) {
+        setSelectedOrder(targetOrder);
+      }
+    }
+  }, [targetId, orders]);
+
+  const getSellerName = useCallback(
+    (id: string | number) => {
+      const seller = sellers.find((s) => s.id.toString() === id.toString());
+      return seller ? seller.name : 'Vendedor Desconocido';
+    },
+    [sellers],
+  );
 
   const getOrderNumber = useCallback((title: string) => {
     const match = title.match(/#(\d+)/);
@@ -160,14 +191,18 @@ export default function Orders() {
     }
   }, []);
 
-  const filteredOrders = useMemo(() => orders.filter((order) => {
-    const matchesSearch =
-      order.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.rawData?.post_title || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSeller = !selectedSeller || order.sellerId.toString() === selectedSeller;
-    const matchesCustomer = !selectedCustomer || order.clientId.toString() === selectedCustomer;
-    return matchesSearch && matchesSeller && matchesCustomer;
-  }), [orders, searchTerm, selectedSeller, selectedCustomer]);
+  const filteredOrders = useMemo(
+    () =>
+      orders.filter((order) => {
+        const matchesSearch =
+          order.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (order.rawData?.post_title || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSeller = !selectedSeller || order.sellerId.toString() === selectedSeller;
+        const matchesCustomer = !selectedCustomer || order.clientId.toString() === selectedCustomer;
+        return matchesSearch && matchesSeller && matchesCustomer;
+      }),
+    [orders, searchTerm, selectedSeller, selectedCustomer],
+  );
 
   const handleActionClick = (type: 'pdf' | 'email' | 'status' | 'regenerar') => {
     setActionType(type);
@@ -250,10 +285,13 @@ export default function Orders() {
       <div className="space-y-8 max-w-5xl mx-auto pb-20">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 id="orders-title" className="text-3xl font-black tracking-tight">Pedidos</h2>
-            <p className="text-sm text-[var(--color-text-muted)] mt-1">Gestión y seguimiento de pedidos</p>
+            <h2 id="orders-title" className="text-3xl font-black tracking-tight">
+              Pedidos
+            </h2>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">
+              Gestión y seguimiento de pedidos
+            </p>
           </div>
-
         </div>
 
         {/* Filters Section - New Minimalist Layout */}
@@ -285,13 +323,17 @@ export default function Orders() {
           <div className="flex flex-wrap gap-3 items-center">
             <div className="flex items-center gap-2 px-4 py-2 bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-xl">
               <User size={14} className="text-[var(--color-text-muted)]" />
-                <select
+              <select
                 className="bg-transparent border-none outline-none text-sm font-medium min-w-[120px]"
                 value={selectedSeller}
                 onChange={(e) => setSelectedSeller(e.target.value)}
               >
                 <option value="">Vendedor</option>
-                {sellers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {sellers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -303,7 +345,11 @@ export default function Orders() {
                 onChange={(e) => setSelectedCustomer(e.target.value)}
               >
                 <option value="">Cliente</option>
-                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -318,7 +364,9 @@ export default function Orders() {
           {(searchTerm || selectedSeller || selectedCustomer) && (
             <div className="flex items-center justify-between p-3 bg-[var(--color-surface-800)]/50 border border-[var(--color-border)]/50 rounded-xl">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-[var(--color-text-muted)]">Filtros activos:</span>
+                <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                  Filtros activos:
+                </span>
                 {searchTerm && (
                   <span className="px-2 py-1 bg-[var(--color-surface-700)] rounded text-xs font-medium">
                     "{searchTerm}"
@@ -326,17 +374,21 @@ export default function Orders() {
                 )}
                 {selectedSeller && (
                   <span className="px-2 py-1 bg-[var(--color-surface-700)] rounded text-xs font-medium">
-                    {sellers.find(s => s.id === selectedSeller)?.name}
+                    {sellers.find((s) => s.id === selectedSeller)?.name}
                   </span>
                 )}
                 {selectedCustomer && (
                   <span className="px-2 py-1 bg-[var(--color-surface-700)] rounded text-xs font-medium">
-                    {clients.find(c => c.id === selectedCustomer)?.name}
+                    {clients.find((c) => c.id === selectedCustomer)?.name}
                   </span>
                 )}
               </div>
               <button
-                onClick={() => { setSearchTerm(''); setSelectedSeller(''); setSelectedCustomer(''); }}
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedSeller('');
+                  setSelectedCustomer('');
+                }}
                 className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
               >
                 Limpiar todo
@@ -348,7 +400,9 @@ export default function Orders() {
         {/* Orders List */}
         <div className="space-y-4">
           {isLoading ? (
-            Array(4).fill(0).map((_, i) => <OrderSkeleton key={i} />)
+            Array(4)
+              .fill(0)
+              .map((_, i) => <OrderSkeleton key={i} />)
           ) : filteredOrders.length === 0 ? (
             <div className="card bg-[var(--color-surface-800)] border border-[var(--color-border)] border-dashed py-20 flex flex-col items-center text-center opacity-50">
               <FileText size={60} className="mb-4" />
@@ -380,7 +434,13 @@ export default function Orders() {
         <AnimatePresence>
           {selectedOrder && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setSelectedOrder(null)} />
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+                onClick={() => setSelectedOrder(null)}
+              />
               <motion.div
                 initial={{ scale: 0.95, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -390,17 +450,24 @@ export default function Orders() {
                 {/* Modal Header */}
                 <div className="p-8 border-b border-[var(--color-border)]/10 flex justify-between items-center bg-primary/5">
                   <div className="flex items-center gap-4">
-                     <div className="w-14 h-14 bg-primary text-primary-content rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
-                        <FileText size={28} />
-                     </div>
-                     <div>
-                        <h3 className="text-2xl font-black tracking-tight leading-none">
-                           #{getOrderNumber(selectedOrder.rawData?.post_title || '') || selectedOrder.id}
-                        </h3>
-                        <p className="text-sm font-bold text-[var(--color-text-muted)] mt-1 uppercase tracking-widest">Detalle del Pedido</p>
-                     </div>
+                    <div className="w-14 h-14 bg-primary text-primary-content rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
+                      <FileText size={28} />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black tracking-tight leading-none">
+                        #
+                        {getOrderNumber(selectedOrder.rawData?.post_title || '') ||
+                          selectedOrder.id}
+                      </h3>
+                      <p className="text-sm font-bold text-[var(--color-text-muted)] mt-1 uppercase tracking-widest">
+                        Detalle del Pedido
+                      </p>
+                    </div>
                   </div>
-                  <button onClick={() => setSelectedOrder(null)} className="btn btn-ghost btn-square rounded-2xl">
+                  <button
+                    onClick={() => setSelectedOrder(null)}
+                    className="btn btn-ghost btn-square rounded-2xl"
+                  >
                     <X size={24} />
                   </button>
                 </div>
@@ -408,117 +475,174 @@ export default function Orders() {
                 {/* Modal Body */}
                 <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                     <div className="space-y-4">
-                        <div className="flex items-start gap-3">
-                           <User size={18} className="text-primary shrink-0 mt-1" />
-                           <div>
-                              <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Cliente</p>
-                              <p className="font-bold text-lg">{selectedOrder.clientName}</p>
-                           </div>
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <User size={18} className="text-primary shrink-0 mt-1" />
+                        <div>
+                          <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">
+                            Cliente
+                          </p>
+                          <p className="font-bold text-lg">{selectedOrder.clientName}</p>
                         </div>
-                        <div className="flex items-start gap-3">
-                           <Tag size={18} className="text-primary shrink-0 mt-1" />
-                           <div>
-                              <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Estado</p>
-                              <span className={cn(
-                                 "badge badge-sm font-bold tracking-widest",
-                                 selectedOrder.status.toLowerCase() === 'unattended' ? "badge-success/10" : "badge-primary"
-                              )}>{translateStatus(selectedOrder.status)}</span>
-                           </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Tag size={18} className="text-primary shrink-0 mt-1" />
+                        <div>
+                          <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">
+                            Estado
+                          </p>
+                          <span
+                            className={cn(
+                              'badge badge-sm font-bold tracking-widest',
+                              selectedOrder.status.toLowerCase() === 'unattended'
+                                ? 'badge-success/10'
+                                : 'badge-primary',
+                            )}
+                          >
+                            {translateStatus(selectedOrder.status)}
+                          </span>
                         </div>
-                     </div>
-                     <div className="space-y-4">
-                        <div className="flex items-start gap-3">
-                           <Calendar size={18} className="text-primary shrink-0 mt-1" />
-                           <div>
-                              <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Fecha y Hora</p>
-                              <p className="font-bold">{formatDateTimeBA(selectedOrder.createdAt)} hs</p>
-                           </div>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <Calendar size={18} className="text-primary shrink-0 mt-1" />
+                        <div>
+                          <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">
+                            Fecha y Hora
+                          </p>
+                          <p className="font-bold">
+                            {formatDateTimeBA(selectedOrder.createdAt)} hs
+                          </p>
                         </div>
-                        <div className="flex items-start gap-3">
-                           <TrendingUp size={18} className="text-primary shrink-0 mt-1" />
-                           <div>
-                              <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Vendedor</p>
-                              <p className="font-bold">{getSellerName(selectedOrder.sellerId)}</p>
-                           </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <TrendingUp size={18} className="text-primary shrink-0 mt-1" />
+                        <div>
+                          <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">
+                            Vendedor
+                          </p>
+                          <p className="font-bold">{getSellerName(selectedOrder.sellerId)}</p>
                         </div>
-                     </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Extra Details */}
                   <div className="bg-[var(--color-surface-900)] rounded-3xl p-6 border border-[var(--color-border)] grid grid-cols-1 sm:grid-cols-2 gap-6">
-                     <div className="flex items-center gap-3">
-                        <Truck size={18} className="text-primary" />
-                        <div>
-                           <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Transporte</p>
-                           <p className="font-bold text-sm">{selectedOrder.rawData?.transport || 'No especificado'}</p>
-                        </div>
-                     </div>
-                     <div className="flex items-center gap-3">
-                        <CreditCard size={18} className="text-primary" />
-                        <div>
-                           <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">Método de Pago</p>
-                           <p className="font-bold text-sm">{selectedOrder.rawData?.methodpay || 'No especificado'}</p>
-                        </div>
-                     </div>
+                    <div className="flex items-center gap-3">
+                      <Truck size={18} className="text-primary" />
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">
+                          Transporte
+                        </p>
+                        <p className="font-bold text-sm">
+                          {selectedOrder.rawData?.transport || 'No especificado'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <CreditCard size={18} className="text-primary" />
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest">
+                          Método de Pago
+                        </p>
+                        <p className="font-bold text-sm">
+                          {selectedOrder.rawData?.methodpay || 'No especificado'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Note */}
                   <div className="space-y-2">
-                     <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest flex items-center gap-2">
-                        <MessageSquare size={14} /> Observaciones
-                     </p>
-                     <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 italic text-sm text-[var(--color-text-muted)]">
-                        {selectedOrder.rawData?.customer_note || 'Sin observaciones adicionales.'}
-                     </div>
+                    <p className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-widest flex items-center gap-2">
+                      <MessageSquare size={14} /> Observaciones
+                    </p>
+                    <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 italic text-sm text-[var(--color-text-muted)]">
+                      {selectedOrder.rawData?.customer_note || 'Sin observaciones adicionales.'}
+                    </div>
                   </div>
 
                   {/* Items List */}
                   <div className="space-y-4">
-                     <h4 className="text-xl font-black tracking-tight flex items-center gap-2">
-                        <TrendingUp size={20} className="text-primary" /> Productos
-                     </h4>
-                     <div className="grid gap-2">
-                        {selectedOrder.items.map((item, i) => (
-                          <div key={i} className="flex justify-between items-center py-3 border-b border-[var(--color-border)]/5 last:border-0">
-                             <div className="flex-1 min-w-0 pr-4">
-                                <p className="font-bold text-sm truncate">{item.productName}</p>
-                                <p className="text-xs text-[var(--color-text-muted)]">{item.quantity} x {formatCurrency(item.price)}</p>
-                             </div>
-                             <div className="text-right">
-                                <p className="font-black text-primary">{formatCurrency(item.price * item.quantity)}</p>
-                             </div>
+                    <h4 className="text-xl font-black tracking-tight flex items-center gap-2">
+                      <TrendingUp size={20} className="text-primary" /> Productos
+                    </h4>
+                    <div className="grid gap-2">
+                      {selectedOrder.items.map((item, i) => (
+                        <div
+                          key={i}
+                          className="flex justify-between items-center py-3 border-b border-[var(--color-border)]/5 last:border-0"
+                        >
+                          <div className="flex-1 min-w-0 pr-4">
+                            <p className="font-bold text-sm truncate">{item.productName}</p>
+                            <p className="text-xs text-[var(--color-text-muted)]">
+                              {item.quantity} x {formatCurrency(item.price)}
+                            </p>
                           </div>
-                        ))}
-                     </div>
+                          <div className="text-right">
+                            <p className="font-black text-primary">
+                              {formatCurrency(item.price * item.quantity)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
                 {/* Modal Footer Summary */}
                 <div className="p-8 bg-[var(--color-surface-900)] border-t border-[var(--color-border)]">
-                   <div className="flex justify-between items-center mb-6">
-                      <span className="text-xl font-black uppercase tracking-widest opacity-50">Total Final</span>
-                      <span className="text-4xl font-black text-primary">{formatCurrency(selectedOrder.total)}</span>
-                   </div>
-                   
-                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <button onClick={() => handleActionClick('status')} className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20">
-                         <CheckCircle2 size={20} />
-                         <span className="text-[10px] font-bold uppercase tracking-widest">{selectedOrder.status === 'unattended' ? 'Confirmado' : 'Pendiente'}</span>
-                      </button>
-                      <button onClick={() => handleActionClick('email')} className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20">
-                         <Mail size={20} />
-                         <span className="text-[10px] font-bold uppercase tracking-widest">Enviar</span>
-                      </button>
-                      <button onClick={() => handleActionClick('pdf')} className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20">
-                         <FileText size={20} />
-                         <span className="text-[10px] font-bold uppercase tracking-widest">PDF</span>
-                      </button>
-                      <button onClick={() => handleActionClick('regenerar')} className="btn btn-secondary rounded-2xl flex flex-col items-center gap-1 h-20">
-                         {isRegenerating ? <Loader2 size={20} className="animate-spin" /> : <RotateCcw size={20} />}
-                         <span className="text-[10px] font-bold uppercase tracking-widest">Regenerar</span>
-                      </button>
-                   </div>
+                  <div className="flex justify-between items-center mb-6">
+                    <span className="text-xl font-black uppercase tracking-widest opacity-50">
+                      Total Final
+                    </span>
+                    <span className="text-4xl font-black text-primary">
+                      {formatCurrency(selectedOrder.total)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <button
+                      onClick={() => handleActionClick('status')}
+                      className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20"
+                    >
+                      <CheckCircle2 size={20} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">
+                        {selectedOrder.status === 'unattended' ? 'Confirmado' : 'Pendiente'}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => handleActionClick('email')}
+                      className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20"
+                    >
+                      <Mail size={20} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">
+                        Enviar
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => handleActionClick('pdf')}
+                      className="btn btn-outline rounded-2xl flex flex-col items-center gap-1 h-20"
+                    >
+                      <FileText size={20} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">PDF</span>
+                    </button>
+                    <button
+                      onClick={() => handleActionClick('regenerar')}
+                      className="btn btn-secondary rounded-2xl flex flex-col items-center gap-1 h-20"
+                    >
+                      {isRegenerating ? (
+                        <Loader2 size={20} className="animate-spin" />
+                      ) : (
+                        <RotateCcw size={20} />
+                      )}
+                      <span className="text-[10px] font-bold uppercase tracking-widest">
+                        Regenerar
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             </div>
@@ -529,13 +653,25 @@ export default function Orders() {
         <AnimatePresence>
           {pinModalOpen && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setPinModalOpen(false)} />
-              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-[var(--color-surface-800)] p-8 rounded-[2.5rem] max-w-sm w-full text-center shadow-2xl">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/80 backdrop-blur-md"
+                onClick={() => setPinModalOpen(false)}
+              />
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="relative bg-[var(--color-surface-800)] p-8 rounded-[2.5rem] max-w-sm w-full text-center shadow-2xl"
+              >
                 <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
-                   <TrendingUp size={40} />
+                  <TrendingUp size={40} />
                 </div>
                 <h3 className="text-2xl font-bold mb-2">Autorización</h3>
-                <p className="text-[var(--color-text-muted)] text-sm mb-8">Ingrese su PIN de vendedor para autorizar esta acción.</p>
+                <p className="text-[var(--color-text-muted)] text-sm mb-8">
+                  Ingrese su PIN de vendedor para autorizar esta acción.
+                </p>
                 <input
                   type="password"
                   inputMode="numeric"
@@ -546,12 +682,31 @@ export default function Orders() {
                   onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))}
                   autoFocus
                 />
-                {actionFeedback && <p className={cn("text-xs font-bold mb-4 uppercase", actionFeedback.type === 'error' ? "text-error" : "text-success")}>{actionFeedback.message}</p>}
+                {actionFeedback && (
+                  <p
+                    className={cn(
+                      'text-xs font-bold mb-4 uppercase',
+                      actionFeedback.type === 'error' ? 'text-error' : 'text-success',
+                    )}
+                  >
+                    {actionFeedback.message}
+                  </p>
+                )}
                 <div className="flex flex-col gap-3">
-                  <button onClick={() => executeAction()} disabled={isActionLoading || pin.length !== 8} className="btn btn-primary btn-lg rounded-2xl w-full h-14">
-                    {isActionLoading ? <span className="loading loading-spinner" /> : 'Confirmar Acción'}
+                  <button
+                    onClick={() => executeAction()}
+                    disabled={isActionLoading || pin.length !== 8}
+                    className="btn btn-primary btn-lg rounded-2xl w-full h-14"
+                  >
+                    {isActionLoading ? (
+                      <span className="loading loading-spinner" />
+                    ) : (
+                      'Confirmar Acción'
+                    )}
                   </button>
-                  <button onClick={() => setPinModalOpen(false)} className="btn btn-ghost btn-sm">Cancelar</button>
+                  <button onClick={() => setPinModalOpen(false)} className="btn btn-ghost btn-sm">
+                    Cancelar
+                  </button>
                 </div>
               </motion.div>
             </div>

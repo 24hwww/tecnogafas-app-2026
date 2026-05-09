@@ -167,7 +167,10 @@ export default function TestApiPage() {
 
       <div className="space-y-4">
         {results.map((r, i) => (
-          <div key={i} className="bg-base-100 rounded-xl border border-[var(--color-border)]/10 p-4 shadow-sm">
+          <div
+            key={i}
+            className="bg-base-100 rounded-xl border border-[var(--color-border)]/10 p-4 shadow-sm"
+          >
             <p className="font-mono font-bold text-sm text-primary mb-2 flex justify-between">
               <span>{r.name}</span>
               <span className="text-[var(--color-text-muted)]/60">{r.time}</span>

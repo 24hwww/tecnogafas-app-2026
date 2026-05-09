@@ -37,7 +37,7 @@ export function incrementOrderStats(): void {
   try {
     // Obtener estadísticas actuales del localStorage
     const currentStats = getLocalStats();
-    
+
     // Incrementar contadores relevantes
     const updatedStats: LocalStats = {
       ...currentStats,
@@ -48,14 +48,16 @@ export function incrementOrderStats(): void {
 
     // Guardar estadísticas actualizadas
     saveLocalStats(updatedStats);
-    
+
     // Disparar evento personalizado para notificar a otros componentes
-    window.dispatchEvent(new CustomEvent('statsUpdated', { 
-      detail: { 
-        type: 'order_created',
-        stats: updatedStats 
-      } 
-    }));
+    window.dispatchEvent(
+      new CustomEvent('statsUpdated', {
+        detail: {
+          type: 'order_created',
+          stats: updatedStats,
+        },
+      }),
+    );
 
     console.log('[StatsService] Estadísticas actualizadas:', updatedStats);
   } catch (error) {
@@ -69,20 +71,22 @@ export function incrementOrderStats(): void {
 export function updatePendingOrdersStats(delta: number): void {
   try {
     const currentStats = getLocalStats();
-    
+
     const updatedStats: LocalStats = {
       ...currentStats,
       pending_orders: Math.max(0, currentStats.pending_orders + delta),
     };
 
     saveLocalStats(updatedStats);
-    
-    window.dispatchEvent(new CustomEvent('statsUpdated', { 
-      detail: { 
-        type: 'pending_orders_updated',
-        stats: updatedStats 
-      } 
-    }));
+
+    window.dispatchEvent(
+      new CustomEvent('statsUpdated', {
+        detail: {
+          type: 'pending_orders_updated',
+          stats: updatedStats,
+        },
+      }),
+    );
 
     console.log('[StatsService] Pedidos pendientes actualizados:', updatedStats.pending_orders);
   } catch (error) {
@@ -138,7 +142,7 @@ export async function syncStatsWithServer(): Promise<void> {
   try {
     // Importar dinámicamente para evitar dependencias circulares
     const { apiService } = await import('./apiService');
-    
+
     const serverStats = await apiService.getStats();
     if (serverStats.success) {
       const localStats: LocalStats = {
@@ -157,13 +161,15 @@ export async function syncStatsWithServer(): Promise<void> {
       };
 
       saveLocalStats(localStats);
-      
-      window.dispatchEvent(new CustomEvent('statsUpdated', { 
-        detail: { 
-          type: 'synced_with_server',
-          stats: localStats 
-        } 
-      }));
+
+      window.dispatchEvent(
+        new CustomEvent('statsUpdated', {
+          detail: {
+            type: 'synced_with_server',
+            stats: localStats,
+          },
+        }),
+      );
 
       console.log('[StatsService] Estadísticas sincronizadas con el servidor');
     }
@@ -175,7 +181,9 @@ export async function syncStatsWithServer(): Promise<void> {
 /**
  * Hook personalizado para escuchar actualizaciones de estadísticas
  */
-export function useStatsUpdates(callback: (detail: { type: string; stats: LocalStats }) => void): () => void {
+export function useStatsUpdates(
+  callback: (detail: { type: string; stats: LocalStats }) => void,
+): () => void {
   const handleStatsUpdate = (event: CustomEvent) => {
     callback(event.detail);
   };

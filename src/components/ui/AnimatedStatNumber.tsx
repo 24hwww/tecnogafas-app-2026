@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface AnimatedStatNumberProps {
   value: number;
@@ -8,11 +8,11 @@ interface AnimatedStatNumberProps {
   duration?: number;
 }
 
-export function AnimatedStatNumber({ 
-  value, 
-  previousValue, 
-  className = '', 
-  duration = 1000 
+export function AnimatedStatNumber({
+  value,
+  previousValue,
+  className = '',
+  duration = 1000,
 }: AnimatedStatNumberProps) {
   // Ensure value is always a number
   const safeValue = value ?? 0;
@@ -43,8 +43,8 @@ export function AnimatedStatNumber({
 
       const animate = () => {
         currentStep++;
-        const newValue = currentValueRef.current + (increment * currentStep);
-        
+        const newValue = currentValueRef.current + increment * currentStep;
+
         if (currentStep >= steps) {
           setDisplayValue(safeValue);
           setIsAnimating(false);
@@ -80,13 +80,13 @@ export function AnimatedStatNumber({
       <motion.span
         key={displayValue}
         initial={{ scale: 0.8, opacity: 0.5 }}
-        animate={{ 
-          scale: isAnimating ? [1, 1.1, 1] : 1, 
-          opacity: 1 
+        animate={{
+          scale: isAnimating ? [1, 1.1, 1] : 1,
+          opacity: 1,
         }}
-        transition={{ 
+        transition={{
           duration: 0.3,
-          ease: "easeOut"
+          ease: 'easeOut',
         }}
         className="font-mono font-bold"
       >

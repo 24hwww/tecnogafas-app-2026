@@ -11,10 +11,7 @@ export function ThemeWrapper({ children }: { children: ReactNode }) {
     // Update meta theme-color for mobile browser chrome
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-      metaThemeColor.setAttribute(
-        'content',
-        theme === 'dark' ? '#0A0F1E' : '#059669',
-      );
+      metaThemeColor.setAttribute('content', theme === 'dark' ? '#0A0F1E' : '#059669');
     }
   }, [theme, fontSize]);
 

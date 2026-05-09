@@ -3,17 +3,17 @@ import {
   AlertCircle,
   ArrowLeft,
   Check,
-  Download,
-  FileText,
-  RefreshCw,
-  ShoppingBag,
   CreditCard,
-  Truck,
-  MessageSquare,
-  Mail,
-  Info,
+  Download,
   Eye,
   EyeOff,
+  FileText,
+  Info,
+  Mail,
+  MessageSquare,
+  RefreshCw,
+  ShoppingBag,
+  Truck,
   User,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -168,7 +168,7 @@ export default function Checkout() {
       }
 
       setIsConfirmModalOpen(false);
-      await executeCreateOrder(sellerInfo.id);
+      await createOrder(sellerInfo.id, sellerInfo);
     } catch (e) {
       console.error(e);
       setIsConfirmModalOpen(false);
@@ -186,22 +186,22 @@ export default function Checkout() {
     if (!sellerPin) return;
     setIsValidatingPin(true);
     setPinError('');
-    
+
     try {
       // 1. Guardar borrador del pedido antes de validar
       saveDraft(form);
-      
+
       // 2. Validar PIN del vendedor
       const sellerInfo = await apiService.loginSeller(sellerPin);
       if (!sellerInfo) {
         setPinError('PIN incorrecto');
         return;
       }
-      
+
       // 3. Guardar PIN global y cerrar modal
       setGlobalPin(sellerPin);
       setIsPinModalOpen(false);
-      
+
       // 4. Verificar productos
       const itemsToVerify = cart.map((item) => {
         const baseProductId = parseInt(item.id.split('-')[0]);
@@ -228,10 +228,9 @@ export default function Checkout() {
         });
         return;
       }
-      
+
       // 5. Enviar pedido al endpoint /api/pedido
-      await sendOrderToApi(sellerInfo);
-      
+      await createOrder(sellerPin, sellerInfo);
     } catch (error) {
       console.error('PIN validation error:', error);
       setPinError('Error de conexión');
@@ -240,123 +239,10 @@ export default function Checkout() {
     }
   };
 
-  const sendOrderToApi = async (sellerInfo: Seller) => {
+  const createOrder = async (sellerId: string, sellerInfo?: Seller) => {
     setIsSendingOrder(true);
     setIsLoading(true);
-    
-    try {
-      // Generar número de secuencia para el pedido (simulado, debería venir de la API)
-      const orderSequence = Date.now(); // Temporal: usar timestamp como secuencia
-      const orderTitle = generateOrderTitle(orderSequence);
 
-      // Preparar datos del pedido para enviar a /api/pedido
-      const orderData = {
-        title: orderTitle,
-        clientId: selectedClient!.id,
-        sellerId: sellerInfo.id,
-        items: cart.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          vid: item.vid,
-          stock: item.stock
-        })),
-        details: {
-          ...form,
-          total_calc: finalTotal,
-          sendEmail
-        },
-        client: selectedClient || undefined,
-        total: finalTotal,
-        sequenceNumber: orderSequence
-      };
-
-      // Enviar pedido al endpoint /api/pedido
-      const response = await fetch('/api/pedido', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sellerPin}`
-        },
-        body: JSON.stringify(orderData)
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        // Enviar email si está configurado
-        if (sendEmail && result.orderId) {
-          await apiService.sendOrderEmail(result.orderId.toString(), sellerInfo.id).catch(console.error);
-        }
-        
-        // Guardar último pedido
-        setLastOrder({
-          client: selectedClient!,
-          items: cart,
-          details: form,
-          total: finalTotal,
-          date: new Date().toISOString(),
-        });
-        
-        // Marcar borrador como enviado si existe
-        if (currentDraftId) markDraftAsSent(currentDraftId);
-        
-        // Mostrar feedback de éxito
-        setOrderFeedback({
-          title: '¡Pedido Enviado!',
-          message: result.message || 'El pedido se ha procesado correctamente.',
-          type: 'success',
-          orderId: result.orderId,
-        });
-        
-        // Guardar pedido en Dexie con título formateado
-        const orderForDexie = {
-          id: result.orderId?.toString() || orderSequence.toString(),
-          clientId: selectedClient!.id,
-          clientName: selectedClient!.name,
-          items: cart,
-          total: finalTotal,
-          status: 'Completado' as const,
-          createdAt: new Date().toISOString(),
-          sellerId: sellerInfo.id,
-          sellerName: sellerInfo.name,
-          rawData: result.rawData || {},
-          title: orderTitle // Título con el nuevo formato
-        };
-        
-        await appDB.orders.add(orderForDexie);
-        
-        // Limpiar carrito y refrescar datos
-        clearCart();
-        await refreshData();
-      } else {
-        // Guardar como borrador si hay error
-        saveDraft(form);
-        setOrderFeedback({
-          title: 'Guardado como Borrador',
-          message: result.message || 'Hubo un problema al enviar, pero el pedido se guardó localmente.',
-          type: 'error',
-        });
-      }
-    } catch (error) {
-      console.error('Error sending order to API:', error);
-      saveDraft(form);
-      setOrderFeedback({
-        title: 'Error de Red',
-        message: 'Se guardó como borrador debido a un fallo de conexión.',
-        type: 'error',
-      });
-    } finally {
-      setIsSendingOrder(false);
-      setIsLoading(false);
-    }
-  };
-
-  const executeCreateOrder = async (sellerId: string) => {
-    setIsSendingOrder(true);
-    setIsLoading(true);
-    
     // VALIDACIÓN CRÍTICA: Asegurar que tenemos un sellerId válido
     if (!sellerId || sellerId.trim() === '') {
       console.error('[Checkout] ERROR: Intento de crear pedido sin sellerId');
@@ -371,18 +257,33 @@ export default function Checkout() {
     }
 
     try {
+      // Usar el servicio de API unificado
       const result = await apiService.createOrder(
         selectedClient!.id,
         cart,
-        { ...form, total_calc: finalTotal, sendEmail } as any,
+        {
+          ...form,
+          total_calc: finalTotal,
+          sendEmail,
+          iva: form.iva || 0,
+          discount: form.discount || 0,
+          recargo: form.recargo || 0,
+          methodpay: form.methodpay || '',
+          transport: form.transport || '',
+          commit: form.commit || '',
+          otheremail: form.otheremail || '',
+        },
         sellerId,
         selectedClient || undefined,
       );
 
       if (result.success) {
+        // Enviar email si está configurado
         if (sendEmail && result.orderId) {
           await apiService.sendOrderEmail(result.orderId.toString(), sellerId).catch(console.error);
         }
+
+        // Guardar último pedido
         setLastOrder({
           client: selectedClient!,
           items: cart,
@@ -390,20 +291,47 @@ export default function Checkout() {
           total: finalTotal,
           date: new Date().toISOString(),
         });
+
+        // Marcar borrador como enviado si existe
         if (currentDraftId) markDraftAsSent(currentDraftId);
+
+        // Mostrar feedback de éxito
         setOrderFeedback({
           title: '¡Pedido Enviado!',
           message: result.message || 'El pedido se ha procesado correctamente.',
           type: 'success',
           orderId: result.orderId,
         });
+
+        // Generar título y guardar en Dexie
+        const orderSequence = Date.now();
+        const orderTitle = generateOrderTitle(orderSequence);
+        const orderForDexie = {
+          id: result.orderId?.toString() || orderSequence.toString(),
+          clientId: selectedClient!.id,
+          clientName: selectedClient!.name,
+          items: cart,
+          total: finalTotal,
+          status: 'Completado' as const,
+          createdAt: new Date().toISOString(),
+          sellerId: sellerId,
+          sellerName: sellerInfo?.name || '',
+          rawData: result.rawData || {},
+          title: orderTitle,
+        };
+
+        await appDB.orders.add(orderForDexie);
+
+        // Limpiar carrito y refrescar datos
         clearCart();
         await refreshData();
       } else {
+        // Guardar como borrador si hay error
         saveDraft(form);
         setOrderFeedback({
           title: 'Guardado como Borrador',
-          message: 'Hubo un problema al enviar, pero el pedido se guardó localmente.',
+          message:
+            result.message || 'Hubo un problema al enviar, pero el pedido se guardó localmente.',
           type: 'error',
         });
       }
@@ -423,16 +351,19 @@ export default function Checkout() {
 
   const generatePDF = async () => {
     if (!orderFeedback?.orderId) return;
-    
+
     try {
       // Llamar al endpoint de la API para generar el PDF
-      const response = await fetch(`http://api.tecnogafas.com.ar/pedido/${orderFeedback.orderId}/pdf`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${globalPin}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await fetch(
+        `http://api.tecnogafas.com.ar/pedido/${orderFeedback.orderId}/pdf`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${globalPin}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
 
       if (!response.ok) {
         throw new Error('Error al generar el PDF');
@@ -440,7 +371,7 @@ export default function Checkout() {
 
       // Obtener el PDF como blob
       const blob = await response.blob();
-      
+
       // Crear URL temporal y descargar
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -451,7 +382,6 @@ export default function Checkout() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
     } catch (error) {
       console.error('Error generating PDF:', error);
       // Fallback: generar PDF local si hay error con la API
@@ -494,14 +424,18 @@ export default function Checkout() {
               </div>
               <div>
                 <h3 className="text-xl font-bold text-success">Detalles de Pago</h3>
-                <p className="text-sm text-[var(--color-text-muted)]">Configura los términos de pago</p>
+                <p className="text-sm text-[var(--color-text-muted)]">
+                  Configura los términos de pago
+                </p>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="form-control">
                 <label className="label py-1">
-                  <span className="label-text text-xs font-semibold uppercase opacity-60">IVA (%)</span>
+                  <span className="label-text text-xs font-semibold uppercase opacity-60">
+                    IVA (%)
+                  </span>
                 </label>
                 <input
                   type="number"
@@ -512,7 +446,9 @@ export default function Checkout() {
               </div>
               <div className="form-control">
                 <label className="label py-1">
-                  <span className="label-text text-xs font-semibold uppercase opacity-60">Descuento</span>
+                  <span className="label-text text-xs font-semibold uppercase opacity-60">
+                    Descuento
+                  </span>
                 </label>
                 <input
                   type="number"
@@ -522,11 +458,13 @@ export default function Checkout() {
                 />
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4 mt-4">
               <div className="form-control">
                 <label className="label py-1">
-                  <span className="label-text text-xs font-semibold uppercase opacity-60">Recargo</span>
+                  <span className="label-text text-xs font-semibold uppercase opacity-60">
+                    Recargo
+                  </span>
                 </label>
                 <input
                   type="number"
@@ -537,7 +475,9 @@ export default function Checkout() {
               </div>
               <div className="form-control">
                 <label className="label py-1">
-                  <span className="label-text text-xs font-semibold uppercase opacity-60">Método de Pago</span>
+                  <span className="label-text text-xs font-semibold uppercase opacity-60">
+                    Método de Pago
+                  </span>
                 </label>
                 <input
                   type="text"
@@ -561,10 +501,12 @@ export default function Checkout() {
                 <p className="text-sm text-[var(--color-text-muted)]">Información de envío</p>
               </div>
             </div>
-            
+
             <div className="form-control">
               <label className="label py-1">
-                <span className="label-text text-xs font-semibold uppercase opacity-60">Transporte</span>
+                <span className="label-text text-xs font-semibold uppercase opacity-60">
+                  Transporte
+                </span>
               </label>
               <input
                 type="text"
@@ -587,7 +529,7 @@ export default function Checkout() {
                 <p className="text-sm text-[var(--color-text-muted)]">Observaciones adicionales</p>
               </div>
             </div>
-            
+
             <div className="form-control">
               <textarea
                 className="textarea textarea-bordered bg-[var(--color-surface-900)] w-full h-24 font-medium"
@@ -606,10 +548,12 @@ export default function Checkout() {
               </div>
               <div>
                 <h3 className="text-xl font-bold text-success">Opciones de Envío</h3>
-                <p className="text-sm text-[var(--color-text-muted)]">Configuración de notificaciones</p>
+                <p className="text-sm text-[var(--color-text-muted)]">
+                  Configuración de notificaciones
+                </p>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               <div className="form-control">
                 <label className="label cursor-pointer justify-start gap-4 p-4 bg-[var(--color-surface-900)] rounded-2xl border border-[var(--color-border)] w-full">
@@ -620,12 +564,16 @@ export default function Checkout() {
                     onChange={(e) => setSendEmail(e.target.checked)}
                   />
                   <div>
-                    <span className="label-text font-bold text-[var(--color-text-muted)]">Enviar Comprobante</span>
-                    <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Se enviará el PDF automáticamente al cliente</p>
+                    <span className="label-text font-bold text-[var(--color-text-muted)]">
+                      Enviar Comprobante
+                    </span>
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                      Se enviará el PDF automáticamente al cliente
+                    </p>
                   </div>
                 </label>
               </div>
-              
+
               {sendEmail && (
                 <div className="form-control">
                   <label className="label py-1">
@@ -652,12 +600,16 @@ export default function Checkout() {
             {/* Header */}
             <div className="p-6 bg-primary/10 border-b border-primary/10">
               <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Resumen Total</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                  Resumen Total
+                </span>
                 <span className="badge badge-primary badge-sm font-bold">IVA INC.</span>
               </div>
-              <h3 className="text-4xl font-black tracking-tighter text-primary">{formatCurrency(finalTotal)}</h3>
+              <h3 className="text-4xl font-black tracking-tighter text-primary">
+                {formatCurrency(finalTotal)}
+              </h3>
             </div>
-            
+
             {/* Client Information */}
             {selectedClient && (
               <div className="p-6 bg-gradient-to-r from-primary/5 to-transparent border-b border-primary/10">
@@ -666,10 +618,14 @@ export default function Checkout() {
                     <User size={20} className="text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Cliente</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">
+                      Cliente
+                    </p>
                     <p className="text-sm font-bold text-primary truncate">{selectedClient.name}</p>
                     {selectedClient.email && (
-                      <p className="text-xs text-[var(--color-text-muted)] truncate">{selectedClient.email}</p>
+                      <p className="text-xs text-[var(--color-text-muted)] truncate">
+                        {selectedClient.email}
+                      </p>
                     )}
                   </div>
                   <button
@@ -682,7 +638,7 @@ export default function Checkout() {
                 </div>
               </div>
             )}
-            
+
             {/* Pricing Breakdown */}
             <div className="p-6 space-y-4">
               <div className="space-y-2">
@@ -690,34 +646,38 @@ export default function Checkout() {
                   <span className="text-[var(--color-text-muted)]">Subtotal</span>
                   <span className="font-bold">{formatCurrency(subtotal)}</span>
                 </div>
-                
+
                 {form.discount > 0 && (
                   <div className="flex justify-between text-sm text-success">
                     <span>Descuento ({form.discount}%)</span>
                     <span className="font-bold">-{formatCurrency(discountAmount)}</span>
                   </div>
                 )}
-                
+
                 {form.recargo > 0 && (
                   <div className="flex justify-between text-sm text-error">
                     <span>Recargo ({form.recargo}%)</span>
                     <span className="font-bold">+{formatCurrency(recargoAmount)}</span>
                   </div>
                 )}
-                
+
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--color-text-muted)]">IVA ({form.iva}%)</span>
                   <span className="font-bold">+{formatCurrency(ivaAmount)}</span>
                 </div>
               </div>
-              
+
               {/* Products List */}
               <div className="pt-4 border-t border-[var(--color-border)]">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-3">Productos ({cart.length})</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-3">
+                  Productos ({cart.length})
+                </p>
                 <div className="max-h-40 overflow-y-auto space-y-2 pr-2">
                   {cart.map((item, i) => (
                     <div key={i} className="flex justify-between text-xs font-medium">
-                      <span className="truncate pr-4">{item.quantity}x {item.name}</span>
+                      <span className="truncate pr-4">
+                        {item.quantity}x {item.name}
+                      </span>
                       <span className="shrink-0">{formatCurrency(item.price * item.quantity)}</span>
                     </div>
                   ))}
@@ -733,9 +693,12 @@ export default function Checkout() {
                 >
                   {isLoading ? <span className="loading loading-spinner" /> : 'Confirmar Pedido'}
                 </button>
-                
+
                 <button
-                  onClick={() => { saveDraft(form); navigate('/pedidos'); }}
+                  onClick={() => {
+                    saveDraft(form);
+                    navigate('/pedidos');
+                  }}
                   className="btn btn-ghost btn-block text-[var(--color-text-muted)] hover:bg-base-300/10 gap-2"
                 >
                   <FileText size={16} /> Guardar Borrador
@@ -743,12 +706,13 @@ export default function Checkout() {
               </div>
             </div>
           </div>
-          
+
           {/* Info Card */}
           <div className="mt-6 flex items-start gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
             <Info size={16} className="text-primary shrink-0 mt-0.5" />
             <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
-              Al confirmar, el pedido será procesado por el sistema central y se generará el comprobante correspondiente. Asegúrese de que todos los datos sean correctos.
+              Al confirmar, el pedido será procesado por el sistema central y se generará el
+              comprobante correspondiente. Asegúrese de que todos los datos sean correctos.
             </p>
           </div>
         </div>
@@ -758,29 +722,43 @@ export default function Checkout() {
       <AnimatePresence>
         {isConfirmModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsConfirmModalOpen(false)} />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-gradient-to-br from-[var(--color-surface-800)] to-[var(--color-surface-900)] border border-[var(--color-border)] rounded-3xl max-w-sm w-full text-center shadow-2xl mx-4 overflow-hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+              onClick={() => setIsConfirmModalOpen(false)}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="relative bg-gradient-to-br from-[var(--color-surface-800)] to-[var(--color-surface-900)] border border-[var(--color-border)] rounded-3xl max-w-sm w-full text-center shadow-2xl mx-4 overflow-hidden"
+            >
               {/* Background decoration */}
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-              
+
               <div className="relative z-10 p-8">
                 <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/20 shadow-lg">
                   <ShoppingBag size={40} />
                 </div>
-                
-                <h3 className="text-3xl font-black mb-3 tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">¿Confirmar pedido?</h3>
-                <p className="text-[var(--color-text-muted)] text-sm mb-6 leading-relaxed">Se enviará el pedido final por el siguiente total:</p>
-                
+
+                <h3 className="text-3xl font-black mb-3 tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                  ¿Confirmar pedido?
+                </h3>
+                <p className="text-[var(--color-text-muted)] text-sm mb-6 leading-relaxed">
+                  Se enviará el pedido final por el siguiente total:
+                </p>
+
                 <div className="grid grid-cols-2 gap-3">
-                  <button 
-                    onClick={() => setIsConfirmModalOpen(false)} 
+                  <button
+                    onClick={() => setIsConfirmModalOpen(false)}
                     className="btn btn-ghost rounded-xl h-14 font-bold hover:bg-[var(--color-surface-700)] border border-[var(--color-border)]/50"
                   >
                     Cancelar
                   </button>
-                  <button 
-                    onClick={handleConfirmOrder} 
+                  <button
+                    onClick={handleConfirmOrder}
                     className="btn btn-primary rounded-xl h-14 font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
                   >
                     Confirmar
@@ -793,21 +771,33 @@ export default function Checkout() {
 
         {isPinModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-gradient-to-br from-[var(--color-surface-800)] to-[var(--color-surface-900)] border border-[var(--color-border)] rounded-3xl max-w-sm w-full text-center shadow-2xl mx-4 overflow-hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="relative bg-gradient-to-br from-[var(--color-surface-800)] to-[var(--color-surface-900)] border border-[var(--color-border)] rounded-3xl max-w-sm w-full text-center shadow-2xl mx-4 overflow-hidden"
+            >
               {/* Background decoration */}
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-              
+
               <div className="relative z-10 p-8">
-                
-                <h3 className="text-3xl font-black mb-3 tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">Autorización Requerida</h3>
-                <p className="text-[var(--color-text-muted)] text-sm mb-6 leading-relaxed">Ingrese su PIN de vendedor para autorizar el envío</p>
-                
+                <h3 className="text-3xl font-black mb-3 tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                  Autorización Requerida
+                </h3>
+                <p className="text-[var(--color-text-muted)] text-sm mb-6 leading-relaxed">
+                  Ingrese su PIN de vendedor para autorizar el envío
+                </p>
+
                 <div className="bg-gradient-to-r from-warning/10 to-warning/5 border border-warning/20 rounded-2xl p-4 mb-6 relative">
                   <div className="relative">
                     <input
-                      type={showPin ? "text" : "password"}
+                      type={showPin ? 'text' : 'password'}
                       inputMode="numeric"
                       placeholder="••••••••"
                       maxLength={8}
@@ -820,13 +810,13 @@ export default function Checkout() {
                       type="button"
                       onClick={() => setShowPin(!showPin)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-warning hover:text-warning/80 transition-colors p-2 hover:bg-warning/10 rounded-lg"
-                      title={showPin ? "Ocultar PIN" : "Mostrar PIN"}
+                      title={showPin ? 'Ocultar PIN' : 'Mostrar PIN'}
                     >
                       {showPin ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
                 </div>
-                
+
                 {pinError && (
                   <div className="bg-error/10 border border-error/20 rounded-xl p-3 mb-4">
                     <p className="text-error text-xs font-bold flex items-center justify-center gap-2">
@@ -835,11 +825,11 @@ export default function Checkout() {
                     </p>
                   </div>
                 )}
-                
+
                 <div className="flex flex-col gap-3">
-                  <button 
-                    onClick={handleValidatePin} 
-                    disabled={isLoading || sellerPin.length !== 8 || isValidatingPin} 
+                  <button
+                    onClick={handleValidatePin}
+                    disabled={isLoading || sellerPin.length !== 8 || isValidatingPin}
                     className="btn btn-primary btn-lg rounded-xl w-full h-14 font-bold shadow-primary/20 hover:shadow-primary/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isValidatingPin ? (
@@ -851,8 +841,8 @@ export default function Checkout() {
                       'Validar y Enviar'
                     )}
                   </button>
-                  <button 
-                    onClick={() => setIsPinModalOpen(false)} 
+                  <button
+                    onClick={() => setIsPinModalOpen(false)}
                     className="btn btn-ghost rounded-xl h-12 font-bold hover:bg-[var(--color-surface-700)] border border-[var(--color-border)]/50"
                   >
                     Cancelar
@@ -867,34 +857,55 @@ export default function Checkout() {
           <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl p-4">
             <RefreshCw size={60} className="text-primary animate-spin mb-6" />
             <h3 className="text-2xl font-black tracking-widest uppercase">Procesando...</h3>
-            <p className="text-[var(--color-text-muted)] animate-pulse mt-2">No cierre la aplicación</p>
+            <p className="text-[var(--color-text-muted)] animate-pulse mt-2">
+              No cierre la aplicación
+            </p>
           </div>
         )}
 
         {orderFeedback && (
           <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/90 backdrop-blur-xl" />
-            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="relative bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-3xl max-w-md w-full text-center shadow-2xl mx-4">
-              <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 ${
-                orderFeedback.type === 'success' 
-                  ? 'bg-success/10 text-success' 
-                  : 'bg-error/10 text-error'
-              }`}>
-                {orderFeedback.type === 'success' ? 
-                  <Check size={50} /> : 
-                  <AlertCircle size={50} />
-                }
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+            />
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className="relative bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-3xl max-w-md w-full text-center shadow-2xl mx-4"
+            >
+              <div
+                className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 ${
+                  orderFeedback.type === 'success'
+                    ? 'bg-success/10 text-success'
+                    : 'bg-error/10 text-error'
+                }`}
+              >
+                {orderFeedback.type === 'success' ? <Check size={50} /> : <AlertCircle size={50} />}
               </div>
               <h3 className="text-3xl font-black mb-2 tracking-tight">{orderFeedback.title}</h3>
-              <p className="text-[var(--color-text-muted)] mb-8 leading-relaxed">{orderFeedback.message}</p>
-              
+              <p className="text-[var(--color-text-muted)] mb-8 leading-relaxed">
+                {orderFeedback.message}
+              </p>
+
               <div className="space-y-3">
                 {orderFeedback.type === 'success' && (
-                  <button onClick={generatePDF} className="btn btn-outline w-full rounded-2xl gap-2 h-14">
+                  <button
+                    onClick={generatePDF}
+                    className="btn btn-outline w-full rounded-2xl gap-2 h-14"
+                  >
                     <Download size={20} /> Descargar Comprobante PDF
                   </button>
                 )}
-                <button onClick={() => { setOrderFeedback(null); navigate(orderFeedback.type === 'success' ? '/' : '/pedidos'); }} className="btn btn-primary w-full rounded-2xl font-bold h-14">
+                <button
+                  onClick={() => {
+                    setOrderFeedback(null);
+                    navigate(orderFeedback.type === 'success' ? '/' : '/pedidos');
+                  }}
+                  className="btn btn-primary w-full rounded-2xl font-bold h-14"
+                >
                   Finalizar
                 </button>
               </div>

@@ -56,7 +56,9 @@ export function PinModal({ isOpen, onClose, onSuccess }: PinModalProps) {
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-bold uppercase tracking-tight">PIN Vendedor</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">Ingrese su código para autorizar el acceso.</p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                Ingrese su código para autorizar el acceso.
+              </p>
             </div>
 
             <div className="space-y-4">

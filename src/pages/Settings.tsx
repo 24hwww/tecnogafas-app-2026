@@ -102,7 +102,9 @@ export default function Settings() {
               {globalPin && (
                 <div className="alert alert-success py-2">
                   <RefreshCw size={14} className="animate-spin" />
-                  <span className="text-xs font-semibold">Sincronización en tiempo real activa</span>
+                  <span className="text-xs font-semibold">
+                    Sincronización en tiempo real activa
+                  </span>
                 </div>
               )}
             </div>
@@ -121,10 +123,7 @@ export default function Settings() {
                 type="button"
                 onClick={enablePush}
                 disabled={pushEnabled}
-                className={cn(
-                  'btn w-full gap-3',
-                  pushEnabled ? 'btn-success' : 'btn-outline',
-                )}
+                className={cn('btn w-full gap-3', pushEnabled ? 'btn-success' : 'btn-outline')}
               >
                 <Bell size={18} />
                 {pushEnabled ? 'Notificaciones Push Activadas' : 'Habilitar Notificaciones'}
@@ -246,7 +245,10 @@ export default function Settings() {
                     type="button"
                     onClick={() => {
                       kodular.vibrate(100);
-                      kodular.notify('Prueba de Sistema', 'Conexión con el puente Kodular exitosa.');
+                      kodular.notify(
+                        'Prueba de Sistema',
+                        'Conexión con el puente Kodular exitosa.',
+                      );
                     }}
                     className="btn btn-secondary w-full gap-2"
                   >
@@ -258,8 +260,8 @@ export default function Settings() {
                   <Smartphone className="opacity-20" size={36} />
                   <p className="text-sm italic opacity-60">Ejecutando en entorno Web Estándar</p>
                   <p className="text-xs opacity-40 px-4">
-                    Las funciones nativas de Android (vibración, persistencia de bajo nivel) no están
-                    disponibles.
+                    Las funciones nativas de Android (vibración, persistencia de bajo nivel) no
+                    están disponibles.
                   </p>
                 </div>
               )}

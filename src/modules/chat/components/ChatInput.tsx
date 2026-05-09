@@ -48,8 +48,7 @@ export function ChatInput() {
 
   const handleSubmit = async () => {
     const trimmed = content.trim();
-    if (!trimmed || trimmed.length > MAX_LENGTH || !activeConversation?.id)
-      return;
+    if (!trimmed || trimmed.length > MAX_LENGTH || !activeConversation?.id) return;
 
     setIsSending(true);
     try {
