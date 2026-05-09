@@ -242,6 +242,73 @@ export function createStorageValidator<T>(schema: z.ZodSchema<T>) {
 }
 
 // ============================================================================
+// VALIDADORES DE PAYLOADS OPENAPI
+// ============================================================================
+
+// Validador para LoginRequest (OpenAPI)
+export const LoginRequestValidator = z.object({
+  data: z.string().min(1, 'El PIN de autenticación es requerido'),
+});
+
+// Validador para OrderRequest (OpenAPI)
+export const OrderRequestValidator = z.object({
+  client_id: z.number().min(1, 'El ID del cliente es requerido'),
+  notes: z.string().optional(),
+  discount: z.string().optional(),
+  recargo: z.string().optional(),
+  transport: z.string().optional(),
+  methodpay: z.string().optional(),
+  iva: z.number().optional(),
+  oemail: z.string().email().optional(),
+  send_email: z.boolean().optional(),
+  products: z.array(z.object({
+    product_id: z.number().min(1, 'El ID del producto es requerido'),
+    variation_id: z.number().optional(),
+    quantity: z.number().min(1, 'La cantidad debe ser mayor a 0'),
+    price: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
+  })).min(1, 'Se requiere al menos un producto'),
+});
+
+// Validador para ProductVerificationRequest (OpenAPI)
+export const ProductVerificationRequestValidator = z.object({
+  products: z.array(z.object({
+    product_id: z.number().min(1, 'El ID del producto es requerido'),
+    variation_id: z.number().optional(),
+    price: z.number().min(0, 'El precio debe ser mayor o igual a 0'),
+    stock: z.number().min(0, 'El stock debe ser mayor o igual a 0'),
+  })).min(1, 'Se requiere al menos un producto'),
+});
+
+// Validador para CustomerRequest (OpenAPI)
+export const CustomerRequestValidator = z.object({
+  email: z.string().email('Email inválido'),
+  first_name: z.string().min(1, 'El nombre es requerido'),
+  last_name: z.string().min(1, 'El apellido es requerido'),
+  user_login: z.string().optional(),
+  billing_address: z.string().optional(),
+  billing_city: z.string().optional(),
+  billing_state: z.string().optional(),
+  billing_country: z.string().optional(),
+  billing_phone: z.string().optional(),
+  billing_company: z.string().optional(),
+  info_fiscal: z.string().optional(),
+});
+
+// Validador para OrderStatusUpdate (OpenAPI)
+export const OrderStatusUpdateValidator = z.object({
+  status: z.enum(['attended', 'unattended'], 'Estado inválido'),
+});
+
+// Validador para EventCreateRequest (OpenAPI)
+export const EventCreateRequestValidator = z.object({
+  user_id: z.number().min(1, 'El ID del usuario es requerido'),
+  type: z.enum(['message', 'notification', 'order'], 'Tipo de evento inválido'),
+  from_id: z.number().optional(),
+  content: z.unknown(), // El content puede ser cualquier objeto
+  read: z.number().optional(),
+});
+
+// ============================================================================
 // VALIDADORES ESPECÍFICOS PARA STORAGE
 // ============================================================================
 

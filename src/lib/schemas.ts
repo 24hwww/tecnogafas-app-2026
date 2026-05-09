@@ -131,7 +131,7 @@ export const OrderSchema = z.object({
   clientName: StringSchema,
   items: z.array(OrderItemSchema),
   total: NumberSchema,
-  status: z.enum(['Pendiente', 'En Proceso', 'Completado', 'Cancelado']),
+  status: z.enum(['attended', 'unattended']),
   createdAt: StringSchema,
   sellerId: StringSchema,
   sellerName: OptionalStringSchema,

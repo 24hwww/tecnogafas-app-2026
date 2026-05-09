@@ -1,6 +1,6 @@
-import type { User } from '@supabase/supabase-js';
+import type { User as SupabaseUserType } from '@supabase/supabase-js';
 
-export type SupabaseUser = User;
+export type SupabaseUser = SupabaseUserType;
 
 export interface DeployEvent {
   content?: {
@@ -41,11 +41,10 @@ export interface LastOrder {
 }
 
 export interface ApiProduct {
-  product_id?: number;
-  pid?: number;
+  product_id: number;
   nombre_producto: string;
-  variaciones: string;
-  filtros: string;
+  variaciones: string | null;
+  filtros: string | null;
 }
 
 export interface ApiClient {
@@ -156,7 +155,7 @@ export interface Order {
   clientName: string;
   items: OrderItem[];
   total: number;
-  status: 'Pendiente' | 'En Proceso' | 'Completado' | 'Cancelado';
+  status: 'attended' | 'unattended';
   createdAt: string;
   sellerId: string;
   sellerName?: string;
@@ -166,6 +165,15 @@ export interface Order {
 export interface CartItem extends Product {
   quantity: number;
   vid?: string;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  name: string;
+  email: string;
+  firstName: string;
+  lastName: string;
 }
 
 export interface Seller {

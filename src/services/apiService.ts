@@ -1,6 +1,15 @@
 import { Capacitor } from '@capacitor/core';
-import type { ApiClient, ApiOrder, CartItem, Client, Order, Product, Seller } from '../types';
+import type { ApiClient, ApiOrder, CartItem, Client, Order, Product, Seller, User } from '../types';
 import { savePendingOrder } from './pendingOrdersSync';
+import { 
+  LoginRequestValidator, 
+  OrderRequestValidator, 
+  ProductVerificationRequestValidator,
+  CustomerRequestValidator,
+  OrderStatusUpdateValidator,
+  EventCreateRequestValidator,
+  validateData
+} from '../lib/apiValidators';
 
 const REAL_API_URL = 'https://api.tecnogafas.com.ar';
 const PROXY_API_URL = '/api';
@@ -99,36 +108,42 @@ export const apiService = {
       }>;
     };
     const mappedProducts = (json.data || []).map((p) => {
-      // Parse variations e.g. "variation_id:23726|Título:5508 - C1 - BLACK|Stock:6|Precio:58000;..."
+      // Parse variations usando parsing estructurado más robusto
       const variations = (p.variaciones || '')
         .split(';')
         .filter((v: string) => v.trim() !== '')
         .map((v: string) => {
-          let vid = '';
-          let title = '';
-          let stock = 0;
-          let price = 0;
+          const variation: { vid: string; title: string; stock: number; price: number } = {
+            vid: '',
+            title: '',
+            stock: 0,
+            price: 0,
+          };
 
-          const vidMatch = v.match(/variation_id:(\d+)/);
-          if (vidMatch) vid = vidMatch[1];
-
-          const stockMatch = v.match(/Stock:(-?\d+)/);
-          if (stockMatch) stock = parseInt(stockMatch[1]);
-
-          const priceMatch = v.match(/Precio:([\d.]+)/);
-          if (priceMatch) price = parseFloat(priceMatch[1]);
-
-          const titleMatch = v.match(/T[ií]tulo:(.*?)(?:\|Stock:|\|Precio:|$)/);
-          if (titleMatch) {
-            title = titleMatch[1];
-          } else {
-            // Fallback if the regex somehow misses
-            const parts = v.split('|');
-            const titlePart = parts.find((p) => p.startsWith('Título:') || p.startsWith('Titulo:'));
-            if (titlePart) title = titlePart.split(':')[1] || '';
+          // Parse each field using structured approach
+          const fields = v.split('|');
+          for (const field of fields) {
+            const [key, ...valueParts] = field.split(':');
+            const value = valueParts.join(':').trim();
+            
+            switch (key.toLowerCase()) {
+              case 'variation_id':
+                variation.vid = value;
+                break;
+              case 'título':
+              case 'titulo':
+                variation.title = value;
+                break;
+              case 'stock':
+                variation.stock = parseInt(value) || 0;
+                break;
+              case 'precio':
+                variation.price = parseFloat(value) || 0;
+                break;
+            }
           }
 
-          return { vid, title, stock, price };
+          return variation;
         });
 
       const filtros = p.filtros || '';
@@ -290,7 +305,7 @@ export const apiService = {
           vid: i.vid?.toString(),
         })),
         total: o.order_total ? parseFloat(o.order_total.toString()) : 0,
-        status: (o.post_status === 'unattended' ? 'Pendiente' : 'Completado') as Order['status'],
+        status: (o.post_status === 'unattended' ? 'unattended' : 'attended') as Order['status'],
         createdAt: o.post_date || '',
         sellerId: o.post_author?.toString() || '',
         sellerName: o.seller_name,
@@ -726,7 +741,7 @@ export const apiService = {
               vid: item.vid,
             })),
             total: items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-            status: 'Pendiente',
+            status: 'unattended',
             createdAt: new Date().toISOString(),
             sellerId: sellerId,
             sellerName: sellerInfo.name,
@@ -815,11 +830,49 @@ export const apiService = {
     return res.ok;
   },
 
+  async getUsers(sellerId?: string): Promise<User[]> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
+    if (sellerId) {
+      headers['Authorization'] = `Bearer ${sellerId}`;
+    }
+
+    const res = await customFetch(`${BASE_URL}/usuarios`, { headers });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    
+    const json = (await res.json()) as { data?: Array<{
+      ID?: number;
+      user_login?: string;
+      display_name?: string;
+      user_email?: string;
+      first_name?: string;
+      last_name?: string;
+    }> };
+    
+    return (json.data || []).map((u) => ({
+      id: u.ID?.toString() || Math.random().toString(),
+      username: u.user_login || '',
+      name: u.display_name || `${u.first_name || ''} ${u.last_name || ''}`.trim(),
+      email: u.user_email || '',
+      firstName: u.first_name || '',
+      lastName: u.last_name || '',
+    }));
+  },
+
   async loginSeller(pin: string): Promise<Seller | null> {
+    // Validar payload con Zod
+    const payloadValidation = validateData(LoginRequestValidator, { data: pin });
+    if (!payloadValidation.success) {
+      console.error('Login payload validation failed:', payloadValidation.error);
+      return null;
+    }
+
     const res = await customFetch(`${BASE_URL}/login`, {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: pin }),
+      body: JSON.stringify(payloadValidation.data),
     });
     if (!res.ok) {
       console.error('Login failed', res.status, await res.text());
