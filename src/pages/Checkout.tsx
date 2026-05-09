@@ -743,7 +743,7 @@ export default function Checkout() {
                   <ShoppingBag size={40} />
                 </div>
 
-                <h3 className="text-3xl font-black mb-3 tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <h3 className="text-3xl font-black mb-3 tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text">
                   ¿Confirmar pedido?
                 </h3>
                 <p className="text-[var(--color-text-muted)] text-sm mb-6 leading-relaxed">
@@ -787,7 +787,7 @@ export default function Checkout() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
               <div className="relative z-10 p-8">
-                <h3 className="text-3xl font-black mb-3 tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                <h3 className="text-3xl font-black mb-3 tracking-tight bg-gradient-to-r from-white to-white/80 bg-clip-text">
                   Autorización Requerida
                 </h3>
                 <p className="text-[var(--color-text-muted)] text-sm mb-6 leading-relaxed">
@@ -872,42 +872,82 @@ export default function Checkout() {
               className="absolute inset-0 bg-black/90 backdrop-blur-xl"
             />
             <motion.div
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="relative bg-[var(--color-surface-800)] border border-[var(--color-border)] rounded-3xl max-w-md w-full text-center shadow-2xl mx-4"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="relative bg-gradient-to-br from-[var(--color-surface-800)] to-[var(--color-surface-900)] border border-[var(--color-border)] rounded-3xl max-w-md w-full text-center shadow-2xl mx-4 overflow-hidden"
             >
-              <div
-                className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 ${
-                  orderFeedback.type === 'success'
-                    ? 'bg-success/10 text-success'
-                    : 'bg-error/10 text-error'
-                }`}
-              >
-                {orderFeedback.type === 'success' ? <Check size={50} /> : <AlertCircle size={50} />}
-              </div>
-              <h3 className="text-3xl font-black mb-2 tracking-tight">{orderFeedback.title}</h3>
-              <p className="text-[var(--color-text-muted)] mb-8 leading-relaxed">
-                {orderFeedback.message}
-              </p>
+              {/* Background decoration */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+              <div className={`absolute top-0 right-0 w-32 h-32 ${
+                orderFeedback.type === 'success' ? 'bg-success/10' : 'bg-error/10'
+              } rounded-full blur-3xl pointer-events-none`} />
 
-              <div className="space-y-3">
-                {orderFeedback.type === 'success' && (
-                  <button
-                    onClick={generatePDF}
-                    className="btn btn-outline w-full rounded-2xl gap-2 h-14"
-                  >
-                    <Download size={20} /> Descargar Comprobante PDF
-                  </button>
+              <div className="relative z-10 p-8">
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 border shadow-lg ${
+                  orderFeedback.type === 'success'
+                    ? 'bg-gradient-to-br from-success/20 to-success/10 border-success/20 text-success'
+                    : 'bg-gradient-to-br from-error/20 to-error/10 border-error/20 text-error'
+                }`}>
+                  {orderFeedback.type === 'success' ? (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                    >
+                      <Check size={40} />
+                    </motion.div>
+                  ) : (
+                    <AlertCircle size={40} />
+                  )}
+                </div>
+
+                <h3 className={`text-3xl font-black mb-3 tracking-tight bg-gradient-to-r ${
+                  orderFeedback.type === 'success'
+                    ? 'from-success to-success/80'
+                    : 'from-error to-error/80'
+                } bg-clip-text text-transparent`}>
+                  {orderFeedback.title}
+                </h3>
+                
+                <p className="text-[var(--color-text-muted)] text-sm mb-8 leading-relaxed">
+                  {orderFeedback.message}
+                </p>
+
+                {/* Order ID for success cases */}
+                {orderFeedback.type === 'success' && orderFeedback.orderId && (
+                  <div className="mb-6 p-3 bg-[var(--color-surface-700)]/50 rounded-xl border border-[var(--color-border)]/50">
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">Número de Pedido</p>
+                    <p className="font-mono font-bold text-primary">#{orderFeedback.orderId}</p>
+                  </div>
                 )}
-                <button
-                  onClick={() => {
-                    setOrderFeedback(null);
-                    navigate(orderFeedback.type === 'success' ? '/' : '/pedidos');
-                  }}
-                  className="btn btn-primary w-full rounded-2xl font-bold h-14"
-                >
-                  Finalizar
-                </button>
+
+                <div className="space-y-3">
+                  {orderFeedback.type === 'success' && (
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={generatePDF}
+                      className="btn btn-outline w-full rounded-2xl gap-2 h-14 border-[var(--color-border)] hover:bg-[var(--color-surface-700)] transition-all"
+                    >
+                      <Download size={20} /> Descargar Comprobante
+                    </motion.button>
+                  )}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setOrderFeedback(null);
+                      navigate(orderFeedback.type === 'success' ? '/' : '/pedidos');
+                    }}
+                    className={`btn w-full rounded-2xl font-bold h-14 transition-all ${
+                      orderFeedback.type === 'success'
+                        ? 'bg-success text-success-foreground hover:bg-success/90'
+                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    }`}
+                  >
+                    {orderFeedback.type === 'success' ? 'Continuar Vendiendo' : 'Ver Pedidos'}
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
           </div>
