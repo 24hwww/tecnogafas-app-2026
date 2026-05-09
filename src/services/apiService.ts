@@ -584,6 +584,24 @@ export const apiService = {
     fullClient?: Client,
     orderTitle?: string, // Nuevo parámetro para el título del pedido
   ): Promise<{ success: boolean; message: string; orderId?: string }> {
+    // VALIDACIÓN CRÍTICA: No permitir crear pedidos sin autenticación de vendedor
+    if (!sellerId || sellerId.trim() === '') {
+      console.error('[API] ERROR: Intento de crear pedido sin sellerId');
+      return {
+        success: false,
+        message: 'No se puede crear un pedido sin la autenticación del vendedor',
+      };
+    }
+
+    // Validar formato de sellerId (debe ser un ID numérico válido)
+    if (!/^\d+$/.test(sellerId) && sellerId !== 'default_seller') {
+      console.error('[API] ERROR: sellerId inválido:', sellerId);
+      return {
+        success: false,
+        message: 'ID de vendedor inválido',
+      };
+    }
+
     const url = `${BASE_URL}/pedido`;
     const headers = {
       'Content-Type': 'application/json',

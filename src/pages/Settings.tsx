@@ -54,7 +54,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-10 max-w-2xl">
+    <div className="space-y-8 animate-fade-in pb-10">
       <h2 id="settings-title" className="text-2xl font-bold flex items-center gap-3">
         <SettingsIcon className="text-primary" size={24} /> Configuraciones
       </h2>

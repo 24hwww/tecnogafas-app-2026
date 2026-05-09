@@ -115,8 +115,23 @@ export default function Checkout() {
     setIsLoading(true);
     try {
       const sellerInfo = await apiService.loginSeller(globalPin);
-      if (!sellerInfo) {
+      if (!sellerInfo || !sellerInfo.id) {
+        console.error('[Checkout] ERROR: Login falló o no devolvió sellerId válido');
         setGlobalPin(null);
+        setIsConfirmModalOpen(false);
+        setIsPinModalOpen(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // VALIDACIÓN CRÍTICA: Asegurar que el sellerId sea válido
+      if (sellerInfo.id === 'default_seller' || sellerInfo.id.trim() === '') {
+        console.error('[Checkout] ERROR: sellerId inválido después del login:', sellerInfo.id);
+        setOrderFeedback({
+          title: 'Error de Autenticación',
+          message: 'No se pudo obtener un ID de vendedor válido. Por favor, intente nuevamente.',
+          type: 'error',
+        });
         setIsConfirmModalOpen(false);
         setIsPinModalOpen(true);
         setIsLoading(false);
@@ -341,6 +356,20 @@ export default function Checkout() {
   const executeCreateOrder = async (sellerId: string) => {
     setIsSendingOrder(true);
     setIsLoading(true);
+    
+    // VALIDACIÓN CRÍTICA: Asegurar que tenemos un sellerId válido
+    if (!sellerId || sellerId.trim() === '') {
+      console.error('[Checkout] ERROR: Intento de crear pedido sin sellerId');
+      setOrderFeedback({
+        title: 'Error de Autenticación',
+        message: 'No se puede crear el pedido sin la autenticación del vendedor',
+        type: 'error',
+      });
+      setIsSendingOrder(false);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const result = await apiService.createOrder(
         selectedClient!.id,
