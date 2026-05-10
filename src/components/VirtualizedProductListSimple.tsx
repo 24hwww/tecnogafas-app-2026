@@ -11,19 +11,26 @@ interface VirtualizedProductListProps {
   isLoading?: boolean;
 }
 
-interface ListItemProps {
-  index: number;
-  style: CSSProperties;
-  data: {
-    products: Product[];
-    cart: { id: string; quantity: number }[];
-    onOpenVariationModal: (product: Product) => void;
-    addedProductId: string | null;
-  };
+interface ListItemData {
+  products: Product[];
+  cart: { id: string; quantity: number }[];
+  onOpenVariationModal: (product: Product) => void;
+  addedProductId: string | null;
 }
 
-const VirtualizedProductItem = ({ index, style, data }: ListItemProps) => {
-  const { products, cart, onOpenVariationModal, addedProductId } = data;
+interface ListItemProps extends ListItemData {
+  index: number;
+  style: CSSProperties;
+}
+
+const VirtualizedProductItem = ({
+  index,
+  style,
+  products,
+  cart,
+  onOpenVariationModal,
+  addedProductId,
+}: ListItemProps) => {
   const product = products[index];
 
   if (!product) {
@@ -119,13 +126,14 @@ export const VirtualizedProductList = memo(
 
     return (
       <div className="h-[600px]">
-        <List
-          height={600}
-          itemCount={products.length}
-          itemSize={180}
-          itemData={itemData}
+        <List<ListItemData>
+          defaultHeight={600}
+          style={{ height: 600, width: '100%' }}
+          rowCount={products.length}
+          rowHeight={180}
+          rowProps={itemData}
+          rowComponent={VirtualizedProductItem}
           className="space-y-2"
-          children={VirtualizedProductItem}
         />
       </div>
     );

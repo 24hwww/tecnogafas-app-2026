@@ -3,12 +3,26 @@
 // ============================================================================
 
 import type React from 'react';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { supabase } from '../modules/chat/lib/supabase';
 
+interface TestMessage {
+  id: string;
+  content: string;
+  created_at: string;
+}
+
+interface RealtimeTestMessage {
+  content?: string;
+}
+
+const getErrorMessage = (err: unknown): string =>
+  err instanceof Error ? err.message : 'Error desconocido';
+
 // AuthBadge component moved to module scope to prevent re-creation on every render
 interface AuthBadgeProps {
-  currentUser: any;
+  currentUser: SupabaseUser | null;
 }
 
 const AuthBadge: React.FC<AuthBadgeProps> = ({ currentUser }) => {
@@ -23,11 +37,11 @@ const AuthBadge: React.FC<AuthBadgeProps> = ({ currentUser }) => {
 
 export default function ChatTest() {
   const [status, setStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<TestMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [realtimeMessage, setRealtimeMessage] = useState<any>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [realtimeMessage, setRealtimeMessage] = useState<RealtimeTestMessage | null>(null);
+  const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -82,9 +96,9 @@ export default function ChatTest() {
 
       setStatus('success');
       console.log('✅ Conexión exitosa:', data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatus('error');
-      setError(err.message);
+      setError(getErrorMessage(err));
       console.error('❌ Error de conexión:', err);
     }
   };
@@ -100,9 +114,9 @@ export default function ChatTest() {
 
       if (error) throw error;
 
-      setMessages(data || []);
-    } catch (err: any) {
-      setError(err.message);
+      setMessages((data || []) as TestMessage[]);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     }
   };
 
@@ -140,13 +154,13 @@ export default function ChatTest() {
         return;
       }
 
-      const { data: msgData, error: insertError } = await (supabase as any)
+      const { data: msgData, error: insertError } = await supabase
         .from('messages')
         .insert({
           conversation_id: conv.id,
           content: newMessage,
           type: 'text',
-        })
+        } as never)
         .select()
         .single();
 
@@ -158,8 +172,8 @@ export default function ChatTest() {
       setNewMessage('');
       loadMessages();
       console.log('✅ Mensaje enviado:', msgData);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     }
   };
 
@@ -172,7 +186,7 @@ export default function ChatTest() {
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           console.log('📨 Mensaje en tiempo real:', payload);
-          setRealtimeMessage(payload.new);
+          setRealtimeMessage(payload.new as RealtimeTestMessage);
           loadMessages();
         },
       )
@@ -197,18 +211,18 @@ export default function ChatTest() {
         return;
       }
 
-      const { data, error } = await (supabase as any).rpc('send_notification_to_chat', {
+      const { data, error } = await supabase.rpc('send_notification_to_chat' as never, {
         p_title: '🧪 Test Sistema',
         p_message: 'Esta es una notificación de prueba desde el Bridge',
         p_type: 'system',
         p_priority: 'normal',
-      });
+      } as never);
 
       if (error) throw error;
       console.log('✅ Notificación enviada vía RPC:', data);
       loadMessages();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     }
   };
 

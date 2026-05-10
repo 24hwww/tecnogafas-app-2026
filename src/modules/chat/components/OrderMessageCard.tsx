@@ -51,7 +51,8 @@ export function OrderMessageCard({ message }: OrderMessageCardProps) {
 
   const { order_number, total, status = 'pending', customer_name, items_count, url } = orderData;
 
-  const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+  const statusConfig = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
+  if (!statusConfig) return null;
 
   return (
     <div className="bg-base-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden max-w-sm">

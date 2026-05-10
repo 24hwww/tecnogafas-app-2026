@@ -164,8 +164,8 @@ export function validateApiResponse<T>(
     return { success: true, data: undefined as T };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors
-        .map((err) => `${err.path.join('.')}: ${err.message}`)
+      const errorMessages = error.issues
+        .map((err: z.ZodIssue) => `${err.path.join('.')}: ${err.message}`)
         .join(', ');
       return { success: false, error: `Validación fallida: ${errorMessages}` };
     }
@@ -185,8 +185,8 @@ export function validateData<T>(
     return { success: true, data: validatedData };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors
-        .map((err) => `${err.path.join('.')}: ${err.message}`)
+      const errorMessages = error.issues
+        .map((err: z.ZodIssue) => `${err.path.join('.')}: ${err.message}`)
         .join(', ');
       return { success: false, error: `Validación fallida: ${errorMessages}` };
     }
@@ -207,8 +207,8 @@ export function validateArray<T>(
     return { success: true, data: validatedData };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors
-        .map((err) => `${err.path.join('.')}: ${err.message}`)
+      const errorMessages = error.issues
+        .map((err: z.ZodIssue) => `${err.path.join('.')}: ${err.message}`)
         .join(', ');
       return { success: false, error: `Validación fallida: ${errorMessages}` };
     }

@@ -89,7 +89,6 @@ class RealtimeChannelManager {
     }
 
     if (existing) {
-      // @ts-expect-error - Accediendo a propiedad interna para verificar estado real
       const state = existing.state;
       const isSubscribed = state === 'joined' || state === 'joining';
 

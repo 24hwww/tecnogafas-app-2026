@@ -144,7 +144,7 @@ function useConversationsState(currentUserId: string | null) {
   useEffect(() => {
     if (!activeConversation && conversationsHook.conversations.length > 0) {
       const notifChannel = conversationsHook.conversations.find((c) => c.slug === 'notificaciones');
-      setActiveConversationState(notifChannel || conversationsHook.conversations[0]);
+      setActiveConversationState(notifChannel ?? conversationsHook.conversations[0] ?? null);
     }
   }, [conversationsHook.conversations, activeConversation]);
 

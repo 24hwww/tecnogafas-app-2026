@@ -2,20 +2,20 @@ import { useState } from 'react';
 import { apiService } from '../services/apiService';
 
 export default function TestApiPage() {
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<Array<{ name: string; result: unknown; time: string }>>([]);
   const [sellerId, setSellerId] = useState('20061088'); // PIN del vendedor para pruebas
   const [testOrderId, setTestOrderId] = useState('26341'); // Example
 
-  const addResult = (name: string, result: any) => {
+  const addResult = (name: string, result: unknown) => {
     setResults((prev) => [...prev, { name, result, time: new Date().toLocaleTimeString() }]);
   };
 
-  const runTest = async (name: string, fn: () => Promise<any>) => {
+  const runTest = async (name: string, fn: () => Promise<unknown>) => {
     try {
       const result = await fn();
       addResult(name, result);
-    } catch (e: any) {
-      addResult(name, { error: e.message });
+    } catch (e: unknown) {
+      addResult(name, { error: e instanceof Error ? e.message : 'Error desconocido' });
     }
   };
 

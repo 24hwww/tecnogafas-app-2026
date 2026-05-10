@@ -61,11 +61,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
         try {
           const localStorageClient = localStorage.getItem('selectedClient');
           if (localStorageClient) {
-            const parsedClient = JSON.parse(localStorageClient);
-            console.log('[CartContext] Client loaded from localStorage:', parsedClient);
-            setSelectedClient(parsedClient);
-            clientLoaded = true;
-            console.log('[CartContext] Client loaded successfully from localStorage');
+            const parsedClient = JSON.parse(localStorageClient) as Partial<Client>;
+            if (parsedClient.id && parsedClient.name) {
+              const client: Client = {
+                id: parsedClient.id,
+                name: parsedClient.name,
+                email: parsedClient.email || '',
+                phone: parsedClient.phone || '',
+                address: parsedClient.address || '',
+                billing_city: parsedClient.billing_city || '',
+                billing_state: parsedClient.billing_state || '',
+                cuit: parsedClient.cuit || '',
+              };
+              console.log('[CartContext] Client loaded from localStorage:', client);
+              setSelectedClient(client);
+              clientLoaded = true;
+              console.log('[CartContext] Client loaded successfully from localStorage');
+            }
           } else {
             console.log('[CartContext] No client found in localStorage');
           }
@@ -77,7 +89,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         if (!clientLoaded) {
           try {
             let selectedClients = await appDB.selectedClient
-              .filter((client) => client.isSelected)
+                .filter((client) => client.isSelected === true || client.isSelected === 'true')
               .toArray();
             console.log(
               '[CartContext] Dexie Approach 1 - Filter by isSelected:',
@@ -110,6 +122,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
             if (selectedClients.length > 0) {
               const selectedClientRecord = selectedClients[0];
+              if (!selectedClientRecord) return;
               console.log('[CartContext] Loading client from Dexie:', selectedClientRecord);
               setSelectedClient({
                 id: selectedClientRecord.id,
@@ -381,8 +394,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
-      const { error } = await (supabase as any)
-        .from('shared_carts')
+      const sharedCartsTable = (
+        supabase as unknown as {
+          from: (table: 'shared_carts') => {
+            insert: (payload: unknown) => {
+              select: () => {
+                single: () => Promise<{ error: { message: string } | null }>;
+              };
+            };
+          };
+        }
+      ).from('shared_carts');
+
+      const { error } = await sharedCartsTable
         .insert({
           code,
           client_id: selectedClient.id,

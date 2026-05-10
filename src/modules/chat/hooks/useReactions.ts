@@ -224,7 +224,6 @@ export function useReactions({
     const channel = channelManager.getChannel(channelName);
 
     // Agregar callbacks ANTES de suscribirse, con guardas de seguridad
-    // @ts-expect-error - Accediendo a propiedad interna para máxima seguridad
     const isReady = channel.state === 'closed' || channel.state === 'errored';
 
     if (isReady) {

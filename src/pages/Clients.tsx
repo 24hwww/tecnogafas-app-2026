@@ -92,6 +92,10 @@ export default function Clients() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  const updateEditingClient = (updates: Partial<Client>) => {
+    setEditingClient((prev) => (prev ? { ...prev, ...updates } : null));
+  };
+
   // Show toast when client is selected
   useEffect(() => {
     if (selectedClient) {
@@ -105,6 +109,7 @@ export default function Clients() {
       
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [selectedClient]);
 
   const filteredClients = useMemo(() => {
@@ -182,6 +187,7 @@ export default function Clients() {
               type="button"
               onClick={() => {
                 setEditingClient({
+                  id: '',
                   name: '',
                   email: '',
                   phone: '',
@@ -335,7 +341,7 @@ export default function Clients() {
                       className="input input-bordered w-full bg-base-200/50"
                       value={editingClient?.name || ''}
                       onChange={(e) =>
-                        setEditingClient((prev) => ({ ...prev, name: e.target.value }))
+                        updateEditingClient({ name: e.target.value })
                       }
                     />
                   </div>
@@ -351,7 +357,7 @@ export default function Clients() {
                       className="input input-bordered w-full bg-base-200/50"
                       value={editingClient?.email || ''}
                       onChange={(e) =>
-                        setEditingClient((prev) => ({ ...prev, email: e.target.value }))
+                        updateEditingClient({ email: e.target.value })
                       }
                     />
                   </div>
@@ -366,7 +372,7 @@ export default function Clients() {
                         className="input input-bordered w-full bg-base-200/50"
                         value={editingClient?.phone || ''}
                         onChange={(e) =>
-                          setEditingClient((prev) => ({ ...prev, phone: e.target.value }))
+                          updateEditingClient({ phone: e.target.value })
                         }
                       />
                     </div>
@@ -380,7 +386,7 @@ export default function Clients() {
                         className="input input-bordered w-full bg-base-200/50"
                         value={editingClient?.address || ''}
                         onChange={(e) =>
-                          setEditingClient((prev) => ({ ...prev, address: e.target.value }))
+                          updateEditingClient({ address: e.target.value })
                         }
                       />
                     </div>
@@ -396,7 +402,7 @@ export default function Clients() {
                         className="input input-bordered w-full bg-base-200/50"
                         value={editingClient?.billing_city || ''}
                         onChange={(e) =>
-                          setEditingClient((prev) => ({ ...prev, billing_city: e.target.value }))
+                          updateEditingClient({ billing_city: e.target.value })
                         }
                       />
                     </div>
@@ -410,7 +416,7 @@ export default function Clients() {
                         className="select select-bordered w-full bg-base-200/50"
                         value={editingClient?.billing_state || ''}
                         onChange={(e) =>
-                          setEditingClient((prev) => ({ ...prev, billing_state: e.target.value }))
+                          updateEditingClient({ billing_state: e.target.value })
                         }
                       >
                         <option value="">Seleccionar provincia</option>
@@ -455,7 +461,7 @@ export default function Clients() {
                       className="input input-bordered w-full bg-base-200/50"
                       value={editingClient?.cuit || ''}
                       onChange={(e) =>
-                        setEditingClient((prev) => ({ ...prev, cuit: e.target.value }))
+                        updateEditingClient({ cuit: e.target.value })
                       }
                       placeholder="XX-XXXXXXXX-X"
                     />

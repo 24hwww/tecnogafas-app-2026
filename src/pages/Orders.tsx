@@ -24,7 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOrders } from '../contexts/OrdersContext';
 import { cn, formatCurrency, formatDateTimeBA } from '../lib/utils';
 import { apiService } from '../services/apiService';
-import type { Order } from '../types';
+import type { Order, Seller } from '../types';
 
 function OrderSkeleton() {
   return (
@@ -48,7 +48,7 @@ function OrderSkeleton() {
 interface OrderCardProps {
   order: Order;
   isHighlight: boolean;
-  sellers: any[];
+  sellers: Seller[];
   getOrderNumber: (title: string) => string | null;
   getSellerName: (id: string | number) => string;
   onViewDetails: (order: Order) => void;
@@ -177,7 +177,7 @@ export default function Orders() {
 
   const getOrderNumber = useCallback((title: string) => {
     const match = title.match(/#(\d+)/);
-    return match ? match[1] : null;
+    return match?.[1] ?? null;
   }, []);
 
   const translateStatus = useCallback((status: string) => {

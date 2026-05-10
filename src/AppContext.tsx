@@ -15,13 +15,20 @@ import { getPendingOrders, syncAllPendingOrders } from './services/pendingOrders
 import { appDB } from './stores/appDatabase';
 import type { Client, Product, Seller } from './types';
 
+export interface AppVersionInfo {
+  success?: boolean;
+  version?: string;
+  apk_url?: string;
+  release_notes?: string;
+}
+
 interface AppContextType {
   products: Product[];
   clients: Client[];
   sellers: Seller[];
   isLoading: boolean;
   apiError: string | null;
-  appVersionInfo: any | null;
+  appVersionInfo: AppVersionInfo | null;
   hasNewVersion: boolean;
   currentAppVersion: string | null;
   setApiError: (error: string | null) => void;
@@ -48,7 +55,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [appVersionInfo, setAppVersionInfo] = useState<any | null>(null);
+  const [appVersionInfo, setAppVersionInfo] = useState<AppVersionInfo | null>(null);
   const [hasNewVersion, setHasNewVersion] = useState(false);
   const [currentAppVersion, setCurrentAppVersion] = useState<string | null>(null);
 

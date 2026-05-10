@@ -52,7 +52,7 @@ export async function createOrderNotification(
         order_data: notificationData,
       },
       user_id: seller.id?.toString(),
-    } as any);
+    } as never);
 
     if (messageError) {
       throw messageError;
@@ -63,7 +63,7 @@ export async function createOrderNotification(
       .from('conversations')
       .update({
         last_message_at: new Date().toISOString(),
-      } as any)
+      } as never)
       .eq('id', notificationChannel.id);
 
     console.log(
@@ -109,7 +109,7 @@ async function getOrCreateNotificationChannel(): Promise<{ id: string } | null> 
         metadata: {
           auto_notifications: true,
         },
-      } as any)
+      } as never)
       .select('id')
       .single();
 
@@ -167,7 +167,7 @@ export async function createOrderStatusNotification(
         },
       },
       user_id: seller.id?.toString(),
-    } as any);
+    } as never);
 
     if (messageError) {
       throw messageError;
@@ -222,7 +222,7 @@ export async function sendCustomNotification(
         },
       },
       user_id: 'system',
-    } as any);
+    } as never);
 
     if (messageError) {
       throw messageError;

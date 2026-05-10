@@ -19,21 +19,30 @@ interface VirtualizedProductListProps {
   isLoading?: boolean;
 }
 
-interface GridItemProps {
+interface GridItemData {
+  products: Product[];
+  cart: { id: string; quantity: number }[];
+  onOpenVariationModal: (product: Product) => void;
+  addedProductId: string | null;
+  columns: number;
+}
+
+interface GridItemProps extends GridItemData {
   columnIndex: number;
   rowIndex: number;
   style: CSSProperties;
-  data: {
-    products: Product[];
-    cart: { id: string; quantity: number }[];
-    onOpenVariationModal: (product: Product) => void;
-    addedProductId: string | null;
-    columns: number;
-  };
 }
 
-const VirtualizedProductItem = ({ columnIndex, rowIndex, style, data }: GridItemProps) => {
-  const { products, cart, onOpenVariationModal, addedProductId, columns } = data;
+const VirtualizedProductItem = ({
+  columnIndex,
+  rowIndex,
+  style,
+  products,
+  cart,
+  onOpenVariationModal,
+  addedProductId,
+  columns,
+}: GridItemProps) => {
   const index = rowIndex * columns + columnIndex;
   const product = products[index];
 
@@ -143,15 +152,17 @@ export const VirtualizedProductList = memo(
 
     return (
       <div className="h-[600px]">
-        <Grid
+        <Grid<GridItemData>
           columnCount={4}
           columnWidth={280}
-          height={600}
+          defaultHeight={600}
+          defaultWidth={1120}
+          style={{ height: 600, width: '100%' }}
           rowCount={rowCount}
           rowHeight={200}
-          itemData={gridData}
+          cellProps={gridData}
+          cellComponent={VirtualizedProductItem}
           className="gap-2"
-          children={VirtualizedProductItem}
         />
       </div>
     );

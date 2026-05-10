@@ -16,6 +16,7 @@ export function ChatMessageList() {
   useEffect(() => {
     if (bottomRef.current && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
+      if (!lastMessage) return;
       // Solo auto-scroll si el mensaje es del usuario actual o es muy reciente
       if (
         lastMessage.user_id === currentUser?.id ||

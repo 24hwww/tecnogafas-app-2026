@@ -198,7 +198,6 @@ export function useTyping({ conversationId, currentUserId }: UseTypingOptions): 
     const channelName = `typing:${conversationId}`;
     const channel = channelManager.getChannel(channelName);
 
-    // @ts-expect-error
     if (channel.state === 'closed' || channel.state === 'errored') {
       channel.on(
         'postgres_changes',

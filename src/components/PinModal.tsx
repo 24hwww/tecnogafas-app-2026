@@ -2,11 +2,12 @@ import { Eye, EyeOff, FileText } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { apiService } from '../services/apiService';
+import type { Seller } from '../types';
 
 interface PinModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (seller: any, pin: string) => void;
+  onSuccess: (seller: Seller, pin: string) => void;
 }
 
 export function PinModal({ isOpen, onClose, onSuccess }: PinModalProps) {

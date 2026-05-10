@@ -3,7 +3,17 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 export interface KodularMessage {
   action: string;
-  [key: string]: any;
+  [key: string]: unknown;
+}
+
+interface KodularWindow extends Window {
+  AppInventor?: {
+    setWebViewString: (message: string) => void;
+  };
+  Capacitor?: {
+    isNative?: boolean;
+  };
+  KodularMessage?: (data: string | KodularMessage) => void;
 }
 
 class SystemBridge {
@@ -13,9 +23,10 @@ class SystemBridge {
 
   constructor() {
     this.listeners = {};
+    const bridgeWindow = typeof window !== 'undefined' ? (window as KodularWindow) : undefined;
     this.isKodular =
-      typeof window !== 'undefined' && typeof (window as any).AppInventor !== 'undefined';
-    this.isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNative;
+      typeof window !== 'undefined' && typeof bridgeWindow?.AppInventor !== 'undefined';
+    this.isCapacitor = typeof window !== 'undefined' && bridgeWindow?.Capacitor?.isNative === true;
 
     this._initGlobalListener();
     if (this.isCapacitor) {
@@ -29,7 +40,7 @@ class SystemBridge {
   _initGlobalListener() {
     if (typeof window === 'undefined') return;
 
-    (window as any).KodularMessage = (data: string | KodularMessage) => {
+    (window as KodularWindow).KodularMessage = (data: string | KodularMessage) => {
       try {
         const msg = typeof data === 'string' ? JSON.parse(data) : data;
 
@@ -60,12 +71,12 @@ class SystemBridge {
   // ─────────────────────────────
   // ENVIAR A PLATAFORMA (Kodular/Capacitor/Web)
   // ─────────────────────────────
-  send(action: string, payload: Record<string, any> = {}) {
+  send(action: string, payload: Record<string, unknown> = {}) {
     const message = JSON.stringify({ action, ...payload });
 
     if (this.isKodular) {
       try {
-        (window as any).AppInventor.setWebViewString(message);
+        (window as KodularWindow).AppInventor?.setWebViewString(message);
       } catch (e) {
         console.warn('[SystemBridge] fallback appinventor://');
         window.location.href = `appinventor://do?action=${encodeURIComponent(message)}`;
@@ -85,7 +96,7 @@ class SystemBridge {
     this.listeners[action].push(callback);
 
     return () => {
-      this.listeners[action] = this.listeners[action].filter((fn) => fn !== callback);
+      this.listeners[action] = (this.listeners[action] || []).filter((fn) => fn !== callback);
     };
   }
 

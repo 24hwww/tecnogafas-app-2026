@@ -12,7 +12,8 @@ export function TypingIndicator() {
 
   const getText = () => {
     if (typingUsers.length === 1) {
-      const name = typingUsers[0].user?.display_name || typingUsers[0].user?.username || 'Alguien';
+      const firstTypingUser = typingUsers[0];
+      const name = firstTypingUser?.user?.display_name || firstTypingUser?.user?.username || 'Alguien';
       return `${name} está escribiendo...`;
     }
     if (typingUsers.length === 2) {

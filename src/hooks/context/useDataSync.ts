@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import type { AppVersionInfo } from '../../AppContext';
 import { apiService } from '../../services/apiService';
 import { appDB } from '../../stores/appDatabase';
 import type { ApiOrder, Client, Order, Product, Seller } from '../../types';
@@ -11,7 +12,7 @@ export function useDataSync(
   setTotalOrders: (t: number) => void,
   setGrandTotalOrders: (t: number) => void,
   setSellers: (s: Seller[]) => void,
-  setAppVersionInfo: (v: unknown) => void,
+  setAppVersionInfo: (v: AppVersionInfo | null) => void,
   setCurrentAppVersion: (v: string | null) => void,
   setHasNewVersion: (h: boolean) => void,
   setIsLoading: (l: boolean) => void,

@@ -21,7 +21,7 @@ export function ChatBubble({ message, isCurrentUser, isConsecutive }: ChatBubble
     message.user_id === null || ['system', 'alert', 'notification'].includes(message.type);
   const isOrder = message.type === 'order';
   const isFile = message.type === 'file';
-  const isImage = message.type === 'image';
+  const isImage = message.type === 'media';
 
   // Estado del mensaje (para indicadores como "Seen" o "Delivered")
   const messageStatus = message.is_read ? 'Seen' : 'Delivered';

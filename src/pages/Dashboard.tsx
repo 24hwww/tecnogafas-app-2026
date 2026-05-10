@@ -23,6 +23,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { useCart } from '../contexts/CartContext';
 import { useOrders } from '../contexts/OrdersContext';
 import { cn, formatCurrency, formatTimeBA, getAnimationProps } from '../lib/utils';
+import type { Order } from '../types';
 import { appDB } from '../stores/appDatabase';
 
 /* ── Skeleton blocks ── */

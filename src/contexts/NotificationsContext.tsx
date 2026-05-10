@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { PushNotifications } from '@capacitor/push-notifications';
 import type React from 'react';
 import {
@@ -129,7 +130,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setDeployEvent(null), 10000);
   };
 
-  const globalChannelRef = useRef<any>(null);
+  const globalChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     if (!supabaseUser || !isOnline) return;
@@ -159,7 +160,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             if (payload.eventType === 'INSERT') {
               setUnreadNotifications((prev) => prev + 1);
               if (window.location.pathname !== '/chat') {
-                const msg = payload.new;
+                const msg = payload.new as { content?: string; id?: number };
                 LocalNotifications.schedule({
                   notifications: [
                     {

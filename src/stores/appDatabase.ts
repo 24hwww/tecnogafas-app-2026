@@ -24,6 +24,37 @@ import type { CartItem, Client, DraftOrder, Order, Product, Seller, SharedCart }
 // DATABASE SCHEMA
 // ============================================================================
 
+export interface LocalPendingOrder {
+  id: string;
+  sellerId: string;
+  sellerName?: string;
+  client: Client;
+  items: CartItem[];
+  details: {
+    commit?: string;
+    discount?: number | string;
+    recargo?: number | string;
+    transport?: string;
+    methodpay?: string;
+    otheremail?: string;
+    iva?: number | string;
+    sendEmail?: boolean;
+  };
+  status: 'pending' | 'syncing' | 'failed' | 'completed';
+  attemptCount: number;
+  lastError?: string;
+  lastAttemptAt?: string;
+  syncedOrderId?: string;
+  supabaseId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SelectedClientRecord extends Client {
+  isSelected?: boolean | 'true';
+  timestamp?: number;
+}
+
 export class AppDatabase extends Dexie {
   // Tablas tipadas
   profiles!: Table<Profile, string>;
@@ -40,13 +71,14 @@ export class AppDatabase extends Dexie {
 
   // Tablas de la aplicación principal
   cart!: Table<CartItem, string>;
-  selectedClient!: Table<Client, string>;
+  selectedClient!: Table<SelectedClientRecord, string>;
   products!: Table<Product, string>;
   clients!: Table<Client, string>;
   sellers!: Table<Seller, string>;
   orders!: Table<Order, string>;
   drafts!: Table<DraftOrder, string>;
   sharedCarts!: Table<SharedCart, string>;
+  pendingOrders!: Table<LocalPendingOrder, string>;
   settings!: Table<{ id: string; key: string; value: string; updated_at: string }, string>;
 
   constructor() {
@@ -104,6 +136,11 @@ export class AppDatabase extends Dexie {
 
       // Settings: UI preferences and app settings
       settings: 'id, key, updated_at',
+    });
+
+    this.version(5).stores({
+      pendingOrders:
+        'id, sellerId, status, createdAt, updatedAt, attemptCount, lastAttemptAt, syncedOrderId, supabaseId',
     });
   }
 }
@@ -605,7 +642,7 @@ export async function updateUnauthenticatedQueue(
       ...existingQueue,
       messages: [...existingQueue.messages, message],
     };
-    await appDB.unauthenticatedQueue.update(queueId, updatedQueue as any);
+    await appDB.unauthenticatedQueue.put(updatedQueue);
   } else {
     // Crear nueva cola
     const newQueue: UnauthenticatedMessageQueue = {

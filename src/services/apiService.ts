@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import {
   CustomerRequestValidator,
   EventCreateRequestValidator,
@@ -126,6 +127,7 @@ export const apiService = {
             const [key, ...valueParts] = field.split(':');
             const value = valueParts.join(':').trim();
 
+            if (!key) continue;
             switch (key.toLowerCase()) {
               case 'variation_id':
                 variation.vid = value;
@@ -275,7 +277,8 @@ export const apiService = {
     if (sellerId) url += `&seller_id=${sellerId}`;
     if (customerId) url += `&customer_id=${customerId}`;
 
-    const headers = sellerId ? { Authorization: `Bearer ${sellerId}` } : {};
+    const headers: Record<string, string> = {};
+    if (sellerId) headers.Authorization = `Bearer ${sellerId}`;
 
     const res = await customFetch(url, { headers });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
@@ -323,7 +326,8 @@ export const apiService = {
     let url = `${BASE_URL}/pedidos?page=1&per_page=5`;
     if (sellerId) url += `&seller_id=${sellerId}`;
 
-    const headers = sellerId ? { Authorization: `Bearer ${sellerId}` } : {};
+    const headers: Record<string, string> = {};
+    if (sellerId) headers.Authorization = `Bearer ${sellerId}`;
 
     const res = await customFetch(url, { headers });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
@@ -641,7 +645,7 @@ export const apiService = {
     sellerId: string,
     fullClient?: Client,
     orderTitle?: string, // Nuevo parámetro para el título del pedido
-  ): Promise<{ success: boolean; message: string; orderId?: string }> {
+  ): Promise<{ success: boolean; message: string; orderId?: string; rawData?: unknown }> {
     // VALIDACIÓN CRÍTICA: No permitir crear pedidos sin autenticación de vendedor
     if (!sellerId || sellerId.trim() === '') {
       console.error('[API] ERROR: Intento de crear pedido sin sellerId');
@@ -679,7 +683,7 @@ export const apiService = {
       send_email: details.sendEmail !== undefined ? details.sendEmail : true,
       products: items
         .map((i) => {
-          const parsedId = parseInt(i.id.toString().split('-')[0]);
+          const parsedId = parseInt(i.id.toString().split('-')[0] ?? '', 10);
           if (isNaN(parsedId)) return null;
           return {
             product_id: parsedId,
@@ -688,35 +692,33 @@ export const apiService = {
             price: i.price,
           };
         })
-        .filter((p) => p !== null),
+        .filter(
+          (
+            p,
+          ): p is {
+            product_id: number;
+            variation_id: number | undefined;
+            quantity: number;
+            price: number;
+          } => p !== null,
+        ),
     };
     const body = JSON.stringify(bodyObj);
 
-    // Helper para guardar en Supabase como fallback
-    const saveToSupabase = async () => {
-      try {
-        // Reconstruir items desde bodyObj
-        const items: CartItem[] = bodyObj.products.map((p) => ({
-          id: p.product_id?.toString() || '',
-          vid: p.variation_id?.toString(),
-          name: '', // No tenemos el nombre aquí, se completa después
-          price: p.price,
-          quantity: p.quantity,
-          stock: 0,
-          category: '',
-          description: '',
-        }));
+    const enqueuePendingOrder = async (reason: string) => {
+      const clientData: Client = fullClient || {
+        id: clientId,
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+      };
 
-        // Usar fullClient si está disponible, sino crear uno básico
-        const clientData: Client = fullClient || {
-          id: clientId,
-          name: '',
-          email: '',
-          phone: '',
-          address: '',
-        };
-
-        await savePendingOrder(sellerId, clientData, items, {
+      const pendingResult = await savePendingOrder(
+        sellerId,
+        clientData,
+        items as CartItem[],
+        {
           commit: details.commit,
           discount: details.discount,
           recargo: details.recargo,
@@ -724,55 +726,27 @@ export const apiService = {
           methodpay: details.methodpay,
           otheremail: details.otheremail,
           iva: details.iva,
-        });
-      } catch (e) {
-        console.error('[API] Error saving pending order to Supabase:', e);
+          sendEmail: details.sendEmail,
+        },
+        localStorage.getItem('seller_name') || undefined,
+      );
+
+      if (!pendingResult.success) {
+        return {
+          success: false,
+          message: pendingResult.error || 'Error al guardar pedido pendiente.',
+        };
       }
+
+      return {
+        success: false,
+        message: `${reason} El pedido quedó guardado localmente y se sincronizará automáticamente.`,
+        orderId: pendingResult.orderId,
+      };
     };
 
     if (!navigator.onLine) {
-      // Guardar en IndexedDB para sincronización offline
-      try {
-        const dbRequest = indexedDB.open('tecnogafas-sync', 2);
-
-        dbRequest.onerror = () => {
-          console.error('Failed to open IndexedDB for offline order');
-        };
-
-        dbRequest.onsuccess = (e: Event) => {
-          const db = (e.target as IDBOpenDBRequest).result;
-          const tx = db.transaction('pending-orders', 'readwrite');
-          tx.objectStore('pending-orders').put({
-            id: Date.now().toString(),
-            url,
-            headers,
-            body,
-          });
-          // Solicitar sync al Service Worker si es posible
-          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            navigator.serviceWorker.ready.then(
-              (
-                reg: ServiceWorkerRegistration & {
-                  sync?: { register: (tag: string) => Promise<void> };
-                },
-              ) => {
-                if (reg.sync) reg.sync.register('sync-orders');
-              },
-            );
-          }
-        };
-
-        // También guardar en Supabase como backup
-        await saveToSupabase();
-
-        return {
-          success: false,
-          message:
-            'Estás sin conexión. El pedido se guardó y se enviará automáticamente al recuperar red.',
-        };
-      } catch {
-        return { success: false, message: 'Error al guardar pedido offline.' };
-      }
+      return enqueuePendingOrder('Estás sin conexión.');
     }
 
     try {
@@ -782,7 +756,12 @@ export const apiService = {
         body,
       });
 
-      let data;
+      let data: {
+        message?: string;
+        error?: string;
+        order_id?: string | number;
+        data?: { message?: string; order_id?: string | number };
+      };
       try {
         data = await res.json();
       } catch {
@@ -809,7 +788,7 @@ export const apiService = {
             id: (data?.order_id || data?.data?.order_id)?.toString() || 'unknown',
             clientId: clientId.toString(),
             clientName: fullClient?.name || 'Cliente',
-            items: items.map((item) => ({
+            items: (items as CartItem[]).map((item) => ({
               productId: item.id.toString(),
               productName: item.name || 'Producto',
               quantity: item.quantity,
@@ -847,41 +826,12 @@ export const apiService = {
       return {
         success: res.ok,
         message: msg,
-        orderId: data?.order_id || data?.data?.order_id,
+        orderId: (data?.order_id || data?.data?.order_id)?.toString(),
+        rawData: data,
       };
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Error de conexión con el servidor.';
-
-      // Guardar en Supabase para reintento posterior
-      try {
-        const items: CartItem[] = bodyObj.products.map((p) => ({
-          id: p.product_id?.toString() || '',
-          vid: p.variation_id?.toString(),
-          name: '',
-          price: p.price,
-          quantity: p.quantity,
-          stock: 0,
-          category: '',
-          description: '',
-        }));
-
-        // Usar fullClient si está disponible
-        const clientData: Client = fullClient || {
-          id: clientId,
-          name: '',
-          email: '',
-          phone: '',
-          address: '',
-        };
-
-        await savePendingOrder(sellerId, clientData, items, details);
-
-        console.log('[API] Order saved to Supabase for retry after error');
-      } catch (e) {
-        console.error('[API] Error saving to Supabase after API failure:', e);
-      }
-
-      return { success: false, message: msg + ' (El pedido se guardó para reintentar)' };
+      return enqueuePendingOrder(msg);
     }
   },
 
@@ -966,7 +916,7 @@ export const apiService = {
     };
   },
 
-  async downloadOrderPdf(orderId: number, sellerId: string): Promise<Blob | false> {
+  async downloadOrderPdf(orderId: number | string, sellerId: string): Promise<Blob | false> {
     try {
       const res = await customFetch(`${BASE_URL}/pedido/${orderId}/pdf`, {
         method: 'POST',
@@ -982,6 +932,25 @@ export const apiService = {
       return await res.blob();
     } catch {
       return false;
+    }
+  },
+
+  async regenerateOrder(
+    orderId: string,
+    sellerId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await customFetch(`${BASE_URL}/pedido/${orderId}/regenerar`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sellerId}` },
+      });
+      const data = (await res.json()) as { success?: boolean; message?: string };
+      return {
+        success: res.ok && data.success !== false,
+        message: data.message || (res.ok ? 'Pedido regenerado' : 'Error al regenerar pedido'),
+      };
+    } catch {
+      return { success: false, message: 'Error de conexión' };
     }
   },
 
@@ -1090,9 +1059,6 @@ export const apiService = {
         // Lógica de orquestación centralizada
         if (data.type === 'order') {
           console.log('🔄 Evento de orden recibido, invalidando caché y refrescando pedidos...');
-          // Invalidamos caché de productos globalmente para forzar recarga de stock
-          cachedProducts = null;
-          cachedProductsTimestamp = 0;
           // Disparamos evento para que la App refresque estados si es necesario
           window.dispatchEvent(new CustomEvent('refresh-orders'));
         }
@@ -1116,10 +1082,12 @@ export const apiService = {
 
   async getSupabaseNotificationChannel(): Promise<{ data: { id: string } | null; error: unknown }> {
     const { supabase } = await import('../modules/chat/lib/supabase');
-    return supabase.from('conversations').select('id').eq('slug', 'notificaciones').single() as {
-      data: { id: string } | null;
-      error: unknown;
-    };
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('slug', 'notificaciones')
+      .single();
+    return { data, error };
   },
 
   async getSupabaseMemberStatus(
@@ -1127,12 +1095,13 @@ export const apiService = {
     userId: string,
   ): Promise<{ data: { unread_count: number } | null; error: unknown }> {
     const { supabase } = await import('../modules/chat/lib/supabase');
-    return supabase
+    const { data, error } = await supabase
       .from('conversation_members')
       .select('unread_count')
       .eq('conversation_id', conversationId)
       .eq('user_id', userId)
-      .maybeSingle() as { data: { unread_count: number } | null; error: unknown };
+      .maybeSingle();
+    return { data, error };
   },
 
   async subscribeToSupabaseTable(
@@ -1148,16 +1117,13 @@ export const apiService = {
 
     const channel = channelManager.getChannel(channelName);
 
-    // @ts-expect-error
-    if (channel.state === 'closed' || channel.state === 'errored') {
-      channel.on('postgres_changes', { event: '*', schema: 'public', table, filter }, callback);
-    }
+    channel.on('postgres_changes', { event: '*', schema: 'public', table, filter }, callback);
     await channelManager.subscribe(channelName);
 
     return channel;
   },
 
-  async unsubscribeSupabase(channel: unknown) {
+  async unsubscribeSupabase(channel: RealtimeChannel | null) {
     if (!channel) return;
     const { channelManager } = await import('../modules/chat/lib/supabase');
     await channelManager.removeChannel(channel);
@@ -1167,6 +1133,8 @@ export const apiService = {
   // SUPABASE AUTH BRIDGE
   // ============================================================================
 
-  // NOTE: Supabase authentication moved to unifiedAuthService.ts
-  // This method is deprecated - use unifiedAuthService.authenticateWithPin() instead
+  async syncSupabaseAuth(pin: string) {
+    const { unifiedAuthService } = await import('./unifiedAuthService');
+    return unifiedAuthService.authenticateWithPin(pin);
+  },
 };

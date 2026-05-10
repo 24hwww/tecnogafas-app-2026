@@ -28,7 +28,8 @@ export default function QRScanner() {
     if (!scanning || detectedCodes.length === 0) return;
 
     try {
-      const rawValue = detectedCodes[0].rawValue;
+      const rawValue = detectedCodes[0]?.rawValue;
+      if (!rawValue) return;
       console.log('QR Code detected:', rawValue);
 
       if (rawValue.includes('/shared-cart/')) {
@@ -63,7 +64,7 @@ export default function QRScanner() {
       setTimeout(() => navigate('/carrito'), 1500);
     } catch (err) {
       console.error('Error processing QR:', err);
-      const rawValue = detectedCodes[0].rawValue;
+      const rawValue = detectedCodes[0]?.rawValue || '';
       if (rawValue.includes('"items"') || rawValue.includes('/shared-cart/')) {
         setError('Error al leer los datos del carrito del código QR.');
         setScanning(false);
@@ -145,10 +146,9 @@ export default function QRScanner() {
                 <div className="relative bg-[var(--color-surface-800)] border-4 border-[var(--color-border)] rounded-[2.5rem] overflow-hidden aspect-square shadow-2xl flex items-center justify-center">
                   {scanning && (
                     <Scanner
-                      // @ts-expect-error Types mismatch with React 19
                       onScan={handleScan}
                       onError={handleError}
-                      components={{ audio: false, finder: true }}
+                      components={{ finder: true }}
                       styles={{ container: { width: '100%', height: '100%' } }}
                     />
                   )}
@@ -182,18 +182,14 @@ export default function QRScanner() {
         </AnimatePresence>
       </div>
 
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
+      <style>{`
         @keyframes scan {
           0% { top: 0; opacity: 0; }
           10% { opacity: 1; }
           90% { opacity: 1; }
           100% { top: 100%; opacity: 0; }
         }
-      `,
-        }}
-      />
+      `}</style>
     </div>
   );
 }

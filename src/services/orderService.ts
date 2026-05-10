@@ -135,67 +135,29 @@ export const orderService = {
 
     const body = JSON.stringify(bodyObj);
 
-    // Helper para guardar en Supabase como fallback
-    const saveToSupabase = async () => {
-      try {
-        // Reconstruir items desde bodyObj
-        const items: CartItem[] = bodyObj.products.map((p) => ({
-          id: p.id.toString(),
-          name: '', // No disponible en este contexto
-          category: '',
-          price: p.price,
-          stock: 0,
-          quantity: p.quantity,
-          vid: p.vid,
-          description: '', // Required property
-        }));
+    const enqueuePendingOrder = async () => {
+      const pendingItems: CartItem[] = bodyObj.products.map((p) => ({
+        id: p.id.toString(),
+        name: '',
+        category: '',
+        price: p.price,
+        stock: 0,
+        quantity: p.quantity,
+        vid: p.vid,
+        description: '',
+      }));
 
-        await savePendingOrder(
-          sellerId,
-          client || { id: clientId, name: '', email: '', phone: '', address: '' },
-          items,
-          details,
-        );
-      } catch (e) {
-        console.error('[API] Error saving pending order to Supabase:', e);
-      }
+      await savePendingOrder(
+        sellerId,
+        client || { id: clientId, name: '', email: '', phone: '', address: '' },
+        pendingItems,
+        details,
+      );
     };
 
     if (!navigator.onLine) {
-      // Guardar en IndexedDB para sincronización offline
       try {
-        const dbRequest = indexedDB.open('tecnogafas-sync', 2);
-
-        dbRequest.onerror = () => {
-          console.error('Failed to open IndexedDB for offline order');
-        };
-
-        dbRequest.onsuccess = (e: Event) => {
-          const db = (e.target as IDBOpenDBRequest).result;
-          const tx = db.transaction('pending-orders', 'readwrite');
-          tx.objectStore('pending-orders').put({
-            id: Date.now().toString(),
-            url,
-            headers,
-            body,
-          });
-          // Solicitar sync al Service Worker si es posible
-          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            navigator.serviceWorker.ready.then(
-              (
-                reg: ServiceWorkerRegistration & {
-                  sync?: { register: (tag: string) => Promise<void> };
-                },
-              ) => {
-                if (reg.sync) reg.sync.register('sync-orders');
-              },
-            );
-          }
-        };
-
-        // También guardar en Supabase como backup
-        await saveToSupabase();
-
+        await enqueuePendingOrder();
         return {
           success: false,
           message:
@@ -215,7 +177,7 @@ export const orderService = {
 
       if (!res.ok) {
         // Guardar como pendiente si falla
-        await saveToSupabase();
+        await enqueuePendingOrder();
         throw new Error(`API error: ${res.status}`);
       }
 
@@ -223,7 +185,7 @@ export const orderService = {
       return result;
     } catch (error) {
       // Guardar como pendiente ante cualquier error
-      await saveToSupabase();
+      await enqueuePendingOrder();
       return {
         success: false,
         message: 'Error de conexión. Pedido guardado para sincronización.',

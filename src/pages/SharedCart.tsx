@@ -4,7 +4,17 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { cn, formatCurrency } from '../lib/utils';
-import type { SharedCart as SharedCartType } from '../types';
+import type { CartItem, SharedCart as SharedCartType } from '../types';
+
+interface SharedCartRow {
+  id: string;
+  code: string;
+  items: CartItem[];
+  metadata?: { total?: number };
+  created_at: string;
+  expires_at: string;
+  is_active: boolean;
+}
 
 export default function SharedCart() {
   const { code } = useParams<{ code: string }>();
@@ -17,8 +27,30 @@ export default function SharedCart() {
     const loadSharedCartData = async () => {
       try {
         const { supabase } = await import('../modules/chat/lib/supabase');
-        const { data, error } = await (supabase as any)
-          .from('shared_carts')
+        const sharedCartsTable = (
+          supabase as unknown as {
+            from: (table: 'shared_carts') => {
+              select: (columns: string) => {
+                eq: (
+                  column: string,
+                  value: string | boolean | undefined,
+                ) => {
+                  eq: (
+                    column: string,
+                    value: string | boolean | undefined,
+                  ) => {
+                    single: () => Promise<{
+                      data: SharedCartRow | null;
+                      error: { message: string } | null;
+                    }>;
+                  };
+                };
+              };
+            };
+          }
+        ).from('shared_carts');
+
+        const { data, error } = await sharedCartsTable
           .select('*')
           .eq('code', code)
           .eq('is_active', true)
@@ -86,7 +118,7 @@ export default function SharedCart() {
               ? [
                   {
                     vid: item.vid.toString(),
-                    title: item.variation_name || item.name,
+                    title: item.name,
                     stock: item.quantity,
                     price: item.price,
                   },

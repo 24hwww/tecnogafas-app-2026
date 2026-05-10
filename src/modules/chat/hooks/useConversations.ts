@@ -111,7 +111,7 @@ export function useConversations(currentUserId: string | null): UseConversations
             member: {
               id: 'guest',
               conversation_id: conv.id,
-              user_id: null,
+              user_id: 'guest',
               role: 'member' as MemberRole,
               joined_at: new Date().toISOString(),
               last_read_at: new Date().toISOString(),
@@ -446,7 +446,6 @@ export function useConversations(currentUserId: string | null): UseConversations
     const channel = channelManager.getChannel(channelName);
 
     // Escuchar cambios en conversaciones, con guardas de seguridad
-    // @ts-expect-error Supabase realtime types are not fully compatible
     if (channel.state === 'closed' || channel.state === 'errored') {
       channel.on(
         'postgres_changes',

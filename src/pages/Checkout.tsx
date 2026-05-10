@@ -25,7 +25,7 @@ import { useCart } from '../contexts/CartContext';
 import { formatCurrency, formatDateBA, generateOrderTitle } from '../lib/utils';
 import { apiService } from '../services/apiService';
 import { appDB } from '../stores/appDatabase';
-import type { LastOrder, Seller } from '../types';
+import type { ApiOrder, LastOrder, OrderItem, Seller } from '../types';
 
 export default function Checkout() {
   const { cart, selectedClient, clearCart, saveDraft, drafts, currentDraftId, markDraftAsSent } =
@@ -139,7 +139,7 @@ export default function Checkout() {
       }
 
       const itemsToVerify = cart.map((item) => {
-        const baseProductId = parseInt(item.id.split('-')[0]);
+        const baseProductId = parseInt(item.id.split('-')[0] ?? '', 10);
         const verificationItem: {
           product_id: number;
           price: number;
@@ -150,7 +150,7 @@ export default function Checkout() {
           price: item.price,
           stock: item.quantity,
         };
-        if (item.vid) verificationItem.variation_id = parseInt(item.vid);
+        if (item.vid) verificationItem.variation_id = parseInt(item.vid, 10);
         return verificationItem;
       });
 
@@ -204,7 +204,7 @@ export default function Checkout() {
 
       // 4. Verificar productos
       const itemsToVerify = cart.map((item) => {
-        const baseProductId = parseInt(item.id.split('-')[0]);
+        const baseProductId = parseInt(item.id.split('-')[0] ?? '', 10);
         const verificationItem: {
           product_id: number;
           price: number;
@@ -215,7 +215,7 @@ export default function Checkout() {
           price: item.price,
           stock: item.quantity,
         };
-        if (item.vid) verificationItem.variation_id = parseInt(item.vid);
+        if (item.vid) verificationItem.variation_id = parseInt(item.vid, 10);
         return verificationItem;
       });
 
@@ -230,7 +230,7 @@ export default function Checkout() {
       }
 
       // 5. Enviar pedido al endpoint /api/pedido
-      await createOrder(sellerPin, sellerInfo);
+      await createOrder(sellerInfo.id, sellerInfo);
     } catch (error) {
       console.error('PIN validation error:', error);
       setPinError('Error de conexión');
@@ -263,7 +263,6 @@ export default function Checkout() {
         cart,
         {
           ...form,
-          total_calc: finalTotal,
           sendEmail,
           iva: form.iva || 0,
           discount: form.discount || 0,
@@ -277,9 +276,12 @@ export default function Checkout() {
         selectedClient || undefined,
       );
 
-      if (result.success) {
+      const isPendingOrder =
+        !result.success && typeof result.orderId === 'string' && result.orderId.startsWith('pending-');
+
+      if (result.success || isPendingOrder) {
         // Enviar email si está configurado
-        if (sendEmail && result.orderId) {
+        if (result.success && sendEmail && result.orderId) {
           await apiService.sendOrderEmail(result.orderId.toString(), sellerId).catch(console.error);
         }
 
@@ -297,7 +299,7 @@ export default function Checkout() {
 
         // Mostrar feedback de éxito
         setOrderFeedback({
-          title: '¡Pedido Enviado!',
+          title: isPendingOrder ? 'Pedido pendiente' : '¡Pedido Enviado!',
           message: result.message || 'El pedido se ha procesado correctamente.',
           type: 'success',
           orderId: result.orderId,
@@ -306,21 +308,31 @@ export default function Checkout() {
         // Generar título y guardar en Dexie
         const orderSequence = Date.now();
         const orderTitle = generateOrderTitle(orderSequence);
+        const orderItems: OrderItem[] = cart.map((item) => ({
+          productId: item.id,
+          productName: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          vid: item.vid,
+        }));
+
         const orderForDexie = {
           id: result.orderId?.toString() || orderSequence.toString(),
           clientId: selectedClient!.id,
           clientName: selectedClient!.name,
-          items: cart,
+          items: orderItems,
           total: finalTotal,
-          status: 'Completado' as const,
+          status: 'unattended' as const,
           createdAt: new Date().toISOString(),
           sellerId: sellerId,
           sellerName: sellerInfo?.name || '',
-          rawData: result.rawData || {},
+          rawData: (result.rawData || {}) as ApiOrder,
           title: orderTitle,
         };
 
-        await appDB.orders.add(orderForDexie);
+        if (result.success) {
+          await appDB.orders.put(orderForDexie);
+        }
 
         // Limpiar carrito y refrescar datos
         clearCart();
@@ -354,23 +366,10 @@ export default function Checkout() {
 
     try {
       // Llamar al endpoint de la API para generar el PDF
-      const response = await fetch(
-        `http://api.tecnogafas.com.ar/pedido/${orderFeedback.orderId}/pdf`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${globalPin}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      if (!response.ok) {
+      const blob = await apiService.downloadOrderPdf(orderFeedback.orderId, globalPin || '');
+      if (!blob) {
         throw new Error('Error al generar el PDF');
       }
-
-      // Obtener el PDF como blob
-      const blob = await response.blob();
 
       // Crear URL temporal y descargar
       const url = window.URL.createObjectURL(blob);

@@ -123,8 +123,8 @@ export function validateSimple<T>(
     return { success: true, data: validatedData };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors
-        .map((err) => `${err.path.join('.')}: ${err.message}`)
+      const errorMessages = error.issues
+        .map((err: z.ZodIssue) => `${err.path.join('.')}: ${err.message}`)
         .join(', ');
       return { success: false, error: `Error en ${context}: ${errorMessages}` };
     }
@@ -146,8 +146,8 @@ export function validateSimpleArray<T>(
     return { success: true, data: validatedData };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors
-        .map((err) => `${err.path.join('.')}: ${err.message}`)
+      const errorMessages = error.issues
+        .map((err: z.ZodIssue) => `${err.path.join('.')}: ${err.message}`)
         .join(', ');
       return { success: false, error: `Error en ${context}: ${errorMessages}` };
     }

@@ -12,19 +12,26 @@ interface VirtualizedClientListProps {
   isLoading?: boolean;
 }
 
-interface ListItemProps {
-  index: number;
-  style: CSSProperties;
-  data: {
-    clients: Client[];
-    selectedClient: Client | null;
-    onSelectClient: (client: Client) => void;
-    onEditClient: (client: Client) => void;
-  };
+interface ListItemData {
+  clients: Client[];
+  selectedClient: Client | null;
+  onSelectClient: (client: Client) => void;
+  onEditClient: (client: Client) => void;
 }
 
-const VirtualizedClientItem = memo(({ index, style, data }: ListItemProps) => {
-  const { clients, selectedClient, onSelectClient, onEditClient } = data;
+interface ListItemProps extends ListItemData {
+  index: number;
+  style: CSSProperties;
+}
+
+const VirtualizedClientItem = ({
+  index,
+  style,
+  clients,
+  selectedClient,
+  onSelectClient,
+  onEditClient,
+}: ListItemProps) => {
   const client = clients[index];
 
   if (!client) {
@@ -78,9 +85,7 @@ const VirtualizedClientItem = memo(({ index, style, data }: ListItemProps) => {
       </div>
     </div>
   );
-});
-
-VirtualizedClientItem.displayName = 'VirtualizedClientItem';
+};
 
 export const VirtualizedClientList = memo(
   ({
@@ -128,13 +133,14 @@ export const VirtualizedClientList = memo(
 
     return (
       <div className="h-[500px]">
-        <List
-          height={500}
-          itemCount={clients.length}
-          itemSize={160}
-          itemData={itemData}
+        <List<ListItemData>
+          defaultHeight={500}
+          style={{ height: 500, width: '100%' }}
+          rowCount={clients.length}
+          rowHeight={160}
+          rowProps={itemData}
+          rowComponent={VirtualizedClientItem}
           className="space-y-2"
-          children={VirtualizedClientItem}
         />
       </div>
     );

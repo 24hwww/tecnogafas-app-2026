@@ -34,6 +34,31 @@ import { UserStatus } from '../types';
 
 const MESSAGES_PER_PAGE = 50;
 
+function localMessageToMessage(message: LocalMessage): Message {
+  return {
+    id: message.id,
+    conversation_id: message.conversation_id,
+    parent_id: null,
+    user_id: null,
+    type: message.type,
+    content: message.content,
+    content_html: null,
+    metadata: message.metadata,
+    order_data: null,
+    alert_data: null,
+    attachments: message.attachments as Attachment[],
+    reply_count: 0,
+    reaction_count: 0,
+    is_edited: false,
+    is_deleted: false,
+    edited_at: null,
+    deleted_at: null,
+    deleted_by: null,
+    created_at: message.created_at,
+    updated_at: message.created_at,
+  };
+}
+
 interface UseMessagesOptions {
   conversationId: string | null;
   currentUserId: string | null;
@@ -92,7 +117,7 @@ export function useMessages({
         const localMessages = await getLocalMessages(conversationId);
 
         // Combinar mensajes cache y locales
-        const allMessages = [...cached, ...localMessages];
+        const allMessages = [...cached, ...localMessages.map(localMessageToMessage)];
 
         // Enriquecer con perfiles del cache
         const enriched = await enrichMessagesWithAuthors(allMessages);
@@ -148,8 +173,10 @@ export function useMessages({
           }
 
           // Actualizar cursor
-          const oldest = serverMessages[serverMessages.length - 1] as { created_at: string };
-          cursorRef.current = oldest.created_at;
+          const oldest = serverMessages[serverMessages.length - 1] as
+            | { created_at: string }
+            | undefined;
+          cursorRef.current = oldest?.created_at ?? cursorRef.current;
           setHasMore(serverMessages.length === MESSAGES_PER_PAGE);
         }
       } catch (err) {
@@ -335,7 +362,7 @@ export function useMessages({
 
       // 4. Enviar a Supabase
       try {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from('messages')
           .insert({
             conversation_id: conversationId,
@@ -344,7 +371,7 @@ export function useMessages({
             content: input.content,
             metadata: input.metadata,
             attachments: input.attachments,
-          })
+          } as never)
           .select(`
             *,
             author:profiles!messages_user_id_fkey(*)
@@ -386,13 +413,13 @@ export function useMessages({
       );
 
       try {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from('messages')
           .update({
             content: input.content,
             is_edited: true,
             edited_at: new Date().toISOString(),
-          })
+          } as never)
           .eq('id', messageId);
 
         if (error) throw error;
@@ -417,12 +444,12 @@ export function useMessages({
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
 
       try {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from('messages')
           .update({
             is_deleted: true,
             deleted_at: new Date().toISOString(),
-          })
+          } as never)
           .eq('id', messageId);
 
         if (error) throw error;
@@ -449,7 +476,6 @@ export function useMessages({
     const setupSubscription = async () => {
       const channel = channelManager.getChannel(channelName);
 
-      // @ts-expect-error
       if (channel.state === 'closed' || channel.state === 'errored') {
         channel
           .on(
@@ -475,7 +501,7 @@ export function useMessages({
               const { data: author } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('id', newMessage.user_id)
+                .eq('id', newMessage.user_id || '')
                 .single();
 
               if (author) {
@@ -544,7 +570,7 @@ export function useMessages({
       // Enviar mensajes encolados a Supabase
       for (const queuedMessage of queuedMessages) {
         try {
-          const { data, error } = await (supabase as any)
+          const { data, error } = await supabase
             .from('messages')
             .insert({
               conversation_id: queuedMessage.conversation_id,
@@ -552,7 +578,7 @@ export function useMessages({
               content: queuedMessage.content,
               metadata: queuedMessage.metadata,
               attachments: queuedMessage.attachments,
-            })
+            } as never)
             .select(`
               *,
               author:profiles!messages_user_id_fkey(*)

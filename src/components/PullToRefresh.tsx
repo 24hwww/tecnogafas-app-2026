@@ -26,15 +26,18 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
     let isPulling = false;
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (window.scrollY === 0) {
-        startY = e.touches[0].pageY;
+      const touch = e.touches[0];
+      if (window.scrollY === 0 && touch) {
+        startY = touch.pageY;
         isPulling = true;
       }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (!isPulling || isRefreshing) return;
-      const currentY = e.touches[0].pageY;
+      const touch = e.touches[0];
+      if (!touch) return;
+      const currentY = touch.pageY;
       const diff = currentY - startY;
       if (diff > 0) {
         const newY = diff ** 0.8;
