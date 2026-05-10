@@ -362,28 +362,109 @@ export default function Checkout() {
   };
 
   const generatePDF = async () => {
-    if (!orderFeedback?.orderId) return;
+    if (!lastOrder && !orderFeedback?.orderId) return;
 
     try {
-      // Llamar al endpoint de la API para generar el PDF
-      const blob = await apiService.downloadOrderPdf(orderFeedback.orderId, globalPin || '');
-      if (!blob) {
-        throw new Error('Error al generar el PDF');
+      // Cargar la plantilla HTML
+      const response = await fetch('/template-pdf.html');
+      if (!response.ok) {
+        throw new Error('Error al cargar la plantilla PDF');
+      }
+      
+      let template = await response.text();
+      
+      // Usar los datos del último pedido o del feedback actual
+      const orderData = lastOrder || {
+        client: selectedClient!,
+        items: cart,
+        details: form,
+        total: finalTotal,
+        date: new Date().toISOString(),
+      };
+
+      // Generar tabla de productos
+      const productosTable = orderData.items.map(item => `
+        <tr>
+          <td></td>
+          <td align="left">${item.name}</td>
+          <td align="right">${item.quantity}</td>
+          <td align="right">${formatCurrency(item.price)}</td>
+          <td align="right">${formatCurrency(item.price * item.quantity)}</td>
+          <td></td>
+        </tr>
+      `).join('');
+
+      // Calcular valores para el resumen
+      const subtotal = orderData.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+      const discountAmount = (subtotal * (Number(orderData.details.discount) || 0)) / 100;
+      const ivaAmount = ((subtotal - discountAmount) * (Number(orderData.details.iva) || 0)) / 100;
+      const total = subtotal - discountAmount + ivaAmount;
+      const cantidadTotal = orderData.items.reduce((acc, item) => acc + item.quantity, 0);
+
+      // Reemplazar placeholders en la plantilla
+      template = template
+        .replace(/{{cliente}}/g, orderData.client.name)
+        .replace(/{{fecha}}/g, formatDateBA(orderData.date))
+        .replace(/{{nropedido}}/g, orderFeedback?.orderId?.toString() || `local_${Date.now()}`)
+        .replace(/{{vendedor}}/g, 'Vendedor Tecnogafas')
+        .replace(/{{tabla_productos_2}}/g, productosTable)
+        .replace(/{{subtotal}}/g, formatCurrency(subtotal))
+        .replace(/{{iva}}/g, `${orderData.details.iva || 0}%`)
+        .replace(/{{descuento}}/g, `${orderData.details.discount || 0}%`)
+        .replace(/{{total}}/g, formatCurrency(total))
+        .replace(/{{cantidad_total}}/g, cantidadTotal.toString())
+        .replace(/{{observaciones}}/g, orderData.details.commit || 'Sin observaciones')
+        .replace(/{{formapago}}/g, orderData.details.methodpay || 'No especificado')
+        .replace(/{{transporte}}/g, orderData.details.transport || 'No especificado');
+
+      // Crear un elemento temporal para renderizar el HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = template;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.width = '210mm'; // Ancho A4
+      document.body.appendChild(tempDiv);
+
+      // Generar PDF usando jsPDF con html2canvas
+      const { jsPDF } = await import('jspdf');
+      const html2canvas = (await import('html2canvas')).default;
+      
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        width: tempDiv.scrollWidth,
+        height: tempDiv.scrollHeight
+      });
+
+      // Limpiar elemento temporal
+      document.body.removeChild(tempDiv);
+
+      // Crear PDF y descargar
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 210; // Ancho A4 en mm
+      const pageHeight = 297; // Altura A4 en mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
       }
 
-      // Crear URL temporal y descargar
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = `pedido_${orderFeedback.orderId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const fileName = `pedido_${orderData.client.name.replace(/\s/g, '_')}_${Date.now()}.pdf`;
+      pdf.save(fileName);
+
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      // Fallback: generar PDF local si hay error con la API
+      console.error('Error generating PDF from template:', error);
+      // Fallback: generar PDF simple si hay error
       if (lastOrder) {
         const doc = new jsPDF();
         doc.setFontSize(20);
