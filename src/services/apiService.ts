@@ -980,10 +980,28 @@ export const apiService = {
     sellerId: string,
   ): Promise<{ success: boolean; message: string; pdf_url?: string }> {
     try {
-      const res = await customFetch(`${BASE_URL}/pedido/${orderId}/enviar`, {
+      // Try the primary endpoint first
+      let res = await customFetch(`${BASE_URL}/pedido/${orderId}/enviar`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${sellerId}` },
       });
+
+      // If primary endpoint fails with 404, try alternative endpoint
+      if (res.status === 404) {
+        console.log('Primary email endpoint not found, trying alternative...');
+        res = await customFetch(`${BASE_URL}/pedido/${orderId}/email`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${sellerId}` },
+        });
+      }
+
+      // If both endpoints fail with 404, return a helpful message
+      if (res.status === 404) {
+        return {
+          success: false,
+          message: 'La función de envío de emails no está disponible en este momento. El pedido ha sido procesado correctamente.',
+        };
+      }
 
       let data;
       const text = await res.text();
@@ -994,13 +1012,6 @@ export const apiService = {
       }
 
       if (!res.ok) {
-        // Handle 404 specifically for missing endpoints
-        if (res.status === 404) {
-          return {
-            success: false,
-            message: 'Función de envío de email no disponible temporalmente. Contacte al administrador.',
-          };
-        }
         return {
           success: false,
           message: data.message || `Error al enviar email (Status: ${res.status})`,
@@ -1015,13 +1026,13 @@ export const apiService = {
       return {
         success: true,
         message: msg,
-        pdf_url: data.pdf_url, // Include pdf_url if available
+        pdf_url: data.pdf_url,
       };
     } catch (error) {
       console.error('Error sending order email:', error);
       return {
         success: false,
-        message: 'Error de conexión al enviar email',
+        message: 'Error de conexión al enviar email. El pedido ha sido procesado correctamente.',
       };
     }
   },

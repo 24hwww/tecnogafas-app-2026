@@ -51,7 +51,8 @@ export async function createOrderNotification(
         notification_type: 'new_order',
         order_data: notificationData,
       },
-      user_id: seller.id?.toString(),
+      // Ensure user_id is either a valid UUID or null for system notifications
+      user_id: seller.id && /^\d+$/.test(seller.id) ? null : seller.id?.toString(),
     } as never);
 
     if (messageError) {
@@ -166,7 +167,8 @@ export async function createOrderStatusNotification(
           },
         },
       },
-      user_id: seller.id?.toString(),
+      // Ensure user_id is either a valid UUID or null for system notifications
+      user_id: seller.id && /^\d+$/.test(seller.id) ? null : seller.id?.toString(),
     } as never);
 
     if (messageError) {

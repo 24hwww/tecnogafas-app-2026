@@ -123,14 +123,21 @@ export const unifiedAuthService = {
     }
 
     const json = await res.json();
-    if (!json.success || !json.data) {
-      console.error('[UnifiedAuth] Invalid API response format:', json);
+    if (!json.success) {
+      console.error('[UnifiedAuth] API login failed:', json.message);
+      return null;
+    }
+
+    // Handle both 'data' and 'user' response structures
+    const userData = json.data || json.user;
+    if (!userData) {
+      console.error('[UnifiedAuth] Invalid API response format - no user data:', json);
       return null;
     }
 
     return {
-      id: json.data.id.toString(),
-      name: json.data.nombre || json.data.name || '',
+      id: userData.id.toString(),
+      name: userData.nombre || userData.name || '',
     };
   },
 
